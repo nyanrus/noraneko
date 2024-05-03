@@ -195,8 +195,7 @@ async function run() {
 
   const watcher = chokidar
     .watch("src", {persistent: true})
-    .on("all", async (ev, path, stat) => {
-      console.log(ev, path, stat);
+    .on("all", async () => {
       if (watch_running) return;
       watch_running = true;
       if (browser) {
