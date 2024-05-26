@@ -5,7 +5,9 @@
 
 /*---------------------------------------------------------------- Context Menu ----------------------------------------------------------------*/
 
-const checkItems = [];
+type CheckItem = () => void;
+
+const checkItems: CheckItem[] = [];
 const contextMenuObserver = new MutationObserver(contextMenuObserverFunc);
 
 // export function addContextBox(
@@ -46,20 +48,26 @@ function contextMenuObserverFunc() {
 window.SessionStore.promiseInitialized.then(() => {
   const contentAreaContextMenu = document.getElementById(
     "contentAreaContextMenu",
-  );
+  ) as XULElement;
 
   contentAreaContextMenu.addEventListener("popupshowing", (event) => {
     const menuSeparators = document.querySelectorAll(
       "#contentAreaContextMenu > menuseparator",
     );
 
-    const screenShot = document.getElementById("context-take-screenshot");
-    if (!screenShot.hidden) {
-      screenShot.nextSibling.hidden = false;
+    const screenShot = document.getElementById(
+      "context-take-screenshot",
+    ) as HTMLElement;
+    if (!screenShot.hidden && screenShot.nextSibling) {
+      screenShot.nextSibling.getAttribute = false;
     }
 
-    if (!document.getElementById("context-take-screenshot").hidden) {
-      document.getElementById("context-sep-pdfjs-selectall").hidden = false;
+    const screenshotContextMenu = document.getElementById(
+      "context-take-screenshot",
+    ) as HTMLElement;
+
+    if (!screenshotContextMenu.hidden) {
+      screenshotContextMenu.hidden = false;
     }
 
     window.setTimeout(() => {
@@ -76,26 +84,3 @@ window.SessionStore.promiseInitialized.then(() => {
     }, 0);
   });
 });
-/********************* Share mode *********************************/
-
-const beforeElem = document.getElementById("menu_openFirefoxView");
-const addElem = window.MozXULElement.parseXULToFragment(`
-    <menuitem data-l10n-id="sharemode-menuitem" type="checkbox" id="toggle_sharemode" checked="false"
-          oncommand="addOrRemoveShareModeCSS();" accesskey="S">
-    </menuitem>
-`);
-beforeElem.after(addElem);
-
-export function addOrRemoveShareModeCSS() {
-  const cssExist = document.getElementById("sharemode");
-
-  if (!cssExist) {
-    const css = document.createElement("style");
-    css.id = "sharemode";
-    css.textContent =
-      "@import url(chrome://browser/skin/options/sharemode.css);";
-    document.head.appendChild(css);
-  } else {
-    cssExist.remove();
-  }
-}
