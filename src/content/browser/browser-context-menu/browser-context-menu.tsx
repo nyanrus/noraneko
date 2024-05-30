@@ -100,7 +100,7 @@ export const gFloorpContextMenu: {
       }
     }
 
-    async () => {
+    (async () => {
       for (const contextMenuSeparator of gFloorpContextMenu.contextMenuSeparators) {
         if (
           contextMenuSeparator.nextSibling.hidden &&
@@ -111,6 +111,6 @@ export const gFloorpContextMenu: {
           contextMenuSeparator.hidden = true;
         }
       }
-    };
+    })();
   },
 };
