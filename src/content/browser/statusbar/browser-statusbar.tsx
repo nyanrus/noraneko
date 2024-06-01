@@ -9,45 +9,17 @@ import type {} from "solid-styled-jsx";
 export const [showStatusbar, setShowStatusbar] = createSignal(
   Services.prefs.getBoolPref("browser.display.statusbar", false),
 );
-
-createEffect(() => {
-  const statuspanel_label = document.getElementById(
-    "statuspanel-label",
-  ) as XULElement;
-  const statuspanel = document.getElementById("statuspanel") as XULElement;
-  const statusText = document.getElementById("status-text") as XULElement;
-
-  Services.prefs.setBoolPref("browser.display.statusbar", showStatusbar());
-
-  if (showStatusbar()) {
-    document.getElementById("status-text")?.appendChild(statuspanel_label!);
-  } else {
-    document.getElementById("statuspanel")?.appendChild(statuspanel_label!);
-  }
-
-  const observer = new MutationObserver(() => {
-    if (statuspanel.getAttribute("inactive") === "true" && statusText) {
-      statusText.setAttribute("hidden", "true");
-    } else {
-      statusText?.removeAttribute("hidden");
-    }
-  });
-
-  observer?.disconnect();
-
-  if (showStatusbar()) {
-    observer.observe(statuspanel, { attributes: true });
-  }
-});
-
 class gFloorpStatusBarServices {
   private static instance: gFloorpStatusBarServices;
-
   public static getInstance() {
     if (!gFloorpStatusBarServices.instance) {
       gFloorpStatusBarServices.instance = new gFloorpStatusBarServices();
     }
     return gFloorpStatusBarServices.instance;
+  }
+
+  private get statusbarEnabled() {
+    return Services.prefs.getBoolPref("browser.display.statusbar", false);
   }
 
   public init() {
@@ -59,6 +31,30 @@ class gFloorpStatusBarServices {
       document.getElementById("statusBar"),
     );
 
+    createEffect(() => {
+      const statuspanel_label = document.getElementById(
+        "statuspanel-label",
+      ) as XULElement;
+      const statuspanel = document.getElementById("statuspanel") as XULElement;
+      const statusText = document.getElementById("status-text") as XULElement;
+      const observer = new MutationObserver(() => {
+        if (statuspanel.getAttribute("inactive") === "true" && statusText) {
+          statusText.setAttribute("hidden", "true");
+        } else {
+          statusText?.removeAttribute("hidden");
+        }
+      });
+
+      Services.prefs.setBoolPref("browser.display.statusbar", showStatusbar());
+      if (showStatusbar()) {
+        statusText?.appendChild(statuspanel_label!);
+        observer.observe(statuspanel, { attributes: true });
+      } else {
+        statuspanel?.appendChild(statuspanel_label!);
+        observer?.disconnect();
+      }
+    });
+
     //move elem to bottom of window
     document.body?.appendChild(document.getElementById("statusBar")!);
     this.observeStatusbar();
@@ -66,9 +62,7 @@ class gFloorpStatusBarServices {
 
   private observeStatusbar() {
     Services.prefs.addObserver("browser.display.statusbar", () =>
-      setShowStatusbar(() =>
-        Services.prefs.getBoolPref("browser.display.statusbar", false),
-      ),
+      setShowStatusbar(() => this.statusbarEnabled),
     );
   }
 }
