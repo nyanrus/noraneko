@@ -9,20 +9,20 @@ import type {} from "solid-styled-jsx";
 export const [showStatusbar, setShowStatusbar] = createSignal(
   Services.prefs.getBoolPref("browser.display.statusbar", false),
 );
-class gFloorpStatusBarServices {
-  private static instance: gFloorpStatusBarServices;
+export class gFloorpStatusBar {
+  private static instance: gFloorpStatusBar;
   public static getInstance() {
-    if (!gFloorpStatusBarServices.instance) {
-      gFloorpStatusBarServices.instance = new gFloorpStatusBarServices();
+    if (!gFloorpStatusBar.instance) {
+      gFloorpStatusBar.instance = new gFloorpStatusBar();
     }
-    return gFloorpStatusBarServices.instance;
+    return gFloorpStatusBar.instance;
   }
 
   private get statusbarEnabled() {
     return Services.prefs.getBoolPref("browser.display.statusbar", false);
   }
 
-  public init() {
+  constructor() {
     window.CustomizableUI.registerArea("statusBar", {
       type: window.CustomizableUI.TYPE_TOOLBAR,
       defaultPlacements: ["screenshot-button", "fullscreen-button"],
@@ -66,5 +66,3 @@ class gFloorpStatusBarServices {
     );
   }
 }
-
-export const gFloorpStatusBar = gFloorpStatusBarServices.getInstance();
