@@ -18,9 +18,11 @@ export async function injectManifest() {
   } catch {}
   const isWin = process.platform === "win32";
 
-  await fs.symlink(
-    "../noraneko",
-    "dist/bin/noraneko",
-    isWin ? "junction" : undefined,
-  );
+  try {
+    await fs.symlink(
+      "../noraneko",
+      "dist/bin/noraneko",
+      //isWin ? "junction" : undefined,
+    );
+  } catch {}
 }

@@ -33,7 +33,7 @@ const isExists = async (path: string) => {
 
 const binTar = "bin.tar.zst";
 const binDir = "dist/bin";
-const binPath = path.join(binDir, "firefox");
+const binPath = path.join(binDir, "firefox copy");
 const binPathExe = binPath + (process.platform === "win32" ? ".exe" : "");
 const binVersion = path.join(binDir, "nora.version.txt");
 

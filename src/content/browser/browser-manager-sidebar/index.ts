@@ -6,7 +6,6 @@ import { BMSUtils } from "./BrowserManagerSidebar";
 import { sidebar } from "./browser-manager-sidebar";
 import { sidebarContext } from "./browser-manager-sidebar-context";
 import { sidebarSelectBox } from "@content/browser/browser-webpanel/browser-webpanel";
-
 import { Sidebar3Data } from "./SidebarData";
 import { PanelWindowUtils } from "@private/browser-manager-sidebar/PanelWindowUtils";
 import { render } from "@solid-xul/solid-xul";
