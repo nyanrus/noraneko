@@ -2,8 +2,8 @@ import { setBrowserDesign } from "./setBrowserDesign";
 import { initSidebar } from "./browser-sidebar";
 import { CustomShortcutKey } from "@modules/custom-shortcut-key";
 import { initStatusbar } from "./statusbar";
-import { initBrowserContextMenu } from "./browser-context-menu";
-import { initShareMode } from "./browser-share-mode";
+import { initBrowserContextMenu } from "./context-menu";
+import { initShareMode } from "./share-mode";
 
 export default function initScripts() {
   //@ts-expect-error ii
