@@ -4,6 +4,7 @@ import { CustomShortcutKey } from "@modules/custom-shortcut-key";
 import { initStatusbar } from "./statusbar";
 import { initBrowserContextMenu } from "./browser-context-menu";
 import { initShareMode } from "./browser-share-mode";
+import { initTestButton } from "./testButton";
 
 export default function initScripts() {
   //@ts-expect-error ii
@@ -15,7 +16,7 @@ export default function initScripts() {
     //createWebpanel("tmp", "https://manatoki332.net/");
     //console.log(document.getElementById("tmp"));
     //window.gBrowserManagerSidebar = CBrowserManagerSidebar.getInstance();
-    import("./testButton");
+    initTestButton()
     initStatusbar();
     console.log("csk getinstance");
     CustomShortcutKey.getInstance();
