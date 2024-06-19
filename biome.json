@@ -9,11 +9,16 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "noForEach":"off"
+        "noForEach": "off"
       }
     }
   },
   "files": {
-    "ignore": ["bin/**", "dist/**", "node_modules/**"]
+    "ignore": [
+      "bin/**",
+      "dist/**",
+      "node_modules/**",
+      "src/components/notes/dist/**"
+    ]
   }
 }

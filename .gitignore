@@ -1,5 +1,8 @@
 /dist/
+
+### Node Modules ###
 /node_modules/
+/src/components/notes/node_modules
 
 *.tar.zst
 
