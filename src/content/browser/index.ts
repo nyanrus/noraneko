@@ -5,6 +5,10 @@ import { initStatusbar } from "./statusbar";
 import { initBrowserContextMenu } from "./browser-context-menu";
 import { initShareMode } from "./browser-share-mode";
 import { initTestButton } from "./testButton";
+import { initProfileManager } from "./profile-manager";
+import { initReverseSidebarPosition } from "./reverse-sidebar-position";
+import { initUndoClosedTab } from "./undo-closed-tab";
+import { initPrivateContainer } from "./browser-private-container";
 
 export default function initScripts() {
   //@ts-expect-error ii
@@ -12,12 +16,16 @@ export default function initScripts() {
     initBrowserContextMenu();
     setBrowserDesign();
     initShareMode();
+    initProfileManager();
+    initUndoClosedTab();
+    initReverseSidebarPosition();
 
     //createWebpanel("tmp", "https://manatoki332.net/");
     //console.log(document.getElementById("tmp"));
     //window.gBrowserManagerSidebar = CBrowserManagerSidebar.getInstance();
     initTestButton()
     initStatusbar();
+    initPrivateContainer();
     console.log("csk getinstance");
     CustomShortcutKey.getInstance();
     initSidebar();
