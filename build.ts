@@ -93,7 +93,18 @@ async function initBin() {
   }
 }
 
+async function buildSubProjects() {
+  const projects = await fg("./src/components/*/vite.config.ts");
+
+  for (const project of projects) {
+    const projectDir = path.dirname(project);
+    const projectConfig = await import(project);
+    await build(projectConfig.default);
+  }
+}
+
 async function compile() {
+  await buildSubProjects();
   await build({
     root: r("src"),
     publicDir: r("src/public"),

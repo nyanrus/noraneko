@@ -11,18 +11,18 @@
   color: var(--in-content-page-color) !important;
 }
 
-button {
+input {
   background-color: var(--in-content-box-info-background) !important;
   transition: 0.2s ease-out;
 }
 
-button:hover,
-button#memo-add:hover {
+input:hover,
+input#memo-add:hover {
   background-color: #ffffff40 !important;
 }
 
-button:active,
-button#memo-add:active {
+input:active,
+input#memo-add:active {
   background-color: #ffffff50 !important;
 }
 

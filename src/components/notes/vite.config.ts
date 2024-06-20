@@ -8,6 +8,7 @@ export default defineConfig({
     sourcemap: true,
     reportCompressedSize: false,
     minify: false,
+    outDir: "../../../dist/notes",
     rollupOptions: {
       output: {
         esModule: true,
