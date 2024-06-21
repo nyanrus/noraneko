@@ -103,7 +103,6 @@ async function buildSubProjects() {
 }
 
 async function compile() {
-  await buildSubProjects();
   await build({
     root: r("src"),
     publicDir: r("src/public"),
@@ -154,6 +153,9 @@ async function compile() {
       alias: [{ find: "@content", replacement: r("src/content") }],
     },
   });
+  // Due to build Floorp, Vite clean up dist directory
+  // We need to build subproject after main project build
+  await buildSubProjects();
 }
 
 async function run() {
