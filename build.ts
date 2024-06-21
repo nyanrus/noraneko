@@ -1,16 +1,14 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import fg from "fast-glob";
 import chokidar from "chokidar";
 import { build } from "vite";
-import solidPlugin from "vite-plugin-solid";
-import tsconfigPaths from "vite-tsconfig-paths";
 import { injectManifest } from "./scripts/inject/manifest.js";
 import { injectXHTML } from "./scripts/inject/xhtml.js";
 import { injectJavascript } from "./scripts/inject/javascript.js";
 import { $ } from "execa";
 import decompress from "decompress";
 import puppeteer, { type Browser } from "puppeteer-core";
+import viteConfig from "./vite.config.js";
 
 //? when the linux binary has published, I'll sync linux bin version
 const VERSION = process.platform === "win32" ? "001" : "000";
@@ -94,56 +92,7 @@ async function initBin() {
 }
 
 async function compile() {
-  await build({
-    root: r("src"),
-    publicDir: r("src/public"),
-    build: {
-      sourcemap: true,
-      reportCompressedSize: false,
-      minify: false,
-      cssMinify: false,
-      emptyOutDir: true,
-      assetsInlineLimit: 0,
-      modulePreload: false,
-
-      rollupOptions: {
-        //https://github.com/vitejs/vite/discussions/14454
-        preserveEntrySignatures: "allow-extension",
-        input: {
-          //index: "src/content/index.ts",
-          startupBrowser: "src/components/startup/browser/index.ts",
-          startupPreferences: "src/components/startup/preferences/index.ts",
-        },
-        output: {
-          esModule: true,
-          entryFileNames: "content/[name].js",
-        },
-      },
-      outDir: r("dist/noraneko"),
-
-      assetsDir: "content/assets",
-    },
-    css: {
-      transformer: "lightningcss",
-    },
-
-    plugins: [
-      tsconfigPaths(),
-
-      solidPlugin({
-        solid: {
-          generate: "universal",
-          moduleName: path.resolve(
-            import.meta.dirname,
-            "./src/components/solid-xul/solid-xul.ts",
-          ),
-        },
-      }),
-    ],
-    resolve: {
-      alias: [{ find: "@content", replacement: r("src/content") }],
-    },
-  });
+  await build(viteConfig);
 }
 
 async function run() {

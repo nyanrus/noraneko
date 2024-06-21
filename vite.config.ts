@@ -1,12 +1,12 @@
 import path from "node:path";
-import { defineConfig } from "vite"
-import tsconfig from 'vite-tsconfig-paths'
+import type { UserConfig } from "vite"
+import tsconfigPaths from 'vite-tsconfig-paths'
 import solidPlugin from 'vite-plugin-solid'
 
 const r = (dir: string) => {
   return path.resolve(import.meta.dirname, dir);
 };
-export default defineConfig({
+export default {
   root: r("src"),
   publicDir: r("src/public"),
   build: {
@@ -40,7 +40,7 @@ export default defineConfig({
   },
 
   plugins: [
-    tsconfig(),
+    tsconfigPaths(),
 
     solidPlugin({
       solid: {
@@ -55,4 +55,4 @@ export default defineConfig({
   resolve: {
     alias: [{ find: "@content", replacement: r("src/content") }],
   },
-})
+} satisfies UserConfig
