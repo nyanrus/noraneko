@@ -3,12 +3,13 @@ import react from "@vitejs/plugin-react-swc";
 
 export default defineConfig({
   base: "./",
+  root: "./src/components/notes/src",
   plugins: [react()],
   build: {
     sourcemap: true,
     reportCompressedSize: false,
     minify: false,
-    outDir: "../../../dist/notes",
+    outDir: "../../../../dist/noraneko/content/components/notes",
     rollupOptions: {
       output: {
         esModule: true,

@@ -1,11 +1,11 @@
 {
   "name": "notes",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build src --emptyOutDir",
+    "build": "tsc && vite build --emptyOutDir",
     "lint": "pnpm biome lint ./src ts,tsx",
     "preview": "vite preview"
   },

@@ -97,7 +97,6 @@ async function buildSubProjects() {
   const projects = await fg("./src/components/*/vite.config.ts");
 
   for (const project of projects) {
-    const projectDir = path.dirname(project);
     const projectConfig = await import(project);
     await build(projectConfig.default);
   }
