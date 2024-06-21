@@ -6,6 +6,7 @@ export default defineConfig({
   root: "./src/components/notes/src",
   plugins: [react()],
   build: {
+    emptyOutDir: true,
     sourcemap: true,
     reportCompressedSize: false,
     minify: false,
