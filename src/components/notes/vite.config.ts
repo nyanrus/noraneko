@@ -22,6 +22,9 @@ export default defineConfig({
           return `assets/${chunk.name}.js`;
         },
       },
+      watch: {
+        include: "src/components/notes/**",
+      },
     },
   },
 });

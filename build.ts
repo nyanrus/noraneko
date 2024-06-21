@@ -102,6 +102,25 @@ async function buildSubProjects() {
   }
 }
 
+async function watchSubProjects() {
+  const projects = await fg("./src/components/*/vite.config.ts");
+
+  for (const project of projects) {
+    const projectConfig = await import(project);
+    const watcher = chokidar.watch(
+      path.join(projectConfig.default.root, "./"),
+      {
+        ignored: ["**/node_modules/**", "**/dist/**"],
+        persistent: true,
+      },
+    );
+
+    watcher.on("change", async () => {
+      await build(projectConfig.default);
+    });
+  }
+}
+
 async function compile() {
   await build({
     root: r("src"),
@@ -181,11 +200,10 @@ async function run() {
 
   let browser: Browser | null = null;
   let watch_running = false;
-
   let intended_close = false;
 
   const watcher = chokidar
-    .watch("src", { persistent: true })
+    .watch("src", { persistent: true, ignored: ["src/components/notes/*"] })
     .on("all", async () => {
       if (watch_running) return;
       watch_running = true;
@@ -213,6 +231,9 @@ async function run() {
     extraPrefsFirefox: { "browser.newtabpage.enabled": true },
     defaultViewport: { height: 0, width: 0 },
   });
+
+  // Notes などのサブプロジェクトの監視
+  await watchSubProjects();
 
   await (await browser.pages())[0].goto("about:newtab");
 
