@@ -10,15 +10,15 @@ export const getOldInterfaceConfig = () => {
         case 1:
           return "photon";
         case 3:
-          return "proton";
+          return "protonfix";
         default:
           return "lepton";
       }
     case 8:
       return "fluerial";
-    default:
-      return "proton";
   }
+
+  return "proton";
 };
 
 export const getOldTabbarStyleConfig = () => {
@@ -28,21 +28,21 @@ export const getOldTabbarStyleConfig = () => {
     case 2:
       return "vertical";
     default:
-      return "default";
+      return "horizontal";
   }
 };
 
 export const getOldTabbarPositionConfig = () => {
   switch (Services.prefs.getIntPref("floorp.browser.tabbar.settings", 0)) {
     case 1:
-      return "hidden";
+      return "hide-horizontal-tabbar";
     case 2:
-      return "verticalTabOptimized";
+      return "optimise-to-vertical-tabbar";
     case 3:
-      return "bottomOfToolbar";
+      return "bottom-of-navigation-toolbar";
     case 4:
-      return "bottomOfWindow";
+      return "bottom-of-window";
     default:
-      return "top";
+      return "default";
   }
 };

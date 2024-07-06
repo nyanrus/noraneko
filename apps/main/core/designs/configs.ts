@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { z } from "zod";
 import {
   getOldInterfaceConfig,
@@ -15,18 +15,36 @@ export type zFloorpDesignConfigsType = z.infer<typeof zFloorpDesignConfigs>;
 
 export const zFloorpDesignConfigs = z.object({
   globalConfigs: z.object({
-    userInterface: z.string(),
+    userInterface: z.enum([
+      "fluerial",
+      "lepton",
+      "photon",
+      "protonfix",
+      "proton",
+    ]),
     appliedUserJs: z.string(),
   }),
   tabbar: z.object({
-    tabbarStyle: z.string(),
-    tabbarPosition: z.string(),
+    tabbarStyle: z.enum(["horizontal", "vertical", "multirow"]),
+    tabbarPosition: z.enum([
+      "hide-horizontal-tabbar",
+      "optimise-to-vertical-tabbar",
+      "bottom-of-navigation-toolbar",
+      "bottom-of-window",
+      "default",
+    ]),
     multiRowTabBar: z.object({
       maxRowEnabled: z.boolean(),
       maxRow: z.number(),
     }),
     verticalTabBar: z.object({
-      enablePadding: z.boolean(),
+      hoverEnabled: z.boolean(),
+      paddingEnabled: z.boolean(),
+      width: z.number(),
+    }),
+    tabScroll: z.object({
+      reverse: z.boolean(),
+      wrap: z.number(),
     }),
   }),
   fluerial: z.object({
@@ -53,10 +71,19 @@ const oldObjectConfigs: zFloorpDesignConfigsType = {
       ),
     },
     verticalTabBar: {
-      enablePadding: Services.prefs.getBoolPref(
+      hoverEnabled: false,
+      paddingEnabled: Services.prefs.getBoolPref(
         "floorp.verticaltab.paddingtop.enabled",
         false,
       ),
+      width: Services.prefs.getIntPref(
+        "floorp.browser.tabs.verticaltab.width",
+        200,
+      ),
+    },
+    tabScroll: {
+      reverse: Services.prefs.getBoolPref("floorp.tabscroll.reverse", false),
+      wrap: Services.prefs.getIntPref("floorp.tabscroll.wrap", 1),
     },
   },
   fluerial: {
@@ -77,10 +104,10 @@ export const [config, setConfig] = createSignal(
   ),
 );
 
-export const setGlobalDesignConfig = (
-  key: keyof zFloorpDesignConfigsType["globalConfigs"],
-  value: boolean | string | number,
-) => {
+export function setGlobalDesignConfig<
+  C extends zFloorpDesignConfigsType["globalConfigs"],
+  K extends keyof C,
+>(key: K, value: C[K]) {
   setConfig((prev) => ({
     ...prev,
     globalConfigs: {
@@ -88,11 +115,20 @@ export const setGlobalDesignConfig = (
       [key]: value,
     },
   }));
-};
+}
 
-export const setBrowserInterface = (value: string) => {
+export function setBrowserInterface(
+  value: zFloorpDesignConfigsType["globalConfigs"]["userInterface"],
+) {
   setGlobalDesignConfig("userInterface", value);
-};
+}
+
+createEffect(() => {
+  Services.prefs.setStringPref(
+    "floorp.design.configs",
+    JSON.stringify(config()),
+  );
+});
 
 Services.prefs.addObserver("floorp.design.configs", () =>
   setConfig(
