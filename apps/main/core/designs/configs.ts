@@ -15,6 +15,26 @@ const getOldConfigs = JSON.stringify({
     userInterface: "lepton",
     appliedUserJs: "",
   },
+  tabbar: {
+    tabbarStyle: "default",
+    tabbarPosition: "top",
+    multiRowTabBar: {
+      maxRowEnabled: Services.prefs.getBoolPref(
+        "floorp.browser.tabbar.multirow.max.enabled",
+        false,
+      ),
+      maxRow: Services.prefs.getIntPref(
+        "floorp.browser.tabbar.multirow.max.row",
+        3,
+      ),
+    },
+    verticalTabBar: {
+      enablePadding: Services.prefs.getBoolPref(
+        "floorp.verticaltab.paddingtop.enabled",
+        false,
+      ),
+    },
+  },
   fluerial: {
     roundVerticalTabs: false,
   },
@@ -22,10 +42,19 @@ const getOldConfigs = JSON.stringify({
 
 export const zFloorpDesignConfigs = z.object({
   globalConfigs: z.object({
-    verticalTabEnabled: z.boolean(),
-    multiRowTabEnabled: z.boolean(),
     userInterface: z.string(),
     appliedUserJs: z.string(),
+  }),
+  tabbar: z.object({
+    tabbarStyle: z.string(),
+    tabbarPosition: z.string(),
+    multiRowTabBar: z.object({
+      maxRowEnabled: z.boolean(),
+      maxRow: z.number(),
+    }),
+    verticalTabBar: z.object({
+      enablePadding: z.boolean(),
+    }),
   }),
   fluerial: z.object({
     roundVerticalTabs: z.boolean(),
