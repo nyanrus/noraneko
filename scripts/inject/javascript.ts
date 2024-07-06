@@ -93,6 +93,14 @@ function checkMemberExprId(
     case "ThisExpression": {
       return _assertSame(left, right);
     }
+    case "ConditionalExpression": {
+      return (
+        _assertSame(left, right) &&
+        checkMemberExprId(left.test, right.test) &&
+        checkMemberExprId(left.consequent, right.consequent) &&
+        checkMemberExprId(left.alternate, right.alternate)
+      );
+    }
     case "Identifier":
     case "StringLiteral":
     case "BooleanLiteral": {
@@ -465,6 +473,27 @@ export async function injectJavascript() {
         tabDataList.splice(i, 1);
       }
     }`,
+  );
+
+  await injectToJs(
+    "dist/bin/browser/chrome/browser/content/browser/browser.js",
+    `
+      var XULBrowserWindow = {
+        onLocationChange(aWebProgress, aRequest, aLocationURI, aFlags, aIsSimulated) {
+          var location = aLocationURI ? aLocationURI.spec : "";
+          #noraInject();
+        },
+      };
+    `,
+    `
+    window.gFloorpOnLocationChange.onLocationChange(
+      aWebProgress,
+      aRequest,
+      aLocationURI,
+      aFlags,
+      aIsSimulated
+    );
+    `,
   );
 
   await injectToJs(

@@ -8,6 +8,8 @@ import { initProfileManager } from "./profile-manager";
 import { initReverseSidebarPosition } from "./reverse-sidebar-position";
 import { initUndoClosedTab } from "./undo-closed-tab";
 import { initPrivateContainer } from "./browser-private-container";
+import { initSplitView } from "./browser-splitView";
+import { initFloorpLocationChange } from "./location-change";
 
 export default function initScripts() {
   //@ts-expect-error ii
@@ -18,6 +20,8 @@ export default function initScripts() {
     initProfileManager();
     initUndoClosedTab();
     initReverseSidebarPosition();
+    initSplitView();
+    initFloorpLocationChange();
 
     //createWebpanel("tmp", "https://manatoki332.net/");
     //console.log(document.getElementById("tmp"));

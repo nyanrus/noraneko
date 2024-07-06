@@ -1,0 +1,41 @@
+
+
+.deck-selected {
+  display: flex !important;
+  flex: auto !important;
+  order: 2;
+
+  &[splitview="right"] {
+    order: 4 !important;
+  }
+
+  &[splitview="left"] {
+    order: 0 !important;
+  }
+}
+
+#splitview-splitter {
+  flex: 0 !important;
+  border: none;
+}
+
+#tabbrowser-tabpanels {
+  display: flex !important;
+
+  & > * {
+    display: none;
+  }
+}
+
+.tabbrowser-tab[splitView="true"] {
+  display: flex;
+  flex-direction: row;
+
+  &:before {
+    content: "";
+    position: inherit;
+    background: red;
+    width: 2px;
+    height: inherit;
+  }
+}

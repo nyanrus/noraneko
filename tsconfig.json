@@ -4,6 +4,7 @@
     "include": ["./@types/content.d.ts", "vite/client.d.ts"]
   },
   "compilerOptions": {
+    "strictPropertyInitialization": false,
     "useDefineForClassFields": true,
     "lib": ["es2022", "DOM"],
     "module": "ESNext",
