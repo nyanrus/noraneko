@@ -17,12 +17,8 @@ export class gFloorpDesignClass {
   }
 
   constructor() {
-    gFloorpDesignClass.setBrowserDesign();
-
-    Services.obs.addObserver(
-      gFloorpDesignClass.setBrowserDesign,
-      "update-photon-pref",
-    );
+    this.setBrowserDesign();
+    Services.obs.addObserver(this.setBrowserDesign, "update-photon-pref");
 
     window.gURLBar._updateLayoutBreakoutDimensions();
     insert(
@@ -32,7 +28,7 @@ export class gFloorpDesignClass {
     );
   }
 
-  public static setBrowserDesign() {
+  public setBrowserDesign() {
     insert(
       document.head,
       <BrowserDesignElement />,

@@ -5,40 +5,13 @@
 
 import { createSignal } from "solid-js";
 import { z } from "zod";
+import {
+  getOldInterfaceConfig,
+  getOldTabbarPositionConfig,
+  getOldTabbarStyleConfig,
+} from "./old-config-migrator";
 
-type zFloorpDesignConfigsType = z.infer<typeof zFloorpDesignConfigs>;
-
-const getOldConfigs = JSON.stringify({
-  globalConfigs: {
-    verticalTabEnabled: false,
-    multiRowTabEnabled: false,
-    userInterface: "lepton",
-    appliedUserJs: "",
-  },
-  tabbar: {
-    tabbarStyle: "default",
-    tabbarPosition: "top",
-    multiRowTabBar: {
-      maxRowEnabled: Services.prefs.getBoolPref(
-        "floorp.browser.tabbar.multirow.max.enabled",
-        false,
-      ),
-      maxRow: Services.prefs.getIntPref(
-        "floorp.browser.tabbar.multirow.max.row",
-        3,
-      ),
-    },
-    verticalTabBar: {
-      enablePadding: Services.prefs.getBoolPref(
-        "floorp.verticaltab.paddingtop.enabled",
-        false,
-      ),
-    },
-  },
-  fluerial: {
-    roundVerticalTabs: false,
-  },
-});
+export type zFloorpDesignConfigsType = z.infer<typeof zFloorpDesignConfigs>;
 
 export const zFloorpDesignConfigs = z.object({
   globalConfigs: z.object({
@@ -60,6 +33,41 @@ export const zFloorpDesignConfigs = z.object({
     roundVerticalTabs: z.boolean(),
   }),
 });
+
+const oldObjectConfigs: zFloorpDesignConfigsType = {
+  globalConfigs: {
+    userInterface: getOldInterfaceConfig(),
+    appliedUserJs: "",
+  },
+  tabbar: {
+    tabbarStyle: getOldTabbarStyleConfig(),
+    tabbarPosition: getOldTabbarPositionConfig(),
+    multiRowTabBar: {
+      maxRowEnabled: Services.prefs.getBoolPref(
+        "floorp.browser.tabbar.multirow.max.enabled",
+        false,
+      ),
+      maxRow: Services.prefs.getIntPref(
+        "floorp.browser.tabbar.multirow.max.row",
+        3,
+      ),
+    },
+    verticalTabBar: {
+      enablePadding: Services.prefs.getBoolPref(
+        "floorp.verticaltab.paddingtop.enabled",
+        false,
+      ),
+    },
+  },
+  fluerial: {
+    roundVerticalTabs: Services.prefs.getBoolPref(
+      "floorp.fluerial.roundVerticalTabs",
+      false,
+    ),
+  },
+};
+
+const getOldConfigs = JSON.stringify(oldObjectConfigs);
 
 export const [config, setConfig] = createSignal(
   zFloorpDesignConfigs.parse(
