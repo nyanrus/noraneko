@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { gFloorpMultirowTabbarClass } from "./multirow-tabbar/browser-multirow-tabbar";
-import { gVerticalTabbarClass } from "./vertical-tabbar/browser-vertical-tabbar";
+import { gMultirowTabbarClass } from "./multirow-tabbar/multirow-tabbar";
+import { gVerticalTabbarClass } from "./vertical-tabbar/vertical-tabbar";
 
-export const gFloorpMultirowTabbar = gFloorpMultirowTabbarClass.getInstance();
+export const gFloorpMultirowTabbar = gMultirowTabbarClass.getInstance();
 export const gVerticalTabbar = gVerticalTabbarClass.getInstance();
