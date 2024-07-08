@@ -6,13 +6,13 @@
 import { config } from "../../design/configs";
 import { createEffect } from "solid-js";
 
-export class gFloorpMultirowTabbarClass {
-  private static instance: gFloorpMultirowTabbarClass;
+export class gMultirowTabbarClass {
+  private static instance: gMultirowTabbarClass;
   public static getInstance() {
-    if (!gFloorpMultirowTabbarClass.instance) {
-      gFloorpMultirowTabbarClass.instance = new gFloorpMultirowTabbarClass();
+    if (!gMultirowTabbarClass.instance) {
+      gMultirowTabbarClass.instance = new gMultirowTabbarClass();
     }
-    return gFloorpMultirowTabbarClass.instance;
+    return gMultirowTabbarClass.instance;
   }
 
   private get arrowScrollbox(): XULElement | null {

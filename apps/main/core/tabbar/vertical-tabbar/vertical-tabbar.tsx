@@ -6,9 +6,9 @@
 import { createEffect } from "solid-js";
 import { config, setConfig } from "../../designs/configs";
 import type { zFloorpDesignConfigsType } from "../../designs/configs";
-import verticalTabarStyle from "./browser-vertical-tabbar.css?url";
-// import verticalTabarHoverStyle from "./browser-vertical-tabbar.css?url";
 import { insert } from "@nora/solid-xul";
+import { VerticalTabbarStyle } from "./vertical-tabbar-style";
+import { VerticalTabbarSplitter } from "./vertical-tabbar-splitter";
 
 export class gVerticalTabbarClass {
   private static instance: gVerticalTabbarClass;
@@ -18,9 +18,10 @@ export class gVerticalTabbarClass {
     }
     return gVerticalTabbarClass.instance;
   }
-
-  private listeneradded = false;
-  private widthObserver = new MutationObserver(this.mutationObserverCallback);
+  private listenerAdded = false;
+  private widthObserver: null | MutationObserver = new MutationObserver(
+    this.mutationObserverCallback,
+  );
   private get tabsToolbar(): XULElement | null {
     return document.querySelector("#TabsToolbar");
   }
@@ -35,12 +36,6 @@ export class gVerticalTabbarClass {
   }
   private get tabbrowserTabs(): XULElement | null {
     return document.querySelector("#tabbrowser-tabs");
-  }
-  private get toolbarModificationStyle(): XULElement | null {
-    return document.querySelector("#verticalTabsStyle");
-  }
-  private get hoverStyleElem(): XULElement | null {
-    return document.querySelector("#floorp-vthover");
   }
   private get splitter(): XULElement | null {
     return document.querySelector("#verticaltab-splitter");
@@ -68,7 +63,6 @@ export class gVerticalTabbarClass {
       .getElementById("TabsToolbar")
       ?.setAttribute("width", config().tabbar.verticalTabBar.width.toString());
 
-    // Context menu localization
     this.tabContextCloseTabsToTheStart?.setAttribute(
       "data-lazy-l10n-id",
       "close-tabs-to-the-start-on-vertical-tab-bar",
@@ -80,19 +74,12 @@ export class gVerticalTabbarClass {
     );
 
     // fix cannot use middle click to open new tab
-    if (!this.listeneradded) {
+    if (!this.listenerAdded) {
       this.arrowscrollbox?.addEventListener("click", (event) =>
         this.mouseMiddleClickEventListener(event as MouseEvent),
       );
-      this.listeneradded = true;
+      this.listenerAdded = true;
     }
-
-    //TODO: Migrate to Solid JS style coding.
-    insert(
-      document.head,
-      <link rel="stylesheet" href={`chrome://noraneko${verticalTabarStyle}`} />,
-      document.head?.lastElementChild,
-    );
 
     // Width observer
     this.widthObserver = new MutationObserver(this.mutationObserverCallback);
@@ -102,6 +89,27 @@ export class gVerticalTabbarClass {
         attributes: true,
       });
     }
+  }
+
+  disableVerticalTabBar() {
+    this.titlebarContainer?.prepend(this.tabsToolbar || "");
+    this.arrowscrollbox?.setAttribute("orient", "horizontal");
+    this.tabbrowserTabs?.setAttribute("orient", "horizontal");
+
+    document
+      .querySelector("#TabsToolbar .toolbar-items")
+      ?.setAttribute("align", "end");
+
+    this.tabsToolbar?.setAttribute("flex", "1");
+    this.splitter?.setAttribute("hidden", "true");
+
+    if (this.widthObserver) {
+      this.widthObserver.disconnect();
+      this.widthObserver = null;
+    }
+
+    this.tabContextCloseTabsToTheStart?.removeAttribute("data-lazy-l10n-id");
+    this.tabContextCloseTabsToTheEnd?.removeAttribute("data-lazy-l10n-id");
   }
 
   private disableVerticalTabbar() {
@@ -115,6 +123,8 @@ export class gVerticalTabbarClass {
     window.gBrowser.handleNewTabMiddleClick(this.arrowscrollbox, event);
   }
 
+  //TODO: Use a better type than any
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   mutationObserverCallback(mutations: any) {
     for (const mutation of mutations) {
       if (
@@ -146,6 +156,18 @@ export class gVerticalTabbarClass {
   };
 
   constructor() {
+    insert(
+      this.browserBox,
+      <VerticalTabbarSplitter />,
+      this.browserBox?.firstElementChild,
+    );
+    insert(
+      document.head,
+      <VerticalTabbarStyle />,
+      document.head?.lastElementChild,
+    );
+
+    // listen to config changes
     createEffect(() => {
       config().tabbar.tabbarStyle === "vertical"
         ? this.enableVerticalTabbar()
