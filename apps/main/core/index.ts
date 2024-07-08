@@ -14,6 +14,7 @@ export default function initScripts() {
   SessionStore.promiseInitialized.then(() => {
     initBrowserContextMenu();
     import("./designs");
+    import("./tabbar");
 
     initShareMode();
     initProfileManager();

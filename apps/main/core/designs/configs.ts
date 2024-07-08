@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { z } from "zod";
 import {
   getOldInterfaceConfig,
@@ -26,7 +26,9 @@ export const zFloorpDesignConfigs = z.object({
       maxRow: z.number(),
     }),
     verticalTabBar: z.object({
-      enablePadding: z.boolean(),
+      hoverEnabled: z.boolean(),
+      paddingEnabled: z.boolean(),
+      width: z.number(),
     }),
   }),
   fluerial: z.object({
@@ -53,9 +55,14 @@ const oldObjectConfigs: zFloorpDesignConfigsType = {
       ),
     },
     verticalTabBar: {
-      enablePadding: Services.prefs.getBoolPref(
+      hoverEnabled: false,
+      paddingEnabled: Services.prefs.getBoolPref(
         "floorp.verticaltab.paddingtop.enabled",
         false,
+      ),
+      width: Services.prefs.getIntPref(
+        "floorp.browser.tabs.verticaltab.width",
+        200,
       ),
     },
   },
@@ -93,6 +100,13 @@ export const setGlobalDesignConfig = (
 export const setBrowserInterface = (value: string) => {
   setGlobalDesignConfig("userInterface", value);
 };
+
+createEffect(() => {
+  Services.prefs.setStringPref(
+    "floorp.design.configs",
+    JSON.stringify(config()),
+  );
+});
 
 Services.prefs.addObserver("floorp.design.configs", () =>
   setConfig(
