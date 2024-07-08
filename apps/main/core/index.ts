@@ -1,20 +1,26 @@
-import { initSidebar } from "./browser-sidebar";
+// import { initSidebar } from "./browser-sidebar";
 import { CustomShortcutKey } from "@nora/shared/custom-shortcut-key";
-import { initStatusbar } from "./statusbar";
-import { initBrowserContextMenu } from "./browser-context-menu";
-import { initShareMode } from "./browser-share-mode";
-import { initProfileManager } from "./profile-manager";
-import { initReverseSidebarPosition } from "./reverse-sidebar-position";
-import { initUndoClosedTab } from "./undo-closed-tab";
-import { initPrivateContainer } from "./browser-private-container";
-import { setBrowserInterface } from "./designs/configs";
+import { initStatusbar } from "./common/statusbar";
+import { initBrowserContextMenu } from "./common/context-menu";
+import { initShareMode } from "./common/browser-share-mode";
+import { initProfileManager } from "./common/profile-manager";
+import { initReverseSidebarPosition } from "./common/reverse-sidebar-position";
+import { initUndoClosedTab } from "./common/undo-closed-tab";
+import { initPrivateContainer } from "./common/private-container";
+import { setBrowserInterface } from "./common/designs/configs";
+import { initDesigns } from "./common/designs";
+import { initTabbar } from "./common/tabbar";
+
+console.log("run init");
 
 export default function initScripts() {
   //@ts-expect-error ii
   SessionStore.promiseInitialized.then(() => {
+    console.log("testButton");
+    import("./example/counter/index");
     initBrowserContextMenu();
-    import("./designs");
-    import("./tabbar");
+    initTabbar();
+    initDesigns();
 
     initShareMode();
     initProfileManager();
@@ -24,13 +30,12 @@ export default function initScripts() {
     //createWebpanel("tmp", "https://manatoki332.net/");
     //console.log(document.getElementById("tmp"));
     //window.gBrowserManagerSidebar = CBrowserManagerSidebar.getInstance();
-    console.log("testButton");
-    import("./testButton");
+
     initStatusbar();
     initPrivateContainer();
     console.log("csk getinstance");
     CustomShortcutKey.getInstance();
-    initSidebar();
+    //initSidebar();
 
     window.gFloorp = {
       design: {
@@ -39,3 +44,5 @@ export default function initScripts() {
     };
   });
 }
+
+console.log("import index");
