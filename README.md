@@ -1,8 +1,8 @@
-# Welcome to Noraneko Browser Repository!
+# Welcome to the Noraneko Browser Repository!
 
 <p align="center">
-<img src="docs/assets/logo_with_wordmark_light.svg#gh-light-mode-only" width="400px"></img>
-<img src="docs/assets/logo_with_wordmark_dark.svg#gh-dark-mode-only" width="400px"></img>
+<img src="docs/assets/logo_with_wordmark_light.svg#gh-light-mode-only" alt="Noraneko logo(light)" width="400px"></img>
+<img src="docs/assets/logo_with_wordmark_dark.svg#gh-dark-mode-only" alt="Noraneko logo(dark)" width="400px"></img>
 </p>
 
 > [!WARNING]
@@ -10,9 +10,9 @@
 
 Noraneko Browser is currently testbed of modern JS environment for Floorp.
 
-Star me!
+***Star me!***
 
-## How to start develop
+## How to start developing
 
 1. `pnpm install`
 
@@ -30,7 +30,16 @@ Kindly refer "How to debug" if you want to know how to use `pnpm dev`.
 4. run `pnpm dev`
 5. the browser will run and if you change files, the browser will restart.
 
-Thank you [@CutterKnife](https://github.com/CutterKnife) for the logo!
+### Linux
+
+Content to be added.
+
+### Mac
+
+Content to be added.
+
+## Credits
+Thank you ***[@CutterKnife](https://github.com/CutterKnife)*** for the logo's!
 
 ## LICENSE
-Mozilla Public License 2.0
+[Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/)
