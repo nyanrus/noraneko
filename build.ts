@@ -98,11 +98,14 @@ async function initBin() {
 
 async function run() {
   await $({ cwd: r("./apps/main") })`pnpm vite build`;
-  await initBin();
+
   console.log("inject");
-  await injectManifest();
-  await injectXHTML();
-  await injectJavascript();
+  await Promise.all([
+    initBin(),
+    injectManifest(),
+    injectXHTML(),
+    injectJavascript(),
+  ]);
 
   //await injectUserJS(`noraneko${VERSION}`);
 

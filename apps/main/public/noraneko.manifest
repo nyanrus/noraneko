@@ -1,4 +1,4 @@
-content noraneko content/
+content noraneko content/ contentaccessible=yes
 skin noraneko classic/1.0 skin/
 resource noraneko resource/ contentaccessible=yes
 

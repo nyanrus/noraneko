@@ -49,6 +49,7 @@ export default defineConfig({
       input: {
         browser: "./startup/browser/index.ts",
         preferences: "./startup/preferences/index.ts",
+        newtab: "./startup/newtab/index.ts",
       },
       output: {
         esModule: true,

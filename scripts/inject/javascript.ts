@@ -180,6 +180,7 @@ function isNoraInjectPlace(expression: swc.Expression) {
   return (
     expression.type === "CallExpression" &&
     expression.callee.type === "PrivateName" &&
+    expression.callee.id &&
     expression.callee.id.value === "noraInject"
   );
 }
