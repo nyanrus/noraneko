@@ -7,6 +7,7 @@ import { applyMixin } from "./scripts/inject/mixin-loader.js";
 import { $, type ResultPromise, type Result } from "execa";
 import decompress from "decompress";
 import puppeteer, { type Browser } from "puppeteer-core";
+import { stdout } from "node:process";
 
 //? when the linux binary has published, I'll sync linux bin version
 const VERSION = process.platform === "win32" ? "001" : "000";
@@ -236,6 +237,8 @@ async function run() {
 // run
 if (process.argv[2] && process.argv[2] === "--run") {
   run();
+} else if (process.argv[2] && process.argv[2] === "--production-build") {
+  build();
 }
 //  else if (process.argv[2] && process.argv[2] === "--production-build") {
 //   build();
