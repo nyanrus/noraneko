@@ -19,8 +19,14 @@ export const zFloorpDesignConfigs = z.object({
     appliedUserJs: z.string(),
   }),
   tabbar: z.object({
-    tabbarStyle: z.string(),
-    tabbarPosition: z.string(),
+    tabbarStyle: z.enum(["horizontal", "vertical", "multirow"]),
+    tabbarPosition: z.enum([
+      "hide-horizontal-tabbar",
+      "optimise-to-vertical-tabbar",
+      "bottom-of-nagivation-toolbar",
+      "bottom-of-window",
+      "default",
+    ]),
     multiRowTabBar: z.object({
       maxRowEnabled: z.boolean(),
       maxRow: z.number(),
@@ -29,6 +35,10 @@ export const zFloorpDesignConfigs = z.object({
       hoverEnabled: z.boolean(),
       paddingEnabled: z.boolean(),
       width: z.number(),
+    }),
+    tabScroll: z.object({
+      reverse: z.boolean(),
+      wrap: z.number(),
     }),
   }),
   fluerial: z.object({
@@ -64,6 +74,10 @@ const oldObjectConfigs: zFloorpDesignConfigsType = {
         "floorp.browser.tabs.verticaltab.width",
         200,
       ),
+    },
+    tabScroll: {
+      reverse: Services.prefs.getBoolPref("floorp.tabscroll.reverse", false),
+      wrap: Services.prefs.getIntPref("floorp.tabscroll.wrap", 1),
     },
   },
   fluerial: {

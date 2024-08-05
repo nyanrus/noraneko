@@ -28,21 +28,21 @@ export const getOldTabbarStyleConfig = () => {
     case 2:
       return "vertical";
     default:
-      return "default";
+      return "horizontal";
   }
 };
 
 export const getOldTabbarPositionConfig = () => {
   switch (Services.prefs.getIntPref("floorp.browser.tabbar.settings", 0)) {
     case 1:
-      return "hidden";
+      return "hide-horizontal-tabbar";
     case 2:
-      return "verticalTabOptimized";
+      return "optimise-to-vertical-tabbar";
     case 3:
-      return "bottomOfToolbar";
+      return "bottom-of-nagivation-toolbar";
     case 4:
-      return "bottomOfWindow";
+      return "bottom-of-window";
     default:
-      return "top";
+      return "default";
   }
 };

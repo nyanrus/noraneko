@@ -5,6 +5,8 @@
 
 import { gMultirowTabbarClass } from "./multirow-tabbar/multirow-tabbar";
 import { gVerticalTabbarClass } from "./vertical-tabbar/vertical-tabbar";
+import { gTabbarStyleClass } from "./tabbbar-style/tabbar-style";
 
 export const gFloorpMultirowTabbar = gMultirowTabbarClass.getInstance();
 export const gVerticalTabbar = gVerticalTabbarClass.getInstance();
+export const gTabbarStyle = gTabbarStyleClass.getInstance();

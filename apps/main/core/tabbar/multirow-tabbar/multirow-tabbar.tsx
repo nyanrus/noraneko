@@ -47,10 +47,15 @@ export class gMultirowTabbarClass {
       "style",
       `max-height: ${this.getMultirowTabMaxHeight}px !important;`,
     );
+    this.arrowScrollbox?.style.setProperty(
+      "max-height",
+      `${this.getMultirowTabMaxHeight}px`
+    );
   }
 
   private removeMultirowTabMaxHeight() {
     this.scrollboxPart?.removeAttribute("style");
+    this.arrowScrollbox?.style.removeProperty("max-height");
   }
 
   constructor() {
