@@ -15,9 +15,13 @@ export type zFloorpDesignConfigsType = z.infer<typeof zFloorpDesignConfigs>;
 
 export const zFloorpDesignConfigs = z.object({
   globalConfigs: z.object({
-    verticalTabEnabled: z.boolean(),
-    multiRowTabEnabled: z.boolean(),
-    userInterface: z.enum(["fluerial", "lepton", "photon", "protonfix"]),
+    userInterface: z.enum([
+      "fluerial",
+      "lepton",
+      "photon",
+      "protonfix",
+      "proton",
+    ]),
     appliedUserJs: z.string(),
   }),
   tabbar: z.object({

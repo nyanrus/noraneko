@@ -10,15 +10,15 @@ export const getOldInterfaceConfig = () => {
         case 1:
           return "photon";
         case 3:
-          return "proton";
+          return "protonfix";
         default:
           return "lepton";
       }
     case 8:
       return "fluerial";
-    default:
-      return "proton";
   }
+
+  return "proton";
 };
 
 export const getOldTabbarStyleConfig = () => {
