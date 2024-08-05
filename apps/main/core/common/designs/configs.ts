@@ -22,9 +22,13 @@ const getOldConfigs = JSON.stringify({
 
 export const zFloorpDesignConfigs = z.object({
   globalConfigs: z.object({
-    verticalTabEnabled: z.boolean(),
-    multiRowTabEnabled: z.boolean(),
-    userInterface: z.enum(["fluerial", "lepton", "photon", "protonfix"]),
+    userInterface: z.enum([
+      "fluerial",
+      "lepton",
+      "photon",
+      "protonfix",
+      "proton",
+    ]),
     appliedUserJs: z.string(),
   }),
   fluerial: z.object({
