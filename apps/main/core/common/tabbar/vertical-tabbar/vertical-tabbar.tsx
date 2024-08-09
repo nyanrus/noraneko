@@ -175,3 +175,5 @@ export class gVerticalTabbarClass {
     });
   }
 }
+
+export const gVerticalTabbar = gVerticalTabbarClass.getInstance();
