@@ -3,10 +3,24 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import type { JSX } from "solid-js";
+import hideHorizontalTabbar from "./styles/hide-horizontal-tabbar.css?inline";
+import optimiseToVerticalTabbar from "./styles/optimise-vertical-tabbar.css?inline";
+import bottomOfNavigationToolbar from "./styles/bottom-of-navigation-toolbar.css?inline";
+import bottomOfWindow from "./styles/bottom-of-window.css?inline";
 
-export function TabbarStyleModifyCSSElement(props: { style: string }): JSX.Element {
-    return (
-        <link id="floorp-tabbar-modify-css" rel="stylesheet" href={`chrome://noraneko${props.style}.css`} />
-    );
+export function TabbarStyleModifyCSSElement(props: { style: string }) {
+    const styleSheet = () => {
+        switch (props.style) {
+            case "hide-horizontal-tabbar":
+                return hideHorizontalTabbar;
+            case "optimise-to-vertical-tabbar":
+                return optimiseToVerticalTabbar;
+            case "bottom-of-navigation-toolbar":
+                return bottomOfNavigationToolbar;
+            case "bottom-of-window":
+                return bottomOfWindow;
+        }
+    };
+
+    return <style id="floorp-tabbar-modify-css">{styleSheet()}</style>;
 }
