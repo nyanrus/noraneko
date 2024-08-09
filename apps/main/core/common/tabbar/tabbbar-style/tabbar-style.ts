@@ -9,39 +9,43 @@ import { checkPaddingEnabled } from "./titilebar-padding";
 import { handleOnWheel } from "./tabbar-on-wheel";
 
 export class gTabbarStyleClass {
-    private static instance: gTabbarStyleClass;
-    public static getInstance() {
-        if (!gTabbarStyleClass.instance) {
-            gTabbarStyleClass.instance = new gTabbarStyleClass();
-        }
-        return gTabbarStyleClass.instance;
+  private static instance: gTabbarStyleClass;
+  public static getInstance() {
+    if (!gTabbarStyleClass.instance) {
+      gTabbarStyleClass.instance = new gTabbarStyleClass();
+    }
+    return gTabbarStyleClass.instance;
+  }
+
+  private get tabbarWindowManageContainer() {
+    return document.querySelector(
+      "#TabsToolbar > .titlebar-buttonbox-container",
+    );
+  }
+
+  constructor() {
+    this.tabbarWindowManageContainer?.setAttribute(
+      "id",
+      "floorp-tabbar-window-manage-container",
+    );
+
+    gTabbarStyleFunctions.applyTabbarStyle();
+    checkPaddingEnabled();
+
+    const tabBrowserTabs = document.querySelector(
+      "#tabbrowser-tabs",
+    ) as XULElement;
+    if (tabBrowserTabs) {
+      tabBrowserTabs.on_wheel = (event: WheelEvent) => {
+        handleOnWheel(event, tabBrowserTabs);
+      };
     }
 
-    private get tabbarWindowManageContainer() {
-        return document.querySelector(
-            "#TabsToolbar > .titlebar-buttonbox-container"
-        );
-    }
-
-    constructor() {
-        this.tabbarWindowManageContainer?.setAttribute(
-            "id",
-            "floorp-tabbar-window-manage-container"
-        );
-
-        gTabbarStyleFunctions.applyTabbarStyle();
-        checkPaddingEnabled();
-
-        const tabBrowserTabs = document.querySelector("#tabbrowser-tabs") as XULElement;
-        if (tabBrowserTabs) {
-            tabBrowserTabs.on_wheel = (event: WheelEvent) => {
-                handleOnWheel(event, tabBrowserTabs);
-            };
-        }
-
-        createEffect(() => {
-            gTabbarStyleFunctions.applyTabbarStyle();
-            checkPaddingEnabled();
-        });
-    }
+    createEffect(() => {
+      gTabbarStyleFunctions.applyTabbarStyle();
+      checkPaddingEnabled();
+    });
+  }
 }
+
+export const gTabbarStyle = gTabbarStyleClass.getInstance();
