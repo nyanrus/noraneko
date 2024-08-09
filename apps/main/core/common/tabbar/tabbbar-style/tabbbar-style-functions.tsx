@@ -6,6 +6,7 @@
 import { checkPaddingEnabled } from "./titilebar-padding";
 import { config } from "../../designs/configs";
 import { TabbarStyleModifyCSSElement } from "./tabbar-style-element";
+import { insert } from "@nora/solid-xul";
 
 class gTabbarStyleFunctionsClass {
     private static instance: gTabbarStyleFunctionsClass;
@@ -15,8 +16,6 @@ class gTabbarStyleFunctionsClass {
         }
         return gTabbarStyleFunctionsClass.instance;
     }
-
-    private modifyCSS: null | Element = null;
 
     private get PanelUIMenuButton(): XULElement | null {
         return document.querySelector("#PanelUI-menu-button");
@@ -76,16 +75,6 @@ class gTabbarStyleFunctionsClass {
     }
 
     public hideHorizontalTabbar() {
-        this.modifyCSS = document.createElement("style");
-        this.modifyCSS.id = "floorp-tabbar-modify-css";
-        this.modifyCSS.textContent = `
-          #TabsToolbar-customization-target {
-            display: none !important;
-          }
-        `;
-        document
-            .querySelector("head")
-            ?.appendChild(this.modifyCSS);
         this.tabbarElement?.setAttribute(
             "floorp-tabbar-display-style",
             "1"
@@ -98,32 +87,6 @@ class gTabbarStyleFunctionsClass {
         this.navbarElement?.appendChild(
             document.querySelector("#floorp-tabbar-window-manage-container") as Node
         );
-        this.modifyCSS = document.createElement("style");
-        this.modifyCSS.id = "floorp-tabbar-modify-css";
-        this.modifyCSS.textContent = `
-          #toolbar-menubar > .titlebar-buttonbox-container {
-            display: none !important;
-          }
-          #titlebar {
-            display: inherit;
-            appearance: none !important;
-          }
-          :root[sizemode="fullscreen"] #titlebar[id] {
-            flex-basis: auto;
-          }
-          #TabsToolbar #firefox-view-button[flex] > .toolbarbutton-icon {
-            height: 16px !important;
-            width: 16px !important;
-            padding: 0px !important;
-            margin: 0px !important;
-            margin-inline-start: 7px !important;
-          }
-        `;
-
-        document
-            .querySelector("head")
-            ?.appendChild(this.modifyCSS);
-
         checkPaddingEnabled();
     }
 
@@ -131,32 +94,12 @@ class gTabbarStyleFunctionsClass {
         if (this.isVerticalTabbar()) {
             return;
         }
-
         this.navigatorToolboxtabbarElement?.appendChild(
             this.tabbarElement as Node
         );
         this.PanelUIMenuButton?.after(
             document.querySelector("#floorp-tabbar-window-manage-container") as Node
         );
-        this.modifyCSS = document.createElement("style");
-        this.modifyCSS.id = "floorp-tabbar-modify-css";
-        this.modifyCSS.textContent = `
-              #toolbar-menubar > .titlebar-buttonbox-container {
-                display: none !important;
-              }
-              #titlebar {
-                appearance: none !important;
-              }
-              #TabsToolbar #workspace-button[label] > .toolbarbutton-icon,
-              #TabsToolbar #firefox-view-button > .toolbarbutton-icon {
-                height: 16px !important;
-                width: 16px !important;
-                padding: 0px !important;
-              }
-            `;
-        document
-            .querySelector("head")
-            ?.appendChild(this.modifyCSS);
         this.tabbarElement?.setAttribute(
             "floorp-tabbar-display-style",
             "2"
@@ -174,19 +117,6 @@ class gTabbarStyleFunctionsClass {
         this.PanelUIMenuButton?.after(
             document.querySelector("#floorp-tabbar-window-manage-container") as Node
         );
-        this.modifyCSS = document.createElement("style");
-        this.modifyCSS.id = "floorp-tabbar-modify-css";
-        this.modifyCSS.textContent = `
-            #toolbar-menubar > .titlebar-buttonbox-container {
-              display: none !important;
-            }
-            :root[inFullscreen]:not([macOSNativeFullscreen]) #titlebar {
-              display: none !important;
-            }
-          `;
-        document
-            .querySelector("head")
-            ?.appendChild(this.modifyCSS);
         this.tabbarElement?.setAttribute(
             "floorp-tabbar-display-style",
             "3"
@@ -197,6 +127,7 @@ class gTabbarStyleFunctionsClass {
 
     public applyTabbarStyle() {
         gTabbarStyleFunctions.revertToDefaultStyle();
+        insert(document.head, <TabbarStyleModifyCSSElement style={config().tabbar.tabbarPosition} />, document.head?.lastChild);
         switch (config().tabbar.tabbarPosition) {
             case "hide-horizontal-tabbar":
                 gTabbarStyleFunctions.hideHorizontalTabbar();

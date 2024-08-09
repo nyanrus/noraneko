@@ -4,10 +4,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import type { JSX } from "solid-js";
-import { config } from "../../designs/configs";
 
-export function TabbarStyleModifyCSSElement(style: string): JSX.Element {
+export function TabbarStyleModifyCSSElement(props: { style: string }): JSX.Element {
     return (
-        <link id="floorp-tabbar-modify-css" rel="stylesheet" href={`chrome://noraneko${style}`} />
+        <link id="floorp-tabbar-modify-css" rel="stylesheet" href={`chrome://noraneko${props.style}.css`} />
     );
 }
