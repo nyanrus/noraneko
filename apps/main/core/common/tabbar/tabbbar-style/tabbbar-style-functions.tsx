@@ -8,144 +8,134 @@ import { config } from "../../designs/configs";
 import { TabbarStyleModifyCSSElement } from "./tabbar-style-element";
 import { insert } from "@nora/solid-xul";
 
-class gTabbarStyleFunctionsClass {
-    private static instance: gTabbarStyleFunctionsClass;
-    public static getInstance() {
-        if (!gTabbarStyleFunctionsClass.instance) {
-            gTabbarStyleFunctionsClass.instance = new gTabbarStyleFunctionsClass();
-        }
-        return gTabbarStyleFunctionsClass.instance;
-    }
-
-    private get PanelUIMenuButton(): XULElement | null {
+export namespace gTabbarStyleFunctions {
+    function getPanelUIMenuButton(): XULElement | null {
         return document.querySelector("#PanelUI-menu-button");
     }
-    private get tabbarElement(): XULElement | null {
+    function getTabbarElement(): XULElement | null {
         return document.querySelector("#TabsToolbar");
     }
-    private get titleBarElement(): XULElement | null {
+    function getTitleBarElement(): XULElement | null {
         return document.querySelector("#titlebar");
     }
-    private get navbarElement(): XULElement | null {
+    function getNavbarElement(): XULElement | null {
         return document.querySelector("#nav-bar");
     }
-    private get navigatorToolboxtabbarElement(): XULElement | null {
+    function getNavigatorToolboxtabbarElement(): XULElement | null {
         return document.querySelector("#navigator-toolbox");
     }
-    private get browserElement(): XULElement | null {
+    function getBrowserElement(): XULElement | null {
         return document.querySelector("#browser");
     }
-    private get urlbarContainer(): XULElement | null {
+    function getUrlbarContainer(): XULElement | null {
         return document.querySelector(".urlbar-container");
     }
-    private isVerticalTabbar() {
+    function isVerticalTabbar() {
         return config().tabbar.tabbarStyle === "vertical";
     }
 
-    public revertToDefaultStyle() {
-        this.tabbarElement?.removeAttribute(
+    export function revertToDefaultStyle() {
+        getTabbarElement()?.removeAttribute(
             "floorp-tabbar-display-style"
         );
-        this.tabbarElement?.removeAttribute("hidden");
-        this.tabbarElement?.appendChild(
+        getTabbarElement()?.removeAttribute("hidden");
+        getTabbarElement()?.appendChild(
             document.querySelector("#floorp-tabbar-window-manage-container") as Node
         );
-        this.titleBarElement?.appendChild(
-            this.tabbarElement as Node
+        getTitleBarElement()?.appendChild(
+            getTabbarElement() as Node
         );
-        this.navigatorToolboxtabbarElement?.prepend(
-            this.titleBarElement as Node
+        getNavigatorToolboxtabbarElement()?.prepend(
+            getTitleBarElement() as Node
         );
         document.querySelector("#floorp-tabbar-modify-css")?.remove();
-        this.tabbarElement?.removeAttribute(
+        getTabbarElement()?.removeAttribute(
             "floorp-tabbar-display-style"
         );
-        this.urlbarContainer?.style.removeProperty("margin-top");
+        getUrlbarContainer()?.style.removeProperty("margin-top");
     }
 
-    public defaultTabbarStyle() {
-        if (this.isVerticalTabbar()) {
+    export function defaultTabbarStyle() {
+        if (isVerticalTabbar()) {
             return;
         }
 
-        this.navigatorToolboxtabbarElement?.setAttribute(
+        getNavigatorToolboxtabbarElement()?.setAttribute(
             "floorp-tabbar-display-style",
             "0"
         );
     }
 
-    public hideHorizontalTabbar() {
-        this.tabbarElement?.setAttribute(
+    export function hideHorizontalTabbar() {
+        getTabbarElement()?.setAttribute(
             "floorp-tabbar-display-style",
             "1"
         );
     }
 
-    public optimiseToVerticalTabbar() {
+    export function optimiseToVerticalTabbar() {
         //optimize vertical tabbar
-        this.tabbarElement?.setAttribute("hidden", "true");
-        this.navbarElement?.appendChild(
+        getTabbarElement()?.setAttribute("hidden", "true");
+        getNavbarElement()?.appendChild(
             document.querySelector("#floorp-tabbar-window-manage-container") as Node
         );
         checkPaddingEnabled();
     }
 
-    public bottomOfNavigationToolbar() {
-        if (this.isVerticalTabbar()) {
+    export function bottomOfNavigationToolbar() {
+        if (isVerticalTabbar()) {
             return;
         }
-        this.navigatorToolboxtabbarElement?.appendChild(
-            this.tabbarElement as Node
+        getNavigatorToolboxtabbarElement()?.appendChild(
+            getTabbarElement() as Node
         );
-        this.PanelUIMenuButton?.after(
+        getPanelUIMenuButton()?.after(
             document.querySelector("#floorp-tabbar-window-manage-container") as Node
         );
-        this.tabbarElement?.setAttribute(
+        getTabbarElement()?.setAttribute(
             "floorp-tabbar-display-style",
             "2"
         );
     }
 
-    public bottomOfWindow() {
-        if (this.isVerticalTabbar()) {
+    export function bottomOfWindow() {
+        if (isVerticalTabbar()) {
             return;
         }
 
-        this.browserElement?.after(
-            this.titleBarElement as Node
+        getBrowserElement()?.after(
+            getTitleBarElement() as Node
         );
-        this.PanelUIMenuButton?.after(
+        getPanelUIMenuButton()?.after(
             document.querySelector("#floorp-tabbar-window-manage-container") as Node
         );
-        this.tabbarElement?.setAttribute(
+        getTabbarElement()?.setAttribute(
             "floorp-tabbar-display-style",
             "3"
         );
         // set margin to the top of urlbar container & allow moving the window
-        this.urlbarContainer?.style.setProperty("margin-top", "5px");
+        getUrlbarContainer()?.style.setProperty("margin-top", "5px");
     }
 
-    public applyTabbarStyle() {
-        gTabbarStyleFunctions.revertToDefaultStyle();
+    export function applyTabbarStyle() {
+        revertToDefaultStyle();
         insert(document.head, <TabbarStyleModifyCSSElement style={config().tabbar.tabbarPosition} />, document.head?.lastChild);
         switch (config().tabbar.tabbarPosition) {
             case "hide-horizontal-tabbar":
-                gTabbarStyleFunctions.hideHorizontalTabbar();
+                hideHorizontalTabbar();
                 break;
             case "optimise-to-vertical-tabbar":
-                gTabbarStyleFunctions.optimiseToVerticalTabbar();
+                optimiseToVerticalTabbar();
                 break;
             case "bottom-of-navigation-toolbar":
-                gTabbarStyleFunctions.bottomOfNavigationToolbar();
+                bottomOfNavigationToolbar();
                 break;
             case "bottom-of-window":
-                gTabbarStyleFunctions.bottomOfWindow();
+                bottomOfWindow();
                 break;
             default:
-                gTabbarStyleFunctions.defaultTabbarStyle();
+                defaultTabbarStyle();
                 break;
         }
     }
 }
-
-export const gTabbarStyleFunctions = gTabbarStyleFunctionsClass.getInstance();
