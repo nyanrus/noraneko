@@ -47,5 +47,3 @@ export class gTabbarStyleClass {
     });
   }
 }
-
-export const gTabbarStyle = gTabbarStyleClass.getInstance();

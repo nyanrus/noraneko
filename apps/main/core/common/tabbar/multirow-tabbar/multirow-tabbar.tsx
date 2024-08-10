@@ -66,5 +66,3 @@ export class gMultirowTabbarClass {
     });
   }
 }
-
-export const gFloorpMultirowTabbar = gMultirowTabbarClass.getInstance();
