@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { createEffect, createSignal } from "solid-js";
-import type {} from "solid-styled-jsx";
+import type { } from "solid-styled-jsx";
 
 export const [showStatusbar, setShowStatusbar] = createSignal(
   Services.prefs.getBoolPref("noraneko.statusbar.enable", false),

@@ -5,23 +5,17 @@
 
 import { config } from "../../designs/configs";
 
-export const handleOnWheel = (event: WheelEvent, tabBrowserTabs: XULElement) => {
-    if (Services.prefs.getBoolPref("toolkit.tabbox.switchByScrolling")) {
-        if (
-            event.deltaY > 0 !==
-            Services.prefs.getBoolPref("floorp.tabscroll.reverse")
-        ) {
-            tabBrowserTabs?.advanceSelectedTab(
-                1,
-                config().tabbar.tabScroll.reverse
-            );
-        } else {
-            tabBrowserTabs?.advanceSelectedTab(
-                -1,
-                config().tabbar.tabScroll.wrap
-            );
-        }
-        event.preventDefault();
-        event.stopPropagation();
+export const handleOnWheel = (
+  event: WheelEvent,
+  tabBrowserTabs: XULElement,
+) => {
+  if (Services.prefs.getBoolPref("toolkit.tabbox.switchByScrolling")) {
+    if (event.deltaY > 0 !== config().tabbar.tabScroll.reverse) {
+      tabBrowserTabs?.advanceSelectedTab(1, config().tabbar.tabScroll.reverse);
+    } else {
+      tabBrowserTabs?.advanceSelectedTab(-1, config().tabbar.tabScroll.wrap);
     }
-}
+    event.preventDefault();
+    event.stopPropagation();
+  }
+};
