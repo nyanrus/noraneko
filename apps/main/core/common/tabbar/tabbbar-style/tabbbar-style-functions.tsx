@@ -135,7 +135,7 @@ class gTabbarStyleFunctionsClass {
             case "optimise-to-vertical-tabbar":
                 gTabbarStyleFunctions.optimiseToVerticalTabbar();
                 break;
-            case "bottom-of-nagivation-toolbar":
+            case "bottom-of-navigation-toolbar":
                 gTabbarStyleFunctions.bottomOfNavigationToolbar();
                 break;
             case "bottom-of-window":

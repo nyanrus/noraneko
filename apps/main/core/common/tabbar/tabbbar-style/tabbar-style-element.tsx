@@ -7,8 +7,9 @@ import hideHorizontalTabbar from "./styles/hide-horizontal-tabbar.css?inline";
 import optimiseToVerticalTabbar from "./styles/optimise-vertical-tabbar.css?inline";
 import bottomOfNavigationToolbar from "./styles/bottom-of-navigation-toolbar.css?inline";
 import bottomOfWindow from "./styles/bottom-of-window.css?inline";
+import type { zFloorpDesignConfigsType } from "@core/common/designs/configs";
 
-export function TabbarStyleModifyCSSElement(props: { style: string }) {
+export function TabbarStyleModifyCSSElement(props: { style: zFloorpDesignConfigsType["tabbar"]["tabbarPosition"] }) {
     const styleSheet = () => {
         switch (props.style) {
             case "hide-horizontal-tabbar":
