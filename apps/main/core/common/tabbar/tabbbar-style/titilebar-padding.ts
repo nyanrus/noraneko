@@ -5,9 +5,9 @@
 
 import { config } from "../../designs/configs";
 
-export const checkPaddingEnabled = () => {
+export function checkPaddingEnabled() {
   const isPaddingTopEnabled = config().tabbar.verticalTabBar.paddingEnabled;
   const titlebar: null | XULElement = document.querySelector("#titlebar");
 
   titlebar?.style.setProperty("padding", isPaddingTopEnabled ? "5px" : "0px");
-};
+}
