@@ -30,12 +30,14 @@ export async function injectManifest(
   await fs.mkdir(`${binPath}/${dirName}`, { recursive: true });
 
   await fs.writeFile(
-    `${binPath}/${dirName}/noraneko.manifest`,
-    `content noraneko content/ contentaccessible=yes
-content noraneko-startup startup/ contentaccessible=yes
-skin noraneko classic/1.0 skin/
-resource noraneko resource/ contentaccessible=yes
-${!isDev ? "\ncontent noraneko-settings settings/ contentaccessible=yes" : ""}`,
+    `${binPath}/noraneko/noraneko.manifest`,
+    [
+      "content noraneko content/",
+      "content noraneko-startup startup/ contentaccessible=yes",
+      "skin noraneko classic/1.0 skin/",
+      "resource noraneko resource/ contentaccessible=yes",
+      `${!isDev ? "\ncontent noraneko-settings settings/ contentaccessible=yes" : ""}`,
+    ].join("\n"),
   );
 
   await fs.symlink(
