@@ -25,10 +25,12 @@ export async function injectManifest(binPath: string) {
 
   await fs.writeFile(
     `${binPath}/noraneko/noraneko.manifest`,
-    `content noraneko content/
-    content noraneko-startup startup/ contentaccessible=yes
-skin noraneko classic/1.0 skin/
-resource noraneko resource/ contentaccessible=yes`,
+    [
+      "content noraneko content/",
+      "content noraneko-startup startup/ contentaccessible=yes",
+      "skin noraneko classic/1.0 skin/",
+      "resource noraneko resource/ contentaccessible=yes",
+    ].join("\n"),
   );
 
   await fs.symlink(

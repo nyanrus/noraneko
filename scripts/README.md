@@ -5,7 +5,7 @@
 automatic update of css esp. lepton in build.
 not for production currently.
 
-## firefox
+## firefox-support
 
 Firefox support with the way of userChromeJS.
 Thank you for idea!

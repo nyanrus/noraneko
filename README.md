@@ -1,4 +1,4 @@
-# Welcome to Noraneko Browser Repository!
+# Welcome to Noraneko Repository!
 
 <p align="center">
 <img src="docs/assets/logo_with_wordmark_light.svg#gh-light-mode-only" width="400px"></img>
@@ -7,6 +7,9 @@
 
 > [!WARNING]
 > Experimental!
+
+This Project has two main component.
+If you interested the `noranekojs`, the firefox support of noraneko, go to the repository(TODO: place link)
 
 Noraneko Browser is currently testbed of modern JS environment for Floorp.
 
