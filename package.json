@@ -7,7 +7,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsx ./build.js",
-    "dev": "tsx ./build.js --run"
+    "dev": "tsx ./build.js --run",
+    "install-firefox": "npx @puppeteer/browsers install firefox@stable"
   },
   "keywords": [],
   "workspaces": [
@@ -40,7 +41,8 @@
     "typescript": "^5.5.4",
     "vite": "5.4.0",
     "vite-plugin-solid": "^2.10.2",
-    "vite-tsconfig-paths": "^5.0.1"
+    "vite-tsconfig-paths": "^5.0.1",
+    "@puppeteer/browsers": "^2.3.1"
   },
   "dependencies": {
     "solid-element": "^1.8.1",

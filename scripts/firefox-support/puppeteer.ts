@@ -10,20 +10,44 @@
  * * If you read this file with vscode, I recommend `aaron-bond.better-comments` extension for colored comments.
  */
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
  * @param product type of service
  * @param projectRoot projectRoot
+ * @param alias alias in @puppeteer/browser that wrote in firefox/.metadata
  * @returns Firefox folder that have firefox binary
  */
-function getFirefoxPath(product: "puppeteer", projectRoot: string) {
+async function getFirefoxPath(
+  product: "puppeteer",
+  projectRoot: string,
+  alias: string,
+) {
   switch (product) {
     case "puppeteer": {
-      //* Firefox binary are placed on `node_modules/puppeteer/.local-firefox`
+      const metadata = JSON.parse(
+        (
+          await readFile(path.resolve(projectRoot, "firefox/.metadata"))
+        ).toString(),
+      );
+      console.log(metadata);
+      const dirPrefix = (() => {
+        switch (process.platform) {
+          case "win32":
+            return "win64";
+        }
+      })();
+
+      const resolvedAlias = metadata.aliases[alias];
+      //* Firefox binary are placed on `firefox/{os}{arch}-{channel}_{version}`
       // https://github.com/puppeteer/puppeteer/issues/5743#issuecomment-621664876
-      return path.resolve(projectRoot, "node_modules/puppeteer/.local-firefox");
+      return path.resolve(
+        projectRoot,
+        "firefox",
+        `${dirPrefix}-${resolvedAlias}`,
+        "core",
+      );
     }
   }
 }
@@ -49,24 +73,40 @@ async function placePrefScript(filepath: string, configScriptPath: string) {
 }
 
 async function placeConfigScript(filepath: string) {
-  await writeFile(filepath, [
-    //* We should skip 1st line in config.js
-    // https://searchfox.org/mozilla-central/rev/a85b25946f7f8eebf466bd7ad821b82b68a9231f/extensions/pref/autoconfig/src/nsJSConfigTriggers.cpp#114
-    "// skip 1st line",
-    //* `AChrom` is path to {binary root}/browser/chrome
-    // https://searchfox.org/mozilla-central/rev/ea91f336d0004ca28c909da948cb363f3e560877/xpcom/io/nsAppDirectoryServiceDefs.h#65
-    `try {
-  Services.dirsvc.get("AChrom",Ci.nsIFile)
-  cmanifest.append('noranekojs/chrome.manifest');
+  await writeFile(
+    filepath,
+    [
+      //* We should skip 1st line in config.js
+      // https://searchfox.org/mozilla-central/rev/a85b25946f7f8eebf466bd7ad821b82b68a9231f/extensions/pref/autoconfig/src/nsJSConfigTriggers.cpp#114
+      "// skip 1st line",
+      //* `AChrom` is path to {binary root}/browser/chrome
+      // https://searchfox.org/mozilla-central/rev/ea91f336d0004ca28c909da948cb363f3e560877/xpcom/io/nsAppDirectoryServiceDefs.h#65
+      `try {
+  ChromeUtils.defineESModuleGetters(this, {
+    ConsoleAPI: 'resource://gre/modules/Console.sys.mjs',
+  });
+  (new ConsoleAPI({ consoleID: "noraneko" })).log(globalThis)
+  const cmanifest = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+  cmanifest.initWithPath(Services.dirsvc.get("AChrom",Ci.nsIFile).path+"\\\\"+"noranekojs");
+
+  cmanifest.append('chrome.manifest');
   Components.manager.QueryInterface(Ci.nsIComponentRegistrar).autoRegister(cmanifest);
 
-  Services.scriptloader.loadSubScript('chrome://userchromejs/content/BootstrapLoader.js');
-} catch(e) {console.error(e)}`,
-  ]);
+  //* If we use import, we'll get Error: No ScriptLoader found for the current context
+  Services.obs.addObserver(doc => {
+    const win = doc.defaultView;
+    if (win.location.toString() !== "chrome://browser/content/browser.xhtml") return;
+    if (win.noranekojs) return;
+    win.noranekojs = {};
+    Services.scriptloader.loadSubScript("chrome://noraneko-startup/content/chrome_root.js",win);
+  }, 'chrome-document-loaded');
+} catch(e) {throw e}`,
+    ].join("\n"),
+  );
 }
 
 async function initFirefoxSupport(product: "puppeteer", projectRoot: string) {
-  const firefoxRoot = getFirefoxPath(product, projectRoot);
+  const firefoxRoot = await getFirefoxPath(product, projectRoot, "stable");
   await mkdir(path.resolve(firefoxRoot, "defaults/pref"), { recursive: true });
 
   //* the firefox will load pref script in `$gre/defaults/pref`
@@ -86,6 +126,8 @@ async function initFirefoxSupport(product: "puppeteer", projectRoot: string) {
     [
       "content noraneko content/",
       "content noraneko-startup startup/ contentaccessible=yes",
-    ],
+    ].join("\n"),
   );
 }
+
+initFirefoxSupport("puppeteer", path.resolve(import.meta.dirname, "../.."));
