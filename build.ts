@@ -237,7 +237,7 @@ async function release(mode: "before" | "after") {
 
       //applyMixin(binPath),
     ]);
-    await injectManifest("./_dist", false);
+    await injectManifest("./_dist", true);
   } else if (mode === "after") {
     const binPath = "../obj-x86_64-pc-windows-msvc/dist/bin";
     injectXHTML(binPath);

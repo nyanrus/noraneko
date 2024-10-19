@@ -11,6 +11,7 @@
 /// <reference path="../lib.gecko.xpcom.d.ts" />
 /// <reference path="../lib.gecko.services.d.ts" />
 /// <reference path="../lib.gecko.dom.d.ts" />
+/// <reference path="../lib.gecko.tweaks.d.ts" />
 
 /* NORA START */
 declare var window: Window;
@@ -19,6 +20,8 @@ declare var Cc: nsIXPCComponents_Classes;
 declare var Cu: nsIXPCComponents_Utils;
 declare var Ci: nsIXPCComponents_Interfaces;
 declare var Services: JSServices;
+
+
 /* NORA END */
 
 // interface CSSStyleDeclaration {

@@ -1,64 +1,32 @@
-import {
-  createTRPCProxyClient,
-  createWSClient,
-  httpLink,
-  splitLink,
-  wsLink,
-} from "@trpc/client";
-import type { AppRouter } from "@nora/test/defines";
+import { createBirpc } from "birpc";
+import type {
+  ClientFunctions,
+  ServerFunctions,
+} from "../../../common/test/types";
 
-const wsClient = createWSClient({
-  url: `ws://localhost:5191`,
-});
-export const trpc = createTRPCProxyClient<AppRouter>({
-  links: [
-    // call subscriptions through websockets and the rest over http
-    splitLink({
-      condition(op) {
-        return op.type === "subscription";
-      },
-      true: wsLink({
-        client: wsClient,
-      }),
-      false: httpLink({
-        url: `http://localhost:5191`,
-      }),
-    }),
-  ],
-});
+const ws = new WebSocket("ws://localhost:5191");
 
-// async function main() {
-//   const helloResponse = await trpc.greeting.hello.query({
-//     name: "world",
-//   });
+await new Promise<void>((resolve) =>
+  ws.addEventListener("open", () => {
+    resolve();
+  }),
+);
 
-//   console.log("helloResponse", helloResponse);
+const clientFunctions: ClientFunctions = {
+  hey(name: string) {
+    return `Hey ${name} from client`;
+  },
+};
 
-//   const createPostRes = await trpc.post.createPost.mutate({
-//     title: "hello world",
-//     text: "check out https://tRPC.io",
-//   });
-//   console.log("createPostResponse", createPostRes);
+export const rpc = createBirpc<ServerFunctions, ClientFunctions>(
+  clientFunctions,
+  {
+    post: (data) => ws.send(data),
+    on: (fn) => (ws.onmessage = (ev) => fn((ev as MessageEvent).data)),
+    // these are required when using WebSocket
+    serialize: (v) => JSON.stringify(v),
+    deserialize: (v) => JSON.parse(v),
+  },
+);
 
-//   let count = 0;
-//   await new Promise<void>((resolve) => {
-//     const subscription = trpc.post.randomNumber.subscribe(undefined, {
-//       onData(data) {
-//         // ^ note that `data` here is inferred
-//         console.log("received", data);
-//         count++;
-//         if (count > 3) {
-//           // stop after 3 pulls
-//           subscription.unsubscribe();
-//           resolve();
-//         }
-//       },
-//       onError(err) {
-//         console.error("error", err);
-//       },
-//     });
-//   });
-//   wsClient.close();
-// }
-
-// void main();
+await rpc.hi("Client");

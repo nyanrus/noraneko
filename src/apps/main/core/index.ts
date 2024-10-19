@@ -21,6 +21,18 @@ const modules_keys = {
 };
 
 export default async function initScripts() {
+  import("./example/aaa");
+
+  if (import.meta.env.MODE === "test") {
+    import("./test/index");
+  }
+
+  Services.env.set(
+    "JS_CODE_COVERAGE_OUTPUT_DIR",
+    "E:/noraneko/_dist/temp/coverage",
+  );
+  Services.env.set("JSVM_RESULTS_DIR", "E:/noraneko/_dist/coverage");
+
   ChromeUtils.importESModule("resource://noraneko/BrowserGlue.sys.mjs");
   initI18N();
   Services.prefs
@@ -65,6 +77,7 @@ export default async function initScripts() {
     modules.forEach((m) => {
       m?.init?.();
     });
+
     //CustomShortcutKey.getInstance();
   });
 }

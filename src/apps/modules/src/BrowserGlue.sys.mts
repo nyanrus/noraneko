@@ -61,6 +61,23 @@ const JS_WINDOW_ACTORS: {
     //https://searchfox.org/mozilla-central/rev/3966e5534ddf922b186af4777051d579fd052bad/dom/chrome-webidl/MatchPattern.webidl#17
     matches: ["*://localhost/*"],
   },
+  NRTest: {
+    child: {
+      esModuleURI: localPathToResourceURI("./actors/NRTest.sys.mts"),
+
+      events: {
+        DOMContentLoaded: {},
+      },
+    },
+    // // The wildcard on about:newtab is for the # parameter
+    // // that is used for the newtab devtools. The wildcard for about:home
+    // // is similar, and also allows for falling back to loading the
+    // // about:home document dynamically if an attempt is made to load
+    // // about:home?jscache from the AboutHomeStartupCache as a top-level
+    // // load.
+    // matches: ["about:home*", "about:welcome", "about:newtab*"],
+    remoteTypes: ["privilegedabout"],
+  },
 };
 
 ActorManagerParent.addJSWindowActors(JS_WINDOW_ACTORS);
