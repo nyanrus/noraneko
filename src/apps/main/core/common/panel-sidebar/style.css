@@ -1,0 +1,268 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Panel Sidebar Select Box */
+#panel-sidebar-select-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  color: var(--toolbar-color);
+  background-color: var(--toolbar-bgcolor);
+  background-image: var(--lwt-additional-images);
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-position: center;
+  background-size: cover;
+  scrollbar-width: thin;
+  border-left: 1px solid var(--chrome-content-separator-color);
+  border-right: 1px solid var(--chrome-content-separator-color);
+  width: 42px;
+  max-width: 42px;
+  min-width: 42px;
+}
+
+#panel-sidebar-select-box:-moz-lwtheme {
+  background-color: var(--lwt-accent-color-inactive, var(--toolbar-bgcolor));
+}
+
+/* Panel Sidebar Box */
+.panel-sidebar-box {
+  background: var(--toolbar-bgcolor);
+  border: var(--toolbar-bgcolor) 0.1px solid;
+  border-bottom: solid 5px var(--toolbar-bgcolor);
+}
+
+/* Panel Sidebar Splitter */
+#panel-sidebar-box[positionend] + .panel-sidebar-splitter {
+  border-color: transparent;
+}
+
+#panel-sidebar-splitter {
+  margin-inline: 0px !important;
+}
+
+/* Extension Icon */
+.extension-icon-add-white > .toolbarbutton-icon {
+  background: white;
+  padding: 1px;
+  border-radius: 2px;
+  scale: 1.1;
+}
+
+/* Webpanel Icon */
+.webpanel-icon::before {
+  content: url("chrome://browser/skin/tabbrowser/tab-audio-muted-small.svg");
+  position: fixed;
+  top: 3px;
+  left: 3px;
+  opacity: 0.5;
+  fill: inherit;
+  background: none !important;
+  display: none;
+}
+
+.webpanel-icon[muted]::before {
+  display: inherit !important;
+}
+
+/* Sidepanel Icon and Browser Icon */
+.sidepanel-icon,
+.sidepanel-browser-icon {
+  appearance: none;
+  -moz-context-properties: fill, fill-opacity;
+  border-radius: 4px;
+  color: inherit;
+  fill: currentColor;
+  margin: 1px 2px 5px 2px;
+  padding: 10px;
+  scale: 1;
+}
+
+.sidepanel-icon > .toolbarbutton-icon,
+.sidepanel-browser-icon > .toolbarbutton-icon {
+  width: 16px !important;
+}
+
+.sidepanel-icon > .toolbarbutton-text,
+.sidepanel-browser-icon > .toolbarbutton-text {
+  display: none !important;
+}
+
+/* UI Density: Compact Mode */
+:root[uidensity="compact"] .sidepanel-icon,
+:root[uidensity="compact"] .sidepanel-browser-icon {
+  margin: 3.5px 3.5px 4.5px 3.5px;
+  padding: 5px;
+}
+
+:root[uidensity="compact"] #panel-sidebar-select-box {
+  width: 35px;
+  max-width: 35px;
+  min-width: 35px;
+}
+
+/* UI Density: Touch Mode */
+:root[uidensity="touch"] .sidepanel-icon,
+:root[uidensity="touch"] .sidepanel-browser-icon {
+  margin: 1px 3px 2px 3px;
+  padding: 16px;
+}
+
+:root[uidensity="touch"] #panel-sidebar-select-box {
+  width: 60px;
+  max-width: 60px;
+  min-width: 60px;
+}
+
+:root[uidensity="touch"] .sidepanel-icon > .toolbarbutton-icon,
+:root[uidensity="touch"] .sidepanel-browser-icon > .toolbarbutton-icon {
+  width: 20px !important;
+}
+
+/* Panel Sidebar Icon */
+.panel-sidebar-icon {
+  appearance: none;
+  -moz-context-properties: fill, fill-opacity;
+  border-radius: 4px;
+  color: inherit;
+  fill: currentColor;
+  padding: 2px;
+  width: 20px;
+  height: auto;
+}
+
+/* Hover and Active States */
+@media not (prefers-contrast) {
+  .sidepanel-icon:hover,
+  .panel-sidebar-browser-icon:hover,
+  .panel-sidebar-icon:hover {
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+    background-color: var(--tab-selected-bgcolor, var(--toolbar-bgcolor));
+  }
+  .panel-sidebar-icon[checked="true"] {
+    background-color: color-mix(in srgb, currentColor 20%, transparent);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+  }
+  .sidepanel-icon:not([checked="true"]):active,
+  .panel-sidebar-browser-icon:active,
+  .panel-sidebar-icon:active {
+    background-color: color-mix(in srgb, currentColor 20%, transparent);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+  }
+}
+
+@media (prefers-contrast) {
+  .panel-sidebar-icon:hover,
+  .sidepanel-icon:hover,
+  .sidepanel-browser-icon:hover,
+  .panel-sidebar-icon:hover {
+    outline: 1px solid currentColor;
+  }
+}
+
+/* Icon Images */
+#panel-sidebar-back {
+  list-style-image: url("chrome://browser/skin/back.svg");
+}
+#panel-sidebar-forward {
+  list-style-image: url("chrome://browser/skin/forward.svg");
+}
+#panel-sidebar-reload {
+  list-style-image: url("chrome://global/skin/icons/reload.svg");
+}
+#panel-sidebar-go-index {
+  list-style-image: url("chrome://browser/skin/home.svg");
+}
+#panel-sidebar-keeppanelwidth {
+  list-style-image: url("chrome://floorp/skin/designs/lepton/screenshot.svg");
+}
+#panel-sidebar-close {
+  list-style-image: url("chrome://global/skin/icons/close.svg");
+}
+#panel-sidebar-mute {
+  scale: 1.4;
+  list-style-image: url("chrome://browser/skin/tabbrowser/tab-audio-playing-small.svg");
+}
+#panel-sidebar-mute[mute="true"] {
+  list-style-image: url("chrome://browser/skin/tabbrowser/tab-audio-muted-small.svg") !important;
+}
+
+/* Sidebar Icons */
+[data-l10n-id="show-browser-manager-sidebar"] {
+  --BMSIcon: url("chrome://floorp/skin/designs/lepton/toolbox.svg");
+}
+[data-l10n-id="show-bookmark-sidebar"] {
+  --BMSIcon: url("chrome://browser/skin/bookmark.svg");
+}
+[data-l10n-id="show-history-sidebar"] {
+  --BMSIcon: url("chrome://browser/skin/history.svg");
+}
+#select-syncedtab {
+  --BMSIcon: url("chrome://browser/skin/tab.svg");
+}
+[data-l10n-id="show-download-sidebar"] {
+  --BMSIcon: url("chrome://browser/skin/downloads/downloads.svg");
+}
+[data-l10n-id="show-TST-sidebar"] {
+  --BMSIcon: url("chrome://browser/skin/TST-dark.svg");
+}
+[data-l10n-id="show-notes-sidebar"] {
+  --BMSIcon: url("chrome://floorp/skin/icons/notes-bms.svg");
+}
+#select-CustomURL {
+  list-style-image: url("chrome://global/skin/icons/defaultFavicon.svg");
+}
+#preferences-icon {
+  list-style-image: url("chrome://floorp/skin/settings.svg");
+}
+#sidebar-hide-icon {
+  list-style-image: url("chrome://browser/skin/bms-hide.svg");
+  display: none !important;
+}
+#passwords-icon {
+  list-style-image: url("chrome://browser/skin/login.svg");
+}
+#addons-icon {
+  list-style-image: url("chrome://mozapps/skin/extensions/extension.svg");
+}
+#add-button {
+  list-style-image: url("chrome://global/skin/icons/plus.svg");
+}
+
+.sidepanel-icon {
+  list-style-image: var(
+    --BMSIcon,
+    url("chrome://devtools/skin/images/globe.svg")
+  );
+}
+
+/* Hide Sidebar in Fullscreen */
+:is(
+    :root[inDOMFullscreen],
+    :root[inFullscreen]:not([macOSNativeFullscreen]),
+    *|*:root[chromehidden~="toolbar"],
+    :root[invisibleBMS]
+  )
+  #sidebar-select-box {
+  display: none;
+}
+
+:root[invisibleBMS] .browser-sidebar2 {
+  max-width: 0px !important;
+  min-width: 0px !important;
+  border: unset !important;
+}
+
+/* Temporary */
+#panel-sidebar-select-box {
+  order: 1 !important;
+}
+
+#panel-sidebar-box {
+  order: 2 !important;
+}
+
+#panel-sidebar-splitter {
+  order: 3 !important;
+}
