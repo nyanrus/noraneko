@@ -3,6 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { panelSidebarData } from "./data";
+import { STATIC_PANEL_DATA } from "./static-panel";
+
 export class PanelSidebar {
   private static instance: PanelSidebar;
   static getInstance() {
@@ -20,8 +23,8 @@ export class PanelSidebar {
     return window.gFloorpPanelSidebarCurrentPanel ?? null;
   }
 
-  private get allPanels() {
-    return window.gFloorpPanelSidebarAllPanels ?? [];
+  private createDefaultPanelData() {
+    const panels = panelSidebarData();
   }
 
   constructor() {

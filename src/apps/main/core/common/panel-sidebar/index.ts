@@ -6,11 +6,14 @@
 import { PanelSidebar } from "./panel-sidebar";
 import { PanelSidebarElem } from "./sidebar-elem";
 import { SidebarContextMenuElem } from "./sidebar-contextMenu";
+import { migratePanelSidebarData } from "./migration";
 
 export function init() {
-  PanelSidebarElem.getInstance();
-  SidebarContextMenuElem.getInstance();
-  PanelSidebar.getInstance();
+  migratePanelSidebarData(() => {
+    PanelSidebarElem.getInstance();
+    SidebarContextMenuElem.getInstance();
+    PanelSidebar.getInstance();
+  });
 
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   (import.meta as any).hot?.accept((m: any) => {

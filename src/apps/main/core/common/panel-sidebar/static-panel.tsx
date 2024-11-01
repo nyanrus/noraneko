@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-export const STATIC_SIDEBAR_DATA = {
+export const STATIC_PANEL_DATA = {
   "floorp//bmt": {
     url: "chrome://browser/content/places/places.xhtml",
     l10n: "browser-manager-sidebar",
@@ -34,3 +34,19 @@ export const STATIC_SIDEBAR_DATA = {
     defaultWidth: 550,
   },
 };
+
+
+export class StaticPanel {
+  private id: string;
+
+  constructor(id: string) {
+    this.id = id;
+  }
+
+  render() {
+    return (
+      <xul:vbox id={this.id}>
+      </xul:vbox>
+    );
+  }
+}

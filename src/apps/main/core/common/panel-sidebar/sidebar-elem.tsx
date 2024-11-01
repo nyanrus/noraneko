@@ -6,6 +6,8 @@
 import { PanelSidebar } from "./panel-sidebar";
 import { render } from "@nora/solid-xul";
 import style from "./style.css?inline";
+import { For } from "solid-js";
+import { panelSidebarData } from "./data";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -106,14 +108,18 @@ export class PanelSidebarElem {
           id="panel-sidebar-select-box"
           class="webpanel-box chromeclass-extrachrome"
         >
-          <xul:vbox id="panel-sidebar-box">
-            <xul:toolbarbutton
-              class="sidepanel-browser-icon"
-              data-l10n-id="sidebar-add-button"
-              onCommand={() => gPanelSidebar.openAdditionalWebPanelWindow()}
-              id="panel-sidebar-add-button"
-            />
-          </xul:vbox>
+          <For each={panelSidebarData()}>
+            {(panel) => (
+              <xul:vbox id="panel-sidebar-box">
+                <xul:toolbarbutton
+                  label={panel.url[0]}
+                  class="sidepanel-browser-icon"
+                  data-l10n-id="sidebar-add-button"
+                  id="panel-sidebar-add-button"
+                />
+              </xul:vbox>
+            )}
+          </For>
           <xul:spacer flex="1" />
           <xul:vbox id="panel-sidebar-bottomButtonBox">
             <xul:toolbarbutton

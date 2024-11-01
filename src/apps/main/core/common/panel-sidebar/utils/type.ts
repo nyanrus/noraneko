@@ -28,8 +28,17 @@ export const zPanelSidebarConfig = z.object({
   displayed: z.boolean(),
 });
 
+export const zPanelSidebarIndex = z.array(z.string());
+
+export const zPanelSidebarData = z.object({
+  data: zPanels,
+  index: zPanelSidebarIndex,
+});
+
 /* Export as types */
 export type Panel = z.infer<typeof zPanel>;
 export type Panels = z.infer<typeof zPanels>;
 export type WindowPanelSidebarState = z.infer<typeof zWindowPanelSidebarState>;
 export type PanelSidebarConfig = z.infer<typeof zPanelSidebarConfig>;
+export type PanelSidebarIndex = z.infer<typeof zPanelSidebarIndex>;
+export type PanelSidebarData = z.infer<typeof zPanelSidebarData>;
