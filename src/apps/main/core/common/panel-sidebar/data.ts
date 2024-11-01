@@ -4,6 +4,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { createEffect, createSignal } from "solid-js";
+import { strDefaultConfig, strDefaultData } from "./utils/default-prerf.js";
+import { PanelSidebarStaticNames } from "./utils/panel-sidebar-static-names.js";
 import {
   type Panels,
   type PanelSidebarConfig,
@@ -12,7 +14,6 @@ import {
   zPanelSidebarConfig,
   zPanelSidebarIndex,
 } from "./utils/type.js";
-import { PanelSidebarStaticNames } from "./utils/panel-sidebar-static-names.js";
 
 /** PanelSidebar data */
 export const [panelSidebarData, setPanelSidebarData] = createSignal<Panels>(
@@ -20,7 +21,7 @@ export const [panelSidebarData, setPanelSidebarData] = createSignal<Panels>(
     getPanelSidebarData(
       Services.prefs.getStringPref(
         PanelSidebarStaticNames.panelSidebarDataPrefName,
-        '{ "data": [], "index": [] }',
+        strDefaultData,
       ),
     ),
   ),
@@ -34,7 +35,7 @@ Services.prefs.addObserver(
         getPanelSidebarData(
           Services.prefs.getStringPref(
             PanelSidebarStaticNames.panelSidebarDataPrefName,
-            '{ "data": [], "index": [] }',
+            strDefaultData,
           ),
         ),
       ),
@@ -42,7 +43,6 @@ Services.prefs.addObserver(
 );
 
 function getPanelSidebarData(stringData: string) {
-  console.log(JSON.parse(stringData));
   return JSON.parse(stringData).data || {};
 }
 
@@ -53,14 +53,13 @@ export const [panelSidebarIndex, setPanelSidebarIndex] =
       getPanelSidebarIndex(
         Services.prefs.getStringPref(
           PanelSidebarStaticNames.panelSidebarDataPrefName,
-          '{ "data": [], "index": [] }',
+          strDefaultData,
         ),
       ),
     ),
   );
 
 function getPanelSidebarIndex(stringData: string) {
-  console.log(JSON.parse(stringData));
   return JSON.parse(stringData).index || [];
 }
 
@@ -79,7 +78,7 @@ export const [panelSidebarConfig, setPanelSidebarConfig] =
       getPanelSidebarConfig(
         Services.prefs.getStringPref(
           PanelSidebarStaticNames.panelSidebarConfigPrefName,
-          "{}",
+          strDefaultConfig,
         ),
       ),
     ),
@@ -100,7 +99,7 @@ Services.prefs.addObserver(
         getPanelSidebarConfig(
           Services.prefs.getStringPref(
             PanelSidebarStaticNames.panelSidebarConfigPrefName,
-            "{}",
+            strDefaultConfig,
           ),
         ),
       ),
@@ -108,6 +107,5 @@ Services.prefs.addObserver(
 );
 
 function getPanelSidebarConfig(stringData: string) {
-  console.log(JSON.parse(stringData));
   return JSON.parse(stringData) || {};
 }

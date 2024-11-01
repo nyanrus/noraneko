@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { PanelSidebarStaticNames } from "./utils/panel-sidebar-static-names";
-import type { PanelSidebarConfig, PanelSidebarData } from "./utils/type";
+import type { PanelSidebarConfig } from "./utils/type";
 
 export async function migratePanelSidebarData(callback: () => void) {
   const data = Services.prefs.getStringPref(
@@ -55,49 +55,6 @@ export async function migratePanelSidebarData(callback: () => void) {
       PanelSidebarStaticNames.panelSidebarConfigPrefName,
       JSON.stringify({ config }),
     );
-  } else if (!data) {
-    // set default data
-
-    const defaultData: PanelSidebarData = {
-      data: [],
-      index: [],
-    };
-
-    Services.prefs.setStringPref(
-      PanelSidebarStaticNames.panelSidebarDataPrefName,
-      JSON.stringify(defaultData),
-    );
-
-    // set default config
-    const defaultConfig: PanelSidebarConfig = {
-      globalWidth: 400,
-      autoUnload: false,
-      position_start: true,
-      displayed: true,
-    };
-
-    Services.prefs.setStringPref(
-      PanelSidebarStaticNames.panelSidebarConfigPrefName,
-      JSON.stringify(defaultConfig),
-    );
   }
-
-  console.log(
-    JSON.stringify(
-      Services.prefs.getStringPref(
-        PanelSidebarStaticNames.panelSidebarDataPrefName,
-        undefined,
-      ),
-    ),
-
-    console.log(
-      JSON.stringify(
-        Services.prefs.getStringPref(
-          PanelSidebarStaticNames.panelSidebarConfigPrefName,
-          undefined,
-        ),
-      ),
-    ),
-  );
   callback();
 }
