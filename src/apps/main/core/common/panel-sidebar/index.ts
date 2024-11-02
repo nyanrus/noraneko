@@ -4,19 +4,21 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { PanelSidebar } from "./panel-sidebar";
-import { PanelSidebarElem } from "./sidebar-elem";
+import { PanelSidebarElem } from "./sidebar";
 import { SidebarContextMenuElem } from "./sidebar-contextMenu";
 import { migratePanelSidebarData } from "./migration";
+import { WebsitePanelWindowChild } from "./website-panel-window-child";
 
-export function init() {
+export async function init() {
   migratePanelSidebarData(() => {
+    WebsitePanelWindowChild.getInstance();
     PanelSidebarElem.getInstance();
     SidebarContextMenuElem.getInstance();
     PanelSidebar.getInstance();
   });
 
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  (import.meta as any).hot?.accept((m: any) => {
-    m?.init();
+  (import.meta as any).hot?.accept(async (m: any) => {
+    await m?.init();
   });
 }

@@ -9,10 +9,8 @@ import { PanelSidebarStaticNames } from "./utils/panel-sidebar-static-names.js";
 import {
   type Panels,
   type PanelSidebarConfig,
-  type PanelSidebarIndex,
   zPanels,
   zPanelSidebarConfig,
-  zPanelSidebarIndex,
 } from "./utils/type.js";
 
 /** PanelSidebar data */
@@ -46,28 +44,11 @@ function getPanelSidebarData(stringData: string) {
   return JSON.parse(stringData).data || {};
 }
 
-/** Get PanelSidebar Index Array Data */
-export const [panelSidebarIndex, setPanelSidebarIndex] =
-  createSignal<PanelSidebarIndex>(
-    zPanelSidebarIndex.parse(
-      getPanelSidebarIndex(
-        Services.prefs.getStringPref(
-          PanelSidebarStaticNames.panelSidebarDataPrefName,
-          strDefaultData,
-        ),
-      ),
-    ),
-  );
-
-function getPanelSidebarIndex(stringData: string) {
-  return JSON.parse(stringData).index || [];
-}
-
-/** Create Effect to save PanelSidebarData and Index Array Data */
+/** Create Effect to save PanelSidebarData */
 createEffect(() => {
   Services.prefs.setStringPref(
     PanelSidebarStaticNames.panelSidebarDataPrefName,
-    JSON.stringify({ data: panelSidebarData(), index: panelSidebarIndex() }),
+    JSON.stringify({ data: panelSidebarData() }),
   );
 });
 

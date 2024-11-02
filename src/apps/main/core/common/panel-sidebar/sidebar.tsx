@@ -8,6 +8,7 @@ import { render } from "@nora/solid-xul";
 import style from "./style.css?inline";
 import { For } from "solid-js";
 import { panelSidebarData } from "./data";
+import { PanelSidebarButton } from "./sidebar-panel-button";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -56,28 +57,24 @@ export class PanelSidebarElem {
               class="sidebar2-icon"
               style="margin-left: 0.5em;"
               data-l10n-id="sidebar-back-button"
-              onCommand={() => gPanelSidebar.sidebarButtons(0)}
             />
             <xul:toolbarbutton
               id="panel-sidebar-forward"
               class="sidebar2-icon"
               style="margin-left: 1em;"
               data-l10n-id="sidebar-forward-button"
-              onCommand={() => gPanelSidebar.sidebarButtons(1)}
             />
             <xul:toolbarbutton
               id="panel-sidebar-reload"
               class="sidebar2-icon"
               style="margin-left: 1em;"
               data-l10n-id="sidebar-reload-button"
-              onCommand={() => gPanelSidebar.sidebarButtons(2)}
             />
             <xul:toolbarbutton
               id="panel-sidebar-go-index"
               class="sidebar2-icon"
               style="margin-left: 1em;"
               data-l10n-id="sidebar-go-index-button"
-              onCommand={() => gPanelSidebar.sidebarButtons(3)}
             />
             <xul:spacer flex="1" />
             <xul:toolbarbutton
@@ -86,18 +83,15 @@ export class PanelSidebarElem {
               class="sidebar2-icon"
               style="margin-right: 0.5em;"
               data-l10n-id="sidebar-keepWidth-button"
-              onCommand={() => gPanelSidebar.keepWebPanelWidth()}
             />
             <xul:toolbarbutton
               id="panel-sidebar-close"
               class="sidebar2-icon"
               style="margin-right: 0.5em;"
               data-l10n-id="sidebar2-close-button"
-              onCommand={() =>
-                gPanelSidebar.controllFunctions.changeVisibilityOfWebPanel()
-              }
             />
           </xul:box>
+          <xul:vbox id="panel-sidebar-browser-box" style="flex: 1;" />
         </xul:vbox>
         <xul:splitter
           id="panel-sidebar-splitter"
@@ -109,16 +103,7 @@ export class PanelSidebarElem {
           class="webpanel-box chromeclass-extrachrome"
         >
           <For each={panelSidebarData()}>
-            {(panel) => (
-              <xul:vbox id="panel-sidebar-box">
-                <xul:toolbarbutton
-                  label={panel.url[0]}
-                  class="sidepanel-browser-icon"
-                  data-l10n-id="sidebar-add-button"
-                  id="panel-sidebar-add-button"
-                />
-              </xul:vbox>
-            )}
+            {(panel) => PanelSidebarButton(panel.id, "web", panel.url)}
           </For>
           <xul:spacer flex="1" />
           <xul:vbox id="panel-sidebar-bottomButtonBox">
@@ -137,7 +122,7 @@ export class PanelSidebarElem {
               class="sidepanel-browser-icon"
               data-l10n-id="sidebar-addons-button"
               onCommand={() =>
-                BrowserAddonUI.openAddonsMgr("addons://list/extension")
+                window.BrowserAddonUI.openAddonsMgr("addons://list/extension")
               }
               id="panel-sidebar-addons-icon"
             />
@@ -145,7 +130,7 @@ export class PanelSidebarElem {
               class="sidepanel-browser-icon"
               data-l10n-id="sidebar-passwords-button"
               onCommand={() =>
-                LoginHelper.openPasswordManager(window, {
+                window.LoginHelper.openPasswordManager(window, {
                   entryPoint: "mainmenu",
                 })
               }
@@ -154,7 +139,7 @@ export class PanelSidebarElem {
             <xul:toolbarbutton
               class="sidepanel-browser-icon"
               data-l10n-id="sidebar-preferences-button"
-              onCommand={() => openPreferences()}
+              onCommand={() => window.openPreferences()}
               id="panel-sidebar-preferences-icon"
             />
           </xul:vbox>

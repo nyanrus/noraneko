@@ -13,8 +13,40 @@ const defaultConfig: PanelSidebarConfig = {
 };
 
 const defaultData: PanelSidebarData = {
-  data: [],
-  index: [],
+  data: [
+    {
+      id: "default-panel-google-com",
+      url: "https://www.google.com",
+      width: 0,
+      userContextId: null,
+      zoomLevel: null,
+      type: "web",
+    },
+    {
+      id: "default-panel-github-com",
+      url: "https://www.github.com",
+      width: 0,
+      userContextId: null,
+      zoomLevel: null,
+      type: "web",
+    },
+    {
+      id: "default-panel-youtube-com",
+      url: "https://www.youtube.com",
+      width: 0,
+      userContextId: null,
+      zoomLevel: null,
+      type: "web",
+    },
+    {
+      id: "default-panel-docs-floorp-app",
+      url: "https://docs.floorp.app",
+      width: 0,
+      userContextId: null,
+      zoomLevel: null,
+      type: "web",
+    },
+  ],
 };
 
 export const strDefaultConfig = JSON.stringify(defaultConfig);

@@ -3,8 +3,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { render } from "@nora/solid-xul";
+import { ChromeSiteBrowser } from "./browsers/chrome-site-browser";
+import { ExtensionSiteBrowser } from "./browsers/extension-site-browser";
+import { WebSiteBrowser } from "./browsers/web-site-browser";
 import { panelSidebarData } from "./data";
-import { STATIC_PANEL_DATA } from "./static-panel";
+import type { Panel } from "./utils/type";
 
 export class PanelSidebar {
   private static instance: PanelSidebar;
@@ -15,19 +19,53 @@ export class PanelSidebar {
     return PanelSidebar.instance;
   }
 
-  get generatedPanelId() {
+  private get generatedPanelId() {
     return Services.uuid.generateUUID().toString();
   }
 
-  get currentPanel() {
+  private get currentPanel() {
     return window.gFloorpPanelSidebarCurrentPanel ?? null;
   }
 
-  private createDefaultPanelData() {
-    const panels = panelSidebarData();
+  private get parentElem() {
+    return document?.getElementById("panel-sidebar-browser-box");
   }
 
-  constructor() {
-    console.log("PanelSidebar constructor");
+  public getPanelById(id: string) {
+    return panelSidebarData().find((panel) => panel.id === id);
+  }
+
+  public getPanelByIndex(index: number) {
+    return panelSidebarData()[index];
+  }
+
+  public getBrowserById(id: string) {
+    return window.gFloorpPanelSidebarBrowsers[id] ?? null;
+  }
+
+  public createWebPanelBrowser(panel: Panel) {
+    switch (panel.type) {
+      case "web":
+        return <WebSiteBrowser {...panel} />;
+      case "extension":
+        return <ExtensionSiteBrowser {...panel} />;
+      case "static":
+        return <ChromeSiteBrowser {...panel} />;
+      default:
+        throw new Error(`Unknown panel type: ${panel.type}`);
+    }
+  }
+
+  public showPanel(panelId: string) {
+    const panel = this.getPanelById(panelId);
+    if (!panel) {
+      throw new Error(`Panel with id ${panelId} not found`);
+    }
+
+    const browser = this.createWebPanelBrowser(panel);
+    render(() => browser, this.parentElem, {
+      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+      hotCtx: (import.meta as any).hot,
+    });
   }
 }

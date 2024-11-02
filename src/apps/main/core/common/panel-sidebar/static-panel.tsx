@@ -34,19 +34,3 @@ export const STATIC_PANEL_DATA = {
     defaultWidth: 550,
   },
 };
-
-
-export class StaticPanel {
-  private id: string;
-
-  constructor(id: string) {
-    this.id = id;
-  }
-
-  render() {
-    return (
-      <xul:vbox id={this.id}>
-      </xul:vbox>
-    );
-  }
-}
