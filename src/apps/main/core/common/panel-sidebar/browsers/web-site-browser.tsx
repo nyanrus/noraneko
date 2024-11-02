@@ -9,6 +9,7 @@ export function WebSiteBrowser({ id, type, url }: Panel) {
   return (
     <xul:browser
       id={`sidebar-panel-${id}`}
+      class="sidebar-panel-browser"
       flex="1"
       xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       disablehistory="true"

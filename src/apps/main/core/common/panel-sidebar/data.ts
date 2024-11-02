@@ -44,12 +44,20 @@ function getPanelSidebarData(stringData: string) {
   return JSON.parse(stringData).data || {};
 }
 
-/** Create Effect to save PanelSidebarData */
 createEffect(() => {
   Services.prefs.setStringPref(
     PanelSidebarStaticNames.panelSidebarDataPrefName,
     JSON.stringify({ data: panelSidebarData() }),
   );
+});
+
+/** Selected Panel */
+export const [selectedPanelId, setSelectedPanelId] = createSignal<
+  string | null
+>(null);
+
+createEffect(() => {
+  window.gFloorpPanelSidebarCurrentPanel = selectedPanelId();
 });
 
 /** Get PanelSidebar Config data */

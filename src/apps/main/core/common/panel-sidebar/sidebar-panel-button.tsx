@@ -6,6 +6,7 @@
 import { createSignal, createEffect } from "solid-js";
 import { getFaviconURLForPage } from "./utils/favicon-getter";
 import { PanelSidebar } from "./panel-sidebar";
+import { selectedPanelId } from "./data";
 
 export function PanelSidebarButton(id: string, type: string, url: string) {
   const gPanelSidebar = PanelSidebar.getInstance();
@@ -21,11 +22,12 @@ export function PanelSidebarButton(id: string, type: string, url: string) {
       id={id}
       class={`${type} panel-sidebar-panel`}
       context="all-panel-context"
+      data-checked={selectedPanelId() === id}
       style={{
         "list-style-image": `url(${faviconUrl()})`,
       }}
       onCommand={() => {
-        gPanelSidebar.showPanel(id);
+        gPanelSidebar.changePanel(id);
       }}
     />
   );

@@ -3,7 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { PanelSidebar } from "./panel-sidebar";
 import { render } from "@nora/solid-xul";
 import style from "./style.css?inline";
 import { For } from "solid-js";
@@ -39,7 +38,6 @@ export class PanelSidebarElem {
   }
 
   private sidebar() {
-    const gPanelSidebar = PanelSidebar.getInstance();
     return (
       <>
         <xul:vbox
