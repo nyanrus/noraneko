@@ -130,12 +130,3 @@
     display: inherit !important;
   }
 }
-
-/* Modal */
-#workspacesIconSelectPopup > menuitem {
-  height: 40px;
-}
-
-#workspacesIconSelectPopup > menuitem {
-  padding-inline-start: 0em;
-}

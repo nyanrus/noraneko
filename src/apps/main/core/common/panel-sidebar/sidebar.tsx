@@ -8,6 +8,7 @@ import style from "./style.css?inline";
 import { For } from "solid-js";
 import { panelSidebarData } from "./data";
 import { PanelSidebarButton } from "./sidebar-panel-button";
+import { setPanelSidebarAddModalState } from "./panel-sidebar-modal";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -90,6 +91,18 @@ export class PanelSidebarElem {
           <For each={panelSidebarData()}>
             {(panel) => <PanelSidebarButton panel={panel} />}
           </For>
+          <xul:toolbarbutton
+            id="panel-sidebar-add"
+            class="panel-sidebar-panel"
+            context="all-panel-context"
+            style={{
+              "list-style-image":
+                "url(chrome://browser/skin/toolbarbutton-add.png)",
+            }}
+            onCommand={() => {
+              setPanelSidebarAddModalState(true);
+            }}
+          />
           <xul:spacer flex="1" />
           <xul:vbox id="panel-sidebar-bottomButtonBox">
             <xul:toolbarbutton

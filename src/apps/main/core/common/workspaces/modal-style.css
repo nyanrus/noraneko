@@ -20,3 +20,11 @@
   padding: 4px !important;
   margin: 4px !important;
 }
+
+#workspacesIconSelectPopup > menuitem {
+  height: 40px;
+}
+
+#workspacesIconSelectPopup > menuitem {
+  padding-inline-start: 0em;
+}

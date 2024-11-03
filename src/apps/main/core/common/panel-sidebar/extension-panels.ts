@@ -14,23 +14,18 @@ type Sidebar = {
   disabled: boolean;
 };
 
-function getFirefoxSidebarPanels(): Sidebar[] {
-  return Array.from(window.SidebarController.sidebars as Sidebar[]).filter(
-    (sidebar) => {
-      return !sidebar.url.startsWith("chrome://");
-    },
-  );
+type MapSidebars = [string, Sidebar][];
+
+export function getFirefoxSidebarPanels(): Sidebar[] {
+  return Array.from(window.SidebarController.sidebars as MapSidebars)
+    .filter((sidebar) => {
+      return !sidebar[1].url.startsWith("chrome://");
+    })
+    .map((sidebar) => {
+      return sidebar[1];
+    });
 }
 
 export function isExtensionExist(keyId: string): boolean {
-  return EXTENSION_PANEL_DATA.some((panel) => panel.keyId === keyId);
+  return getFirefoxSidebarPanels().some((panel) => panel.keyId === keyId);
 }
-
-export const EXTENSION_PANEL_DATA = getFirefoxSidebarPanels().map((sidebar) => {
-  return {
-    keyId: sidebar.keyId,
-    url: sidebar.url,
-    icon: sidebar.iconUrl,
-    l10n: sidebar.title,
-  };
-});

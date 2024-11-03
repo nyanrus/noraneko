@@ -8,12 +8,14 @@ import { PanelSidebarElem } from "./sidebar";
 import { SidebarContextMenuElem } from "./sidebar-contextMenu";
 import { migratePanelSidebarData } from "./migration";
 import { WebsitePanelWindowChild } from "./website-panel-window-child";
+import { PanelSidebarAddModal } from "./panel-sidebar-modal";
 
 export async function init() {
   migratePanelSidebarData(() => {
     WebsitePanelWindowChild.getInstance();
     PanelSidebarElem.getInstance();
     SidebarContextMenuElem.getInstance();
+    PanelSidebarAddModal.getInstance();
     PanelSidebar.getInstance();
   });
 
