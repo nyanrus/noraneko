@@ -20,7 +20,12 @@ export function WebSiteBrowser({ id, type, url }: Panel) {
       messagemanagergroup="browsers"
       autocompletepopup="PopupAutoComplete"
       initialBrowsingContextGroupId="40"
-      src={`chrome://browser/content/browser.xhtml?floorpWebPanelId=${id}`}
+      // temporary to use <Browser> Element for waiting for the new API
+      src={url}
+      type="content"
+      remote="true"
+      maychangeremoteness="true"
+      // src={`chrome://browser/content/browser.xhtml?floorpWebPanelId=${id}`}
     />
   );
 }

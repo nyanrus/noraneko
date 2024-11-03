@@ -42,58 +42,45 @@ export class PanelSidebarElem {
       <>
         <xul:vbox
           id="panel-sidebar-box"
-          style="min-width: 25em; z-index: 1"
           class="browser-sidebar2 chromeclass-extrachrome"
         >
-          <xul:box
-            id="panel-sidebar-header"
-            style="min-height: 2.5em"
-            align="center"
-          >
+          <xul:box id="panel-sidebar-header" align="center">
             <xul:toolbarbutton
               id="panel-sidebar-back"
-              class="sidebar2-icon"
-              style="margin-left: 0.5em;"
+              class="panel-sidebar-actions"
               data-l10n-id="sidebar-back-button"
             />
             <xul:toolbarbutton
               id="panel-sidebar-forward"
-              class="sidebar2-icon"
-              style="margin-left: 1em;"
+              class="panel-sidebar-actions"
               data-l10n-id="sidebar-forward-button"
             />
             <xul:toolbarbutton
               id="panel-sidebar-reload"
-              class="sidebar2-icon"
-              style="margin-left: 1em;"
+              class="panel-sidebar-actions"
               data-l10n-id="sidebar-reload-button"
             />
             <xul:toolbarbutton
               id="panel-sidebar-go-index"
-              class="sidebar2-icon"
-              style="margin-left: 1em;"
+              class="panel-sidebar-actions"
               data-l10n-id="sidebar-go-index-button"
             />
             <xul:spacer flex="1" />
             <xul:toolbarbutton
               id="panel-sidebar-keeppanelwidth"
               context="width-size-context"
-              class="sidebar2-icon"
-              style="margin-right: 0.5em;"
-              data-l10n-id="sidebar-keepWidth-button"
+              class="panel-sidebar-actions"
             />
             <xul:toolbarbutton
               id="panel-sidebar-close"
-              class="sidebar2-icon"
-              style="margin-right: 0.5em;"
-              data-l10n-id="sidebar2-close-button"
+              class="panel-sidebar-actions"
             />
           </xul:box>
           <xul:vbox id="panel-sidebar-browser-box" style="flex: 1;" />
         </xul:vbox>
         <xul:splitter
           id="panel-sidebar-splitter"
-          class="browser-sidebar2 chromeclass-extrachrome"
+          class="chromeclass-extrachrome"
           hidden={false}
         />
         <xul:vbox

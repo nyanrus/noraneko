@@ -42,14 +42,6 @@
   margin-inline: 0px !important;
 }
 
-/* Extension Icon */
-.extension-icon-add-white > .toolbarbutton-icon {
-  background: white;
-  padding: 1px;
-  border-radius: 2px;
-  scale: 1.1;
-}
-
 /* Webpanel Icon */
 .webpanel-icon::before {
   content: url("chrome://browser/skin/tabbrowser/tab-audio-muted-small.svg");
@@ -67,8 +59,8 @@
 }
 
 /* Sidepanel Icon and Browser Icon */
-.sidepanel-icon,
-.sidepanel-browser-icon {
+.panel-sidebar-panel,
+.panel-sidebar-panel {
   appearance: none;
   -moz-context-properties: fill, fill-opacity;
   border-radius: 4px;
@@ -79,19 +71,16 @@
   scale: 1;
 }
 
-.sidepanel-icon > .toolbarbutton-icon,
-.sidepanel-browser-icon > .toolbarbutton-icon {
+.panel-sidebar-panel > .toolbarbutton-icon {
   width: 16px !important;
 }
 
-.sidepanel-icon > .toolbarbutton-text,
-.sidepanel-browser-icon > .toolbarbutton-text {
+.panel-sidebar-panel > .toolbarbutton-text {
   display: none !important;
 }
 
 /* UI Density: Compact Mode */
-:root[uidensity="compact"] .sidepanel-icon,
-:root[uidensity="compact"] .sidepanel-browser-icon {
+:root[uidensity="compact"] .panel-sidebar-panel {
   margin: 3.5px 3.5px 4.5px 3.5px;
   padding: 5px;
 }
@@ -103,8 +92,7 @@
 }
 
 /* UI Density: Touch Mode */
-:root[uidensity="touch"] .sidepanel-icon,
-:root[uidensity="touch"] .sidepanel-browser-icon {
+:root[uidensity="touch"] .panel-sidebar-panel {
   margin: 1px 3px 2px 3px;
   padding: 16px;
 }
@@ -115,13 +103,13 @@
   min-width: 60px;
 }
 
-:root[uidensity="touch"] .sidepanel-icon > .toolbarbutton-icon,
-:root[uidensity="touch"] .sidepanel-browser-icon > .toolbarbutton-icon {
+:root[uidensity="touch"] .panel-sidebar-panel > .toolbarbutton-icon {
   width: 20px !important;
 }
 
 /* Panel Sidebar Icon */
-.panel-sidebar-icon {
+.panel-sidebar-icon,
+.panel-sidebar-actions {
   appearance: none;
   -moz-context-properties: fill, fill-opacity;
   border-radius: 4px;
@@ -134,29 +122,23 @@
 
 /* Hover and Active States */
 @media not (prefers-contrast) {
-  .sidepanel-icon:hover,
-  .panel-sidebar-browser-icon:hover,
-  .panel-sidebar-icon:hover {
+  .panel-sidebar-panel:hover {
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
     background-color: var(--tab-selected-bgcolor, var(--toolbar-bgcolor));
   }
-  .panel-sidebar-icon[checked="true"] {
+  .panel-sidebar-panel[data-checked="true"] {
     background-color: color-mix(in srgb, currentColor 20%, transparent);
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
   }
-  .sidepanel-icon:not([checked="true"]):active,
-  .panel-sidebar-browser-icon:active,
-  .panel-sidebar-icon:active {
+  .panel-sidebar-panel:not([data-checked="true"]):active,
+  .panel-sidebar-panel:active {
     background-color: color-mix(in srgb, currentColor 20%, transparent);
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
   }
 }
 
 @media (prefers-contrast) {
-  .panel-sidebar-icon:hover,
-  .sidepanel-icon:hover,
-  .sidepanel-browser-icon:hover,
-  .panel-sidebar-icon:hover {
+  .panel-sidebar-panel:hover {
     outline: 1px solid currentColor;
   }
 }
@@ -230,7 +212,7 @@
   list-style-image: url("chrome://global/skin/icons/plus.svg");
 }
 
-.sidepanel-icon {
+.panel-sidebar-panel {
   list-style-image: var(
     --BMSIcon,
     url("chrome://devtools/skin/images/globe.svg")
@@ -248,7 +230,7 @@
   display: none;
 }
 
-:root[invisibleBMS] .browser-sidebar2 {
+:root[invisibleBMS] {
   max-width: 0px !important;
   min-width: 0px !important;
   border: unset !important;
