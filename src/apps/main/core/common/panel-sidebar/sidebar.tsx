@@ -8,7 +8,6 @@ import style from "./style.css?inline";
 import { For } from "solid-js";
 import { panelSidebarData } from "./data";
 import { PanelSidebarButton } from "./sidebar-panel-button";
-import type { Panel } from "./utils/type";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;

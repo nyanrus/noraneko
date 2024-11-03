@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import type { Panel } from "./type";
-import { STATIC_PANEL_DATA } from "../static-panel";
+import { STATIC_PANEL_DATA } from "../static-panels";
 
 const { PlacesUtils } = ChromeUtils.importESModule(
   "resource://gre/modules/PlacesUtils.sys.mjs",

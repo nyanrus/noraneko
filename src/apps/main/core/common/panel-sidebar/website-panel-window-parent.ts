@@ -20,8 +20,8 @@ export class WebsitePanel {
     return WebsitePanel.instance;
   }
 
-  private getWindowByWebpanelId(webpanelId: string, parentWindow: Window) {
-    const webpanelBrowserId = `webpanel${webpanelId}`;
+  private getWindowByWebpanelId(id: string, parentWindow: Window) {
+    const webpanelBrowserId = `sidebar-panel-${id}`;
     const webpanelBrowser = parentWindow?.document?.getElementById(
       webpanelBrowserId,
     ) as XULBrowserElement;
