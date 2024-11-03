@@ -62,12 +62,11 @@
 .workspaceButton {
   list-style-image: url("chrome://branding/content/icon32.png");
   border-radius: var(--tab-border-radius);
+  margin: 0 !important;
   margin-right: 5px !important;
   width: -moz-available;
   min-height: 40px;
   max-height: 40px;
-  margin: 0 !important;
-  margin-right: 5px !important;
   margin-bottom: 5px !important;
 
   &:hover {
@@ -133,3 +132,10 @@
 }
 
 /* Modal */
+#workspacesIconSelectPopup > menuitem {
+  height: 40px;
+}
+
+#workspacesIconSelectPopup > menuitem {
+  padding-inline-start: 0em;
+}
