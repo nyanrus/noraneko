@@ -510,9 +510,25 @@
   word-wrap: break-word;
 }
 
+.modal button:hover {
+  background: var(--chakra-colors-whiteAlpha-300);
+}
+
+.modal button:active {
+  background: var(--chakra-colors-whiteAlpha-400);
+}
+
 .modal button.primary {
   background: var(--chakra-colors-blue-200);
   color: var(--chakra-colors-blue-900);
+}
+
+.modal button.primary:hover {
+  background: var(--chakra-colors-blue-300);
+}
+
+.modal button.primary:active {
+  background: var(--chakra-colors-blue-400);
 }
 
 .modal label {
