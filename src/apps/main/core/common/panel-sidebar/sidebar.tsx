@@ -8,6 +8,7 @@ import style from "./style.css?inline";
 import { For } from "solid-js";
 import { panelSidebarData } from "./data";
 import { PanelSidebarButton } from "./sidebar-panel-button";
+import type { Panel } from "./utils/type";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -47,7 +48,7 @@ export class PanelSidebarElem {
           <xul:box id="panel-sidebar-header" align="center">
             <xul:toolbarbutton
               id="panel-sidebar-back"
-              class="panel-sidebar-actions"
+              class="panel-sidebar-actions toolbarbutton-1 chromeclass-toolbar-additional"
               data-l10n-id="sidebar-back-button"
             />
             <xul:toolbarbutton
@@ -88,7 +89,7 @@ export class PanelSidebarElem {
           class="webpanel-box chromeclass-extrachrome"
         >
           <For each={panelSidebarData()}>
-            {(panel) => PanelSidebarButton(panel.id, "web", panel.url)}
+            {(panel) => <PanelSidebarButton panel={panel} />}
           </For>
           <xul:spacer flex="1" />
           <xul:vbox id="panel-sidebar-bottomButtonBox">

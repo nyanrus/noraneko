@@ -4,11 +4,13 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import type { Panel } from "../utils/type";
+import { STATIC_PANEL_DATA } from "../static-panel";
 
 export function ChromeSiteBrowser({ id, type, url }: Panel) {
   return (
     <xul:browser
       id={`sidebar-panel-${id}`}
+      class="sidebar-panel-browser"
       flex="1"
       xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       disablehistory="true"
@@ -19,6 +21,7 @@ export function ChromeSiteBrowser({ id, type, url }: Panel) {
       messagemanagergroup="browsers"
       autocompletepopup="PopupAutoComplete"
       initialBrowsingContextGroupId="40"
+      src={STATIC_PANEL_DATA[url as keyof typeof STATIC_PANEL_DATA].url}
     />
   );
 }

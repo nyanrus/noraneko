@@ -8,6 +8,7 @@ import { z } from "zod";
 /* zod schemas */
 export const zPanel = z.object({
   id: z.string(),
+  icon: z.string().nullish(),
   type: z.enum(["web", "static", "extension"]),
   url: z.string(),
   width: z.number(),

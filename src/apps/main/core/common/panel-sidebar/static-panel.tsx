@@ -6,30 +6,35 @@
 export const STATIC_PANEL_DATA = {
   "floorp//bmt": {
     url: "chrome://browser/content/places/places.xhtml",
+    icon: "chrome://browser/skin/preferences/category-privacy-security.svg",
     l10n: "browser-manager-sidebar",
     defaultWidth: 600,
   },
 
   "floorp//bookmarks": {
     url: "chrome://browser/content/places/bookmarksSidebar.xhtml",
+    icon: "chrome://browser/skin/preferences/category-privacy-security.svg",
     l10n: "bookmark-sidebar",
     defaultWidth: 415,
   },
 
   "floorp//history": {
     url: "chrome://browser/content/places/historySidebar.xhtml",
+    icon: "chrome://browser/skin/preferences/category-privacy-security.svg",
     l10n: "history-sidebar",
     defaultWidth: 415,
   },
 
   "floorp//downloads": {
     url: "about:downloads",
+    icon: "chrome://browser/skin/preferences/category-privacy-security.svg",
     l10n: "download-sidebar",
     defaultWidth: 415,
   },
 
   "floorp//notes": {
     url: "chrome://floorp/content/notes/notes-bms.html",
+    icon: "chrome://browser/skin/preferences/category-privacy-security.svg",
     l10n: "notes-sidebar",
     defaultWidth: 550,
   },

@@ -15,24 +15,16 @@ const defaultConfig: PanelSidebarConfig = {
 const defaultData: PanelSidebarData = {
   data: [
     {
-      id: "default-panel-google-com",
-      url: "https://www.google.com",
+      id: "default-panel-bookmarks",
+      url: "floorp//bookmarks",
       width: 0,
       userContextId: null,
       zoomLevel: null,
-      type: "web",
+      type: "static",
     },
     {
-      id: "default-panel-github-com",
-      url: "https://www.github.com",
-      width: 0,
-      userContextId: null,
-      zoomLevel: null,
-      type: "web",
-    },
-    {
-      id: "default-panel-youtube-com",
-      url: "https://www.youtube.com",
+      id: "default-panel-translate-google-com",
+      url: "https://translate.google.com",
       width: 0,
       userContextId: null,
       zoomLevel: null,

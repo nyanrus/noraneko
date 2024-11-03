@@ -4,30 +4,32 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { createSignal, createEffect } from "solid-js";
-import { getFaviconURLForPage } from "./utils/favicon-getter";
+import { getFaviconURLForPanel } from "./utils/favicon-getter";
 import { PanelSidebar } from "./panel-sidebar";
 import { selectedPanelId } from "./data";
+import type { Panel } from "./utils/type";
 
-export function PanelSidebarButton(id: string, type: string, url: string) {
+export function PanelSidebarButton({ panel }: { panel: Panel }) {
   const gPanelSidebar = PanelSidebar.getInstance();
   const [faviconUrl, setFaviconUrl] = createSignal("");
 
   createEffect(async () => {
-    const iconUrl = await getFaviconURLForPage(url);
+    const iconUrl = await getFaviconURLForPanel(panel);
+    console.log(iconUrl);
     setFaviconUrl(iconUrl);
   });
 
   return (
     <xul:toolbarbutton
-      id={id}
-      class={`${type} panel-sidebar-panel`}
+      id={panel.id}
+      class={`${panel.type} panel-sidebar-panel`}
       context="all-panel-context"
-      data-checked={selectedPanelId() === id}
+      data-checked={selectedPanelId() === panel.id}
       style={{
         "list-style-image": `url(${faviconUrl()})`,
       }}
       onCommand={() => {
-        gPanelSidebar.changePanel(id);
+        gPanelSidebar.changePanel(panel.id);
       }}
     />
   );
