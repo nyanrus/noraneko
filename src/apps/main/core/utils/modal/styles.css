@@ -407,6 +407,7 @@
 .modal-header {
   flex: 0 1 0%;
   padding: var(--chakra-space-8);
+  padding-bottom: 0;
   font-size: var(--chakra-fontSizes-3xl);
   font-weight: var(--chakra-fontWeights-semibold);
 }
