@@ -9,6 +9,7 @@ import { ShareModal } from "@core/utils/modal";
 import type { Panel } from "./utils/type";
 import modalStyle from "./modal-style.css?inline";
 import { getFirefoxSidebarPanels } from "./extension-panels";
+import { STATIC_PANEL_DATA } from "./static-panels";
 
 const { ContextualIdentityService } = ChromeUtils.importESModule(
   "resource://gre/modules/ContextualIdentityService.sys.mjs",
@@ -22,10 +23,6 @@ type Container = {
 
 export const [panelSidebarAddModalState, setPanelSidebarAddModalState] =
   createSignal(false);
-
-createEffect(() => {
-  console.log(panelSidebarAddModalState());
-});
 
 export class PanelSidebarAddModal {
   private static instance: PanelSidebarAddModal;
@@ -58,11 +55,8 @@ export class PanelSidebarAddModal {
     const [extensions, setExtensions] = createSignal(getFirefoxSidebarPanels());
 
     createEffect(() => {
-      console.log(type());
-    });
-
-    createEffect(() => {
       if (panelSidebarAddModalState()) {
+        console.log(getFirefoxSidebarPanels());
         setExtensions(getFirefoxSidebarPanels());
       }
     });
@@ -89,7 +83,31 @@ export class PanelSidebarAddModal {
               id="url"
               class="form-control"
               placeholder="https://ablaze.one"
+              value={window.gBrowser.currentURI.spec}
             />
+
+            <label for="userContextId">コンテナ</label>
+            <select id="userContextId" class="form-control" value={0}>
+              <option value={0}>デフォルト</option>
+              <For each={this.containers}>
+                {(container) => (
+                  <option value={container.userContextId}>
+                    {this.getContainerName(container)}
+                  </option>
+                )}
+              </For>
+            </select>
+            <div class="flex-row-gap">
+              <input
+                type="checkbox"
+                id="userAgent"
+                name="userAgent"
+                value={"userAgent"}
+              />
+              <label for="userAgent">
+                モバイル版のユーザーエージェントを使用する
+              </label>
+            </div>
           </Show>
 
           <Show when={type() === "extension"}>
@@ -99,13 +117,13 @@ export class PanelSidebarAddModal {
               flex="1"
               id="extension"
               value={undefined}
-              label="拡張機能を選択してください"
+              label="サイドバー対応の拡張機能がインストールされていません"
             >
               <xul:menupopup id="extensionSelectPopup">
                 <For each={extensions()}>
                   {(extension) => (
                     <xul:menuitem
-                      value={extension.keyId}
+                      value={extension.extensionId}
                       label={extension.title}
                       style={{
                         "list-style-image": `url(${extension.iconUrl})`,
@@ -116,6 +134,37 @@ export class PanelSidebarAddModal {
               </xul:menupopup>
             </xul:menulist>
           </Show>
+
+          <Show when={type() === "static"}>
+            <label for="sideBarTool">表示するサイドバーツール</label>
+            <select id="sideBarTool" class="form-control" value={undefined}>
+              <For each={Object.entries(STATIC_PANEL_DATA)}>
+                {([key, panel]) => <option value={key}>{panel.l10n}</option>}
+              </For>
+            </select>
+          </Show>
+
+          <label for="width">パネルの幅</label>
+          <input
+            type="number"
+            class="form-control"
+            id="width"
+            value={450}
+            oninput={(e) => {
+              let value = e.target.value.toLowerCase().replace(/[^0-9]/g, "");
+
+              if (value === "") {
+                value = "0";
+              }
+
+              const numValue = Number(value);
+              if (numValue < 0) {
+                value = "0";
+              }
+
+              e.target.value = value;
+            }}
+          />
         </form>
       </>
     );
@@ -128,6 +177,14 @@ export class PanelSidebarAddModal {
         ContentElement={() => this.ContentElement()}
         StyleElement={() => this.StyleElement}
         onClose={() => setPanelSidebarAddModalState(false)}
+        onGetFormError={(formControl) => {
+          const errorElement = document?.querySelector(
+            `form-control.${formControl.id}`,
+          );
+          if (errorElement) {
+            errorElement.classList.add("error");
+          }
+        }}
         onSave={(formControls) => {
           console.log(formControls);
           setPanelSidebarAddModalState(false);

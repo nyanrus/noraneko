@@ -19,6 +19,7 @@ render(() => <style>{modalStyle}</style>, document?.head, {
 export function ShareModal(props: {
   onClose: () => void;
   onSave: (formControls: { id: string; value: string }[]) => void;
+  onGetFormError: (formControl: { id: string; value: string }) => void;
   ContentElement: () => JSX.Element;
   StyleElement?: () => JSX.Element;
   name?: string;
@@ -48,8 +49,12 @@ export function ShareModal(props: {
                 const result = Array.from(forms).map((e) => {
                   const element = e as HTMLInputElement;
                   if (!element.id || !element.value) {
+                    props.onGetFormError({
+                      id: element.id,
+                      value: element.value,
+                    });
                     throw new Error(
-                      `Invalid Modal Form Control: "Id" and "Value" are required for all form elements!`,
+                      `Invalid Modal Form Control: "Id" and "Value" are required for all form elements! Occured element: ${element.id}, ${element.value}`,
                     );
                   }
                   return {

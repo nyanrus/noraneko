@@ -5,6 +5,7 @@
 
 type Sidebar = {
   title: string;
+  extensionId: string;
   url: string;
   menuId: string;
   keyId: string;
@@ -17,9 +18,16 @@ type Sidebar = {
 type MapSidebars = [string, Sidebar][];
 
 export function getFirefoxSidebarPanels(): Sidebar[] {
+  console.log(
+    Array.from(window.SidebarController.sidebars as MapSidebars).filter(
+      (sidebar) => {
+        return sidebar[1].extensionId;
+      },
+    ),
+  );
   return Array.from(window.SidebarController.sidebars as MapSidebars)
     .filter((sidebar) => {
-      return !sidebar[1].url.startsWith("chrome://");
+      return sidebar[1].extensionId;
     })
     .map((sidebar) => {
       return sidebar[1];

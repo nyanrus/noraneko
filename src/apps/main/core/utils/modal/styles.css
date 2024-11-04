@@ -432,7 +432,7 @@
   gap: var(--chakra-space-1);
 }
 
-.modal input {
+.modal input:not([type="checkbox"]) {
   height: var(--modal-input-height);
   font-size: var(--modal-input-font-size);
   padding-inline-start: var(--modal-input-padding);
@@ -459,6 +459,10 @@
 
 .modal input::placeholder {
   color: var(--chakra-colors-gray-300);
+}
+
+.modal input[type="checkbox"] {
+  margin-top: var(--chakra-space-2);
 }
 
 .modal select,
@@ -559,4 +563,12 @@
   .modal input::placeholder {
     color: var(--chakra-colors-gray-500);
   }
+}
+
+/*** CSS For Class */
+
+.flex-row-gap {
+  display: flex;
+  flex-direction: row;
+  gap: var(--chakra-space-4);
 }
