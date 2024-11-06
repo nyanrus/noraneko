@@ -21,6 +21,12 @@ export function isExtensionExist(keyId: string): boolean {
   return getFirefoxSidebarPanels().some((panel) => panel.keyId === keyId);
 }
 
+export function getSidebarIconFromSidebarController(extensionId: string) {
+  return getFirefoxSidebarPanels().find(
+    (panel) => panel.extensionId === extensionId,
+  )?.iconUrl;
+}
+
 export function getExtensionSidebarAction(extensionId: string) {
   const policy = WebExtensionPolicy.getByID(extensionId);
   return policy?.extension.manifest.sidebar_action;

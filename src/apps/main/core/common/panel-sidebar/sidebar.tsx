@@ -94,11 +94,6 @@ export class PanelSidebarElem {
           <xul:toolbarbutton
             id="panel-sidebar-add"
             class="panel-sidebar-panel"
-            context="all-panel-context"
-            style={{
-              "list-style-image":
-                "url(chrome://browser/skin/toolbarbutton-add.png)",
-            }}
             onCommand={() => {
               setPanelSidebarAddModalState(true);
             }}
