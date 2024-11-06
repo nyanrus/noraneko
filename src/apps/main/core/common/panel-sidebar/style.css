@@ -109,6 +109,17 @@
   width: 20px !important;
 }
 
+/* Header */
+#panel-sidebar-header {
+  height: 38px !important;
+  background-color: var(--toolbar-bgcolor);
+  background-image: var(--lwt-additional-images);
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-position: center;
+  background-size: cover;
+  padding: 0 6px;
+}
+
 /* Panel Sidebar Icon */
 .panel-sidebar-icon,
 .panel-sidebar-actions {
@@ -118,13 +129,19 @@
   color: inherit;
   fill: currentColor;
   padding: 2px;
-  width: 20px;
   height: auto;
+}
+
+.panel-sidebar-actions {
+  padding: 8px;
+  width: 32px;
+  height: 32px;
 }
 
 /* Hover and Active States */
 @media not (prefers-contrast) {
-  .panel-sidebar-panel:hover {
+  .panel-sidebar-panel:hover,
+  .panel-sidebar-actions:hover {
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
     background-color: var(--tab-selected-bgcolor, var(--toolbar-bgcolor));
   }
@@ -133,7 +150,8 @@
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
   }
   .panel-sidebar-panel:not([data-checked="true"]):active,
-  .panel-sidebar-panel:active {
+  .panel-sidebar-panel:active,
+  .panel-sidebar-actions:active {
     background-color: color-mix(in srgb, currentColor 20%, transparent);
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
   }
@@ -177,4 +195,28 @@
 /* Icons */
 #panel-sidebar-add {
   list-style-image: url("chrome://global/skin/icons/plus.svg");
+}
+
+#panel-sidebar-back {
+  list-style-image: url("chrome://browser/skin/back.svg");
+}
+
+#panel-sidebar-forward {
+  list-style-image: url("chrome://browser/skin/forward.svg");
+}
+
+#panel-sidebar-reload {
+  list-style-image: url("chrome://global/skin/icons/reload.svg");
+}
+
+#panel-sidebar-go-index {
+  list-style-image: url("chrome://browser/skin/home.svg");
+}
+
+#panel-sidebar-keeppanelwidth {
+  list-style-image: url("chrome://floorp/skin/designs/lepton/screenshot.svg");
+}
+
+#panel-sidebar-close {
+  list-style-image: url("chrome://global/skin/icons/close.svg");
 }
