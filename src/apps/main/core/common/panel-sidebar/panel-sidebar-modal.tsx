@@ -10,6 +10,7 @@ import type { Panel } from "./utils/type";
 import modalStyle from "./modal-style.css?inline";
 import { getFirefoxSidebarPanels } from "./extension-panels";
 import { STATIC_PANEL_DATA } from "./static-panels";
+import { setPanelSidebarData } from "./data";
 
 const { ContextualIdentityService } = ChromeUtils.importESModule(
   "resource://gre/modules/ContextualIdentityService.sys.mjs",
@@ -50,13 +51,23 @@ export class PanelSidebarAddModal {
     return container.name;
   }
 
+  private FormErrorText({
+    targetId,
+    text,
+  }: { targetId: string; text: string }) {
+    return (
+      <text class="modal-error" id={`${targetId}-error`} data-hidden>
+        {text}
+      </text>
+    );
+  }
+
   private ContentElement() {
     const [type, setType] = createSignal<Panel["type"]>("web");
     const [extensions, setExtensions] = createSignal(getFirefoxSidebarPanels());
 
     createEffect(() => {
       if (panelSidebarAddModalState()) {
-        console.log(getFirefoxSidebarPanels());
         setExtensions(getFirefoxSidebarPanels());
       }
     });
@@ -85,6 +96,10 @@ export class PanelSidebarAddModal {
               placeholder="https://ablaze.one"
               value={window.gBrowser.currentURI.spec}
             />
+            {this.FormErrorText({
+              targetId: "url",
+              text: "入力されていないか、URL が不正です",
+            })}
 
             <label for="userContextId">コンテナ</label>
             <select id="userContextId" class="form-control" value={0}>
@@ -101,8 +116,13 @@ export class PanelSidebarAddModal {
               <input
                 type="checkbox"
                 id="userAgent"
+                class="form-control"
                 name="userAgent"
-                value={"userAgent"}
+                value="false"
+                onchange={(e) => {
+                  const target = e.target as HTMLInputElement;
+                  target.value = target.checked ? "true" : "false";
+                }}
               />
               <label for="userAgent">
                 モバイル版のユーザーエージェントを使用する
@@ -177,16 +197,59 @@ export class PanelSidebarAddModal {
         ContentElement={() => this.ContentElement()}
         StyleElement={() => this.StyleElement}
         onClose={() => setPanelSidebarAddModalState(false)}
-        onGetFormError={(formControl) => {
-          const errorElement = document?.querySelector(
-            `form-control.${formControl.id}`,
-          );
-          if (errorElement) {
-            errorElement.classList.add("error");
-          }
+        onGetFormError={({ id }) => {
+          document
+            ?.querySelector(`.modal-error[id="${id}-error"]`)
+            ?.removeAttribute("data-hidden");
+
+          document
+            ?.querySelector(`.modal-error:not([id="${id}-error"])`)
+            ?.setAttribute("data-hidden", "");
         }}
         onSave={(formControls) => {
-          console.log(formControls);
+          const type = formControls.find(({ id }) => id === "type")?.value;
+          let result: Panel = {
+            type: type as Panel["type"],
+            id: crypto.randomUUID(),
+            width: 450,
+          };
+
+          if (type === "web") {
+            result = {
+              ...result,
+              url: formControls.find(({ id }) => id === "url")?.value as string,
+              width: Number(
+                formControls.find(({ id }) => id === "width")?.value,
+              ),
+              userContextId: Number(
+                formControls.find(({ id }) => id === "userContextId")?.value,
+              ),
+              userAgent: Boolean(
+                formControls.find(({ id }) => id === "userAgent")?.value,
+              ),
+            };
+          }
+
+          if (type === "extension") {
+            result = {
+              ...result,
+              extensionId: formControls.find(({ id }) => id === "extension")
+                ?.value as string,
+            };
+          }
+
+          if (type === "static") {
+            result = {
+              ...result,
+              icon: STATIC_PANEL_DATA[
+                formControls.find(({ id }) => id === "sideBarTool")
+                  ?.value as keyof typeof STATIC_PANEL_DATA
+              ].icon,
+              url: formControls.find(({ id }) => id === "sideBarTool")
+                ?.value as keyof typeof STATIC_PANEL_DATA,
+            };
+          }
+          setPanelSidebarData((prev) => [...prev, result]);
           setPanelSidebarAddModalState(false);
         }}
       />

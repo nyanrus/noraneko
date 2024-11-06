@@ -572,3 +572,11 @@
   flex-direction: row;
   gap: var(--chakra-space-4);
 }
+
+[data-hidden] {
+  display: none;
+}
+
+.modal-error {
+  color: var(--chakra-colors-red-500);
+}

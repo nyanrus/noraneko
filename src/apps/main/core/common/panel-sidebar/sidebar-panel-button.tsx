@@ -15,7 +15,6 @@ export function PanelSidebarButton({ panel }: { panel: Panel }) {
 
   createEffect(async () => {
     const iconUrl = await getFaviconURLForPanel(panel);
-    console.log(iconUrl);
     setFaviconUrl(iconUrl);
   });
 

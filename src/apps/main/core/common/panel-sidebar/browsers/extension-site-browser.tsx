@@ -11,19 +11,21 @@ export function ExtensionSiteBrowser({ id, type, url }: Panel) {
       id={`sidebar-panel-${id}`}
       class="sidebar-panel-browser"
       flex="1"
-      xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       disablehistory="true"
-      disablefullscreen="true"
-      tooltip="aHTMLTooltip"
       autoscroll="false"
-      disableglobalhistory="true"
-      messagemanagergroup="browsers"
-      autocompletepopup="PopupAutoComplete"
-      initialBrowsingContextGroupId="40"
-      webextension-view-type="sidebar"
-      type="content"
-      remote="true"
-      maychangeremoteness="true"
+      disablefullscreen="true"
+      src="chrome://browser/content/webext-panels.xhtml"
     />
   );
 }
+
+// {
+//   browser.setAttribute("type", "content");
+//   browser.setAttribute("flex", "1");
+//   browser.setAttribute("disableglobalhistory", "true");
+//   browser.setAttribute("messagemanagergroup", "webext-browsers");
+//   browser.setAttribute("webextension-view-type", panel.viewType);
+//   browser.setAttribute("context", "contentAreaContextMenu");
+//   browser.setAttribute("tooltip", "aHTMLTooltip");
+//   browser.setAttribute("autocompletepopup", "PopupAutoComplete");
+// }

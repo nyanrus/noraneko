@@ -127,7 +127,7 @@ export class WebsitePanelWindowChild {
 
     mainWindow.setAttribute("BSM-window", "true");
     mainWindow.setAttribute("BMS-usercontextid", userContextId.toString());
-    mainWindow.setAttribute("BMS-useragent", (userAgent ?? "") as string);
+    mainWindow.setAttribute("BMS-useragent", userAgent.toString());
     mainWindow.setAttribute("BMS-webpanelid", this.webpanelId ?? "");
     window.bmsLoadedURI = loadURL;
 

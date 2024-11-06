@@ -10,6 +10,7 @@ import { WebSiteBrowser } from "./browsers/web-site-browser";
 import { panelSidebarData, selectedPanelId, setSelectedPanelId } from "./data";
 import type { Panel } from "./utils/type";
 import { createEffect } from "solid-js";
+import { getExtensionSidebarAction } from "./extension-panels";
 
 export class PanelSidebar {
   private static instance: PanelSidebar;
@@ -95,6 +96,47 @@ export class PanelSidebar {
       // biome-ignore lint/suspicious/noExplicitAny: Required for hot module replacement
       hotCtx: (import.meta as any).hot,
     });
+
+    this.initBrowser(panel);
+  }
+
+  private initBrowser(panel: Panel) {
+    if (panel.type === "extension") {
+      const browser = this.getBrowserElement(panel.id) as XULElement & {
+        contentWindow: Window;
+      };
+
+      if (!browser) {
+        throw new Error("Browser element not found");
+      }
+
+      if (!panel.extensionId) {
+        throw new Error("Extension ID not found");
+      }
+
+      const sidebarAction = getExtensionSidebarAction(panel.extensionId);
+
+      browser.addEventListener("DOMContentLoaded", () => {
+        const oa = window.E10SUtils.predictOriginAttributes({ browser });
+        browser.setAttribute(
+          "remoteType",
+          window.E10SUtils.getRemoteTypeForURI(
+            panel.url ?? "",
+            true,
+            false,
+            window.E10SUtils.EXTENSION_REMOTE_TYPE,
+            null,
+            oa,
+          ),
+        );
+
+        browser.contentWindow.loadPanel(
+          panel.extensionId,
+          sidebarAction.default_panel,
+          "sidebar",
+        );
+      });
+    }
   }
 
   public changePanel(panelId: string): void {

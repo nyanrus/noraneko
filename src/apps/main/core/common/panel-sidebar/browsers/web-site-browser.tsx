@@ -21,7 +21,7 @@ export function WebSiteBrowser({ id, type, url }: Panel) {
       autocompletepopup="PopupAutoComplete"
       initialBrowsingContextGroupId="40"
       // temporary to use <Browser> Element for waiting for the new API
-      src={url}
+      src={url ?? ""}
       type="content"
       remote="true"
       maychangeremoteness="true"
