@@ -3,6 +3,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { selectedPanelId } from "./data";
+import { PanelNavigator } from "./panel-navigator";
+
 export function SidebarHeader() {
   return (
     <xul:box id="panel-sidebar-header" align="center">
@@ -13,16 +16,19 @@ export function SidebarHeader() {
       />
       <xul:toolbarbutton
         id="panel-sidebar-forward"
+        onCommand={() => PanelNavigator.forward(selectedPanelId() ?? "")}
         class="panel-sidebar-actions"
         data-l10n-id="sidebar-forward-button"
       />
       <xul:toolbarbutton
         id="panel-sidebar-reload"
+        onCommand={() => PanelNavigator.reload(selectedPanelId() ?? "")}
         class="panel-sidebar-actions"
         data-l10n-id="sidebar-reload-button"
       />
       <xul:toolbarbutton
         id="panel-sidebar-go-index"
+        onCommand={() => PanelNavigator.goIndexPage(selectedPanelId() ?? "")}
         class="panel-sidebar-actions"
         data-l10n-id="sidebar-go-index-button"
       />

@@ -21,10 +21,6 @@ export class PanelSidebar {
     return PanelSidebar.instance;
   }
 
-  private get currentPanel() {
-    return window.gFloorpPanelSidebarCurrentPanel ?? null;
-  }
-
   private get parentElement() {
     return document?.getElementById("panel-sidebar-browser-box") as
       | XULElement
@@ -55,9 +51,16 @@ export class PanelSidebar {
     });
   }
 
-  private getBrowserElement(id: string) {
+  public getBrowserElement(id: string) {
     return document?.getElementById(`sidebar-panel-${id}`) as
-      | XULElement
+      | (XULElement & {
+          contentWindow: Window;
+          goBack: () => void;
+          goForward: () => void;
+          goIndex: () => void;
+          reload: () => void;
+          toggleMute: () => void;
+        })
       | undefined;
   }
 

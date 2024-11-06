@@ -10,6 +10,7 @@ const defaultConfig: PanelSidebarConfig = {
   autoUnload: false,
   position_start: true,
   displayed: true,
+  webExtensionRunningEnabled: false,
 };
 
 const defaultData: PanelSidebarData = {

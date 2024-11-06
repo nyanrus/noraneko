@@ -30,6 +30,7 @@ export const zPanelSidebarConfig = z.object({
   autoUnload: z.boolean(),
   position_start: z.boolean(),
   displayed: z.boolean(),
+  webExtensionRunningEnabled: z.boolean(),
 });
 
 export const zPanelSidebarData = z.object({
