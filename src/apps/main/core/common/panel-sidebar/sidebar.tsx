@@ -5,10 +5,9 @@
 
 import { render } from "@nora/solid-xul";
 import style from "./style.css?inline";
-import { For } from "solid-js";
-import { panelSidebarData } from "./data";
-import { PanelSidebarButton } from "./sidebar-panel-button";
-import { setPanelSidebarAddModalState } from "./panel-sidebar-modal";
+import { SidebarHeader } from "./sidebar-header";
+import { SidebarSelectbox } from "./sidebar-selectbox";
+import { SidebarSplitter } from "./sidebar-splitter";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -45,98 +44,11 @@ export class PanelSidebarElem {
           id="panel-sidebar-box"
           class="browser-sidebar2 chromeclass-extrachrome"
         >
-          <xul:box id="panel-sidebar-header" align="center">
-            <xul:toolbarbutton
-              id="panel-sidebar-back"
-              class="panel-sidebar-actions toolbarbutton-1 chromeclass-toolbar-additional"
-              data-l10n-id="sidebar-back-button"
-            />
-            <xul:toolbarbutton
-              id="panel-sidebar-forward"
-              class="panel-sidebar-actions"
-              data-l10n-id="sidebar-forward-button"
-            />
-            <xul:toolbarbutton
-              id="panel-sidebar-reload"
-              class="panel-sidebar-actions"
-              data-l10n-id="sidebar-reload-button"
-            />
-            <xul:toolbarbutton
-              id="panel-sidebar-go-index"
-              class="panel-sidebar-actions"
-              data-l10n-id="sidebar-go-index-button"
-            />
-            <xul:spacer flex="1" />
-            <xul:toolbarbutton
-              id="panel-sidebar-keeppanelwidth"
-              context="width-size-context"
-              class="panel-sidebar-actions"
-            />
-            <xul:toolbarbutton
-              id="panel-sidebar-close"
-              class="panel-sidebar-actions"
-            />
-          </xul:box>
+          <SidebarHeader />
           <xul:vbox id="panel-sidebar-browser-box" style="flex: 1;" />
         </xul:vbox>
-        <xul:splitter
-          id="panel-sidebar-splitter"
-          class="chromeclass-extrachrome"
-          hidden={false}
-        />
-        <xul:vbox
-          id="panel-sidebar-select-box"
-          class="webpanel-box chromeclass-extrachrome"
-        >
-          <For each={panelSidebarData()}>
-            {(panel) => <PanelSidebarButton panel={panel} />}
-          </For>
-          <xul:toolbarbutton
-            id="panel-sidebar-add"
-            class="panel-sidebar-panel"
-            onCommand={() => {
-              setPanelSidebarAddModalState(true);
-            }}
-          />
-          <xul:spacer flex="1" />
-          <xul:vbox id="panel-sidebar-bottomButtonBox">
-            <xul:toolbarbutton
-              class="sidepanel-browser-icon"
-              data-l10n-id="sidebar2-hide-sidebar"
-              onCommand={() =>
-                Services.prefs.setBoolPref(
-                  "floorp.browser.sidebar.enable",
-                  false,
-                )
-              }
-              id="panel-sidebar-hide-icon"
-            />
-            <xul:toolbarbutton
-              class="sidepanel-browser-icon"
-              data-l10n-id="sidebar-addons-button"
-              onCommand={() =>
-                window.BrowserAddonUI.openAddonsMgr("addons://list/extension")
-              }
-              id="panel-sidebar-addons-icon"
-            />
-            <xul:toolbarbutton
-              class="sidepanel-browser-icon"
-              data-l10n-id="sidebar-passwords-button"
-              onCommand={() =>
-                window.LoginHelper.openPasswordManager(window, {
-                  entryPoint: "mainmenu",
-                })
-              }
-              id="panel-sidebar-passwords-icon"
-            />
-            <xul:toolbarbutton
-              class="sidepanel-browser-icon"
-              data-l10n-id="sidebar-preferences-button"
-              onCommand={() => window.openPreferences()}
-              id="panel-sidebar-preferences-icon"
-            />
-          </xul:vbox>
-        </xul:vbox>
+        <SidebarSplitter />
+        <SidebarSelectbox />
       </>
     );
   }
