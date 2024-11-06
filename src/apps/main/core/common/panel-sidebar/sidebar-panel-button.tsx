@@ -8,6 +8,7 @@ import { getFaviconURLForPanel } from "./utils/favicon-getter";
 import { PanelSidebar } from "./panel-sidebar";
 import { selectedPanelId } from "./data";
 import type { Panel } from "./utils/type";
+import { isExtensionExist } from "./extension-panels";
 
 export function PanelSidebarButton({ panel }: { panel: Panel }) {
   const gPanelSidebar = PanelSidebar.getInstance();
@@ -17,6 +18,13 @@ export function PanelSidebarButton({ panel }: { panel: Panel }) {
     const iconUrl = await getFaviconURLForPanel(panel);
     setFaviconUrl(iconUrl);
   });
+
+  if (
+    panel.type === "extension" &&
+    !isExtensionExist(panel.extensionId as string)
+  ) {
+    return null;
+  }
 
   return (
     <xul:toolbarbutton

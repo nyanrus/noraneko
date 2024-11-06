@@ -17,8 +17,10 @@ export function getFirefoxSidebarPanels(): Sidebar[] {
     });
 }
 
-export function isExtensionExist(keyId: string): boolean {
-  return getFirefoxSidebarPanels().some((panel) => panel.keyId === keyId);
+export function isExtensionExist(extensionId: string): boolean {
+  return getFirefoxSidebarPanels().some(
+    (panel) => panel.extensionId === extensionId,
+  );
 }
 
 export function getSidebarIconFromSidebarController(extensionId: string) {
