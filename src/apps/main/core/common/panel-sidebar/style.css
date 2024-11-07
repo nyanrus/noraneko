@@ -2,12 +2,24 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+/* Base Variables */
+:root {
+  --panel-sidebar-width: 42px;
+  --panel-sidebar-compact-width: 35px;
+  --panel-sidebar-touch-width: 60px;
+  --panel-icon-size: 16px;
+  --panel-touch-icon-size: 20px;
+}
+
 /* Panel Sidebar Select Box */
 #panel-sidebar-select-box {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
+  width: var(--panel-sidebar-width);
+  max-width: var(--panel-sidebar-width);
+  min-width: var(--panel-sidebar-width);
   color: var(--toolbar-color);
   background-color: var(--toolbar-bgcolor);
   background-image: var(--lwt-additional-images);
@@ -17,9 +29,7 @@
   scrollbar-width: thin;
   border-left: 1px solid var(--chrome-content-separator-color);
   border-right: 1px solid var(--chrome-content-separator-color);
-  width: 42px;
-  max-width: 42px;
-  min-width: 42px;
+  order: 1;
 }
 
 #panel-sidebar-select-box:-moz-lwtheme {
@@ -31,15 +41,17 @@
   background: var(--toolbar-bgcolor);
   border: var(--toolbar-bgcolor) 0.1px solid;
   border-bottom: solid 5px var(--toolbar-bgcolor);
+  order: 2;
 }
 
 /* Panel Sidebar Splitter */
-#panel-sidebar-box[positionend] + .panel-sidebar-splitter {
+#panel-sidebar-splitter {
+  margin-inline: 0;
   border-color: transparent;
+  order: 3;
 }
 
-#panel-sidebar-splitter {
-  margin-inline: 0px !important;
+#panel-sidebar-box[positionend] + .panel-sidebar-splitter {
   border-color: transparent;
 }
 
@@ -56,26 +68,31 @@
   left: 3px;
   opacity: 0.5;
   fill: inherit;
-  background: none !important;
+  background: none;
   display: none;
 }
 
 .webpanel-icon[muted]::before {
-  display: inherit !important;
+  display: inherit;
 }
 
-/* Sidepanel Icon and Browser Icon */
+/* Common Button Styles */
 .panel-sidebar-panel,
-.panel-sidebar-panel {
+.panel-sidebar-icon,
+.panel-sidebar-actions {
   appearance: none;
   -moz-context-properties: fill, fill-opacity;
   border-radius: 4px;
   color: inherit;
   fill: currentColor;
+}
+
+/* Panel Sidebar Panel */
+.panel-sidebar-panel {
   scale: 1;
   min-width: 36px;
   min-height: 36px;
-  margin: 0px 1px;
+  margin: 0 1px;
   margin-top: 5px;
 }
 
@@ -88,44 +105,39 @@
 }
 
 .panel-sidebar-panel > .toolbarbutton-icon {
-  width: 16px !important;
+  width: var(--panel-icon-size);
 }
 
 .panel-sidebar-panel > .toolbarbutton-text {
-  display: none !important;
+  display: none;
 }
 
-/* UI Density: Compact Mode */
+/* UI Density Variations */
+:root[uidensity="compact"] {
+  --panel-sidebar-width: var(--panel-sidebar-compact-width);
+}
+
 :root[uidensity="compact"] .panel-sidebar-panel {
   margin: 3.5px 3.5px 4.5px 3.5px;
   padding: 5px;
 }
 
-:root[uidensity="compact"] #panel-sidebar-select-box {
-  width: 35px;
-  max-width: 35px;
-  min-width: 35px;
+:root[uidensity="touch"] {
+  --panel-sidebar-width: var(--panel-sidebar-touch-width);
 }
 
-/* UI Density: Touch Mode */
 :root[uidensity="touch"] .panel-sidebar-panel {
   margin: 1px 3px 2px 3px;
   padding: 16px;
 }
 
-:root[uidensity="touch"] #panel-sidebar-select-box {
-  width: 60px;
-  max-width: 60px;
-  min-width: 60px;
-}
-
 :root[uidensity="touch"] .panel-sidebar-panel > .toolbarbutton-icon {
-  width: 20px !important;
+  width: var(--panel-touch-icon-size);
 }
 
 /* Header */
 #panel-sidebar-header {
-  height: 38px !important;
+  height: 38px;
   background-color: var(--toolbar-bgcolor);
   background-image: var(--lwt-additional-images);
   background-repeat: no-repeat, no-repeat, no-repeat;
@@ -134,35 +146,22 @@
   padding: 0 6px;
 }
 
-/* Panel Sidebar Icon */
-.panel-sidebar-icon,
-.panel-sidebar-actions {
-  appearance: none;
-  -moz-context-properties: fill, fill-opacity;
-  border-radius: 4px;
-  color: inherit;
-  fill: currentColor;
-  padding: 2px;
-  height: auto;
-}
-
+/* Action Buttons */
 .panel-sidebar-actions {
   padding: 8px;
   width: 32px;
   height: 32px;
 }
 
-/* Hover and Active States */
+/* Interactive States */
 @media not (prefers-contrast) {
   .panel-sidebar-panel:hover,
   .panel-sidebar-actions:hover {
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
     background-color: var(--tab-selected-bgcolor, var(--toolbar-bgcolor));
   }
-  .panel-sidebar-panel[data-checked="true"] {
-    background-color: color-mix(in srgb, currentColor 20%, transparent);
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
-  }
+
+  .panel-sidebar-panel[data-checked="true"],
   .panel-sidebar-panel:not([data-checked="true"]):active,
   .panel-sidebar-panel:active,
   .panel-sidebar-actions:active {
@@ -177,6 +176,7 @@
   }
 }
 
+/* Hidden States */
 :is(
     :root[inDOMFullscreen],
     :root[inFullscreen]:not([macOSNativeFullscreen]),
@@ -188,49 +188,30 @@
 }
 
 :root[invisibleBMS] {
-  max-width: 0px !important;
-  min-width: 0px !important;
-  border: unset !important;
-}
-
-/* Temporary */
-#panel-sidebar-select-box {
-  order: 1 !important;
-}
-
-#panel-sidebar-box {
-  order: 2 !important;
-}
-
-#panel-sidebar-splitter {
-  order: 3 !important;
+  max-width: 0;
+  min-width: 0;
+  border: unset;
 }
 
 /* Icons */
 #panel-sidebar-add {
   list-style-image: url("chrome://global/skin/icons/plus.svg");
 }
-
 #panel-sidebar-back {
   list-style-image: url("chrome://browser/skin/back.svg");
 }
-
 #panel-sidebar-forward {
   list-style-image: url("chrome://browser/skin/forward.svg");
 }
-
 #panel-sidebar-reload {
   list-style-image: url("chrome://global/skin/icons/reload.svg");
 }
-
 #panel-sidebar-go-index {
   list-style-image: url("chrome://browser/skin/home.svg");
 }
-
 #panel-sidebar-keeppanelwidth {
   list-style-image: url("chrome://floorp/skin/designs/lepton/screenshot.svg");
 }
-
 #panel-sidebar-close {
   list-style-image: url("chrome://global/skin/icons/close.svg");
 }
