@@ -43,6 +43,11 @@
   border-color: transparent;
 }
 
+#panel-sidebar-box,
+#panel-sidebar-splitter {
+  display: var(--panel-sidebar-display);
+}
+
 /* Webpanel Icon */
 .webpanel-icon::before {
   content: url("chrome://browser/skin/tabbrowser/tab-audio-muted-small.svg");

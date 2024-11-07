@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { Show } from "solid-js";
-import { selectedPanelId } from "./data";
+import { selectedPanelId, setSelectedPanelId } from "./data";
 import { PanelNavigator } from "./panel-navigator";
 import { PanelSidebar } from "./panel-sidebar";
 
@@ -44,11 +44,13 @@ export function SidebarHeader() {
       <xul:spacer flex="1" />
       <xul:toolbarbutton
         id="panel-sidebar-keeppanelwidth"
+        onCommand={() => gPanelSidebar.saveCurrentSidebarWidth()}
         context="width-size-context"
         class="panel-sidebar-actions"
       />
       <xul:toolbarbutton
         id="panel-sidebar-close"
+        onCommand={() => setSelectedPanelId(null)}
         class="panel-sidebar-actions"
       />
     </xul:box>

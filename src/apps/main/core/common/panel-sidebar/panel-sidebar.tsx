@@ -7,7 +7,13 @@ import { render } from "@nora/solid-xul";
 import { ChromeSiteBrowser } from "./browsers/chrome-site-browser";
 import { ExtensionSiteBrowser } from "./browsers/extension-site-browser";
 import { WebSiteBrowser } from "./browsers/web-site-browser";
-import { panelSidebarData, selectedPanelId, setSelectedPanelId } from "./data";
+import {
+  panelSidebarConfig,
+  panelSidebarData,
+  selectedPanelId,
+  setPanelSidebarData,
+  setSelectedPanelId,
+} from "./data";
 import type { Panel } from "./utils/type";
 import { createEffect } from "solid-js";
 import { getExtensionSidebarAction } from "./extension-panels";
@@ -23,6 +29,12 @@ export class PanelSidebar {
 
   private get parentElement() {
     return document?.getElementById("panel-sidebar-browser-box") as
+      | XULElement
+      | undefined;
+  }
+
+  private get sidebarElement() {
+    return document?.getElementById("panel-sidebar-box") as
       | XULElement
       | undefined;
   }
@@ -144,21 +156,19 @@ export class PanelSidebar {
 
   public changePanel(panelId: string): void {
     if (panelId === selectedPanelId()) {
-      this.makeInvisiblePanel();
       setSelectedPanelId(null);
       return;
     }
-
-    this.makeVisiblePanel();
 
     const panel = this.getPanelData(panelId);
     if (!panel) {
       throw new Error(`Panel not found: ${panelId}`);
     }
 
+    setSelectedPanelId(panelId);
+    this.setSidebarWidth(panel);
     this.resetBrowsersFlex();
     this.showPanel(panel);
-    setSelectedPanelId(panelId);
   }
 
   public showPanel(panel: Panel): void {
@@ -170,13 +180,23 @@ export class PanelSidebar {
     this.renderBrowserComponent(panel);
   }
 
-  public makeInvisiblePanel(): void {
-    document
-      ?.getElementById("panel-sidebar-box")
-      ?.setAttribute("hidden", "true");
+  public saveCurrentSidebarWidth() {
+    const currentWidth = this.sidebarElement?.getAttribute("width");
+    if (currentWidth) {
+      setPanelSidebarData((prev) =>
+        prev.map((panel) =>
+          panel.id === selectedPanelId()
+            ? { ...panel, width: Number(currentWidth) }
+            : panel,
+        ),
+      );
+    }
   }
 
-  public makeVisiblePanel(): void {
-    document?.getElementById("panel-sidebar-box")?.removeAttribute("hidden");
+  private setSidebarWidth(panel: Panel) {
+    this.sidebarElement?.style.setProperty(
+      "width",
+      `${panel.width !== 0 ? panel.width : panelSidebarConfig().globalWidth}px`,
+    );
   }
 }

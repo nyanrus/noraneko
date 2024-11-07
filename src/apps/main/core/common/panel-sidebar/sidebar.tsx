@@ -8,6 +8,8 @@ import style from "./style.css?inline";
 import { SidebarHeader } from "./sidebar-header";
 import { SidebarSelectbox } from "./sidebar-selectbox";
 import { SidebarSplitter } from "./sidebar-splitter";
+import { createEffect } from "solid-js";
+import { selectedPanelId } from "./data";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -16,6 +18,10 @@ export class PanelSidebarElem {
       PanelSidebarElem.instance = new PanelSidebarElem();
     }
     return PanelSidebarElem.instance;
+  }
+
+  private get documentElement() {
+    return document?.documentElement as XULElement;
   }
 
   constructor() {
@@ -31,6 +37,20 @@ export class PanelSidebarElem {
       // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       hotCtx: (import.meta as any).hot,
     });
+
+    createEffect(() => {
+      if (selectedPanelId() === null) {
+        this.documentElement?.style.setProperty(
+          "--panel-sidebar-display",
+          "none",
+        );
+      } else {
+        this.documentElement?.style.setProperty(
+          "--panel-sidebar-display",
+          "flex",
+        );
+      }
+    });
   }
 
   private style() {
@@ -40,10 +60,7 @@ export class PanelSidebarElem {
   private sidebar() {
     return (
       <>
-        <xul:vbox
-          id="panel-sidebar-box"
-          class="browser-sidebar2 chromeclass-extrachrome"
-        >
+        <xul:vbox id="panel-sidebar-box" class="chromeclass-extrachrome">
           <SidebarHeader />
           <xul:vbox id="panel-sidebar-browser-box" style="flex: 1;" />
         </xul:vbox>
