@@ -74,6 +74,14 @@
   margin-top: 5px;
 }
 
+.panel-sidebar-panel.dragging {
+  opacity: 0.5;
+}
+
+.panel-sidebar-panel.drag-over {
+  border: 2px solid highlight;
+}
+
 .panel-sidebar-panel > .toolbarbutton-icon {
   width: 16px !important;
 }
