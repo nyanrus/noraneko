@@ -143,6 +143,14 @@ export class PanelSidebar {
   }
 
   public changePanel(panelId: string): void {
+    if (panelId === selectedPanelId()) {
+      this.makeInvisiblePanel();
+      setSelectedPanelId(null);
+      return;
+    }
+
+    this.makeVisiblePanel();
+
     const panel = this.getPanelData(panelId);
     if (!panel) {
       throw new Error(`Panel not found: ${panelId}`);
@@ -160,5 +168,15 @@ export class PanelSidebar {
       return;
     }
     this.renderBrowserComponent(panel);
+  }
+
+  public makeInvisiblePanel(): void {
+    document
+      ?.getElementById("panel-sidebar-box")
+      ?.setAttribute("hidden", "true");
+  }
+
+  public makeVisiblePanel(): void {
+    document?.getElementById("panel-sidebar-box")?.removeAttribute("hidden");
   }
 }
