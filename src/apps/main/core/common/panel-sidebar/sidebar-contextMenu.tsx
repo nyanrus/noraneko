@@ -5,6 +5,10 @@
 
 import { render } from "@nora/solid-xul";
 import { PanelSidebar } from "./panel-sidebar";
+import { createSignal, Show } from "solid-js";
+import type { Panel } from "./utils/type";
+
+export const [contextPanel, setContextPanel] = createSignal<Panel | null>(null);
 
 export class SidebarContextMenuElem {
   private static instance: SidebarContextMenuElem;
@@ -25,102 +29,120 @@ export class SidebarContextMenuElem {
     });
   }
 
+  public contextPanelId: string | null = null;
+
+  private getPanelByOriginalTarget(target: XULElement | null) {
+    if (!target) {
+      return;
+    }
+
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    const panelId = (target.dataset as any).panelId;
+    const gPanelSidebar = PanelSidebar.getInstance();
+    return gPanelSidebar.getPanelData(panelId);
+  }
+
+  private handlePopupShowing(e: Event) {
+    const panel = this.getPanelByOriginalTarget(
+      e.explicitOriginalTarget as XULElement,
+    );
+    if (!panel) {
+      return;
+    }
+
+    setContextPanel(panel);
+  }
+
+  private handlePopupHiding() {
+    setContextPanel(null);
+  }
+
+  private handleUnloadCommand() {
+    const gPanelSidebar = PanelSidebar.getInstance();
+    const panelId = contextPanel()?.id;
+    if (panelId) {
+      gPanelSidebar.unloadPanel(panelId);
+    }
+  }
+
+  private handleDeleteCommand() {
+    const gPanelSidebar = PanelSidebar.getInstance();
+    const panelId = contextPanel()?.id;
+    if (panelId) {
+      gPanelSidebar.deletePanel(panelId);
+    }
+  }
+
+  private handleMuteCommand() {
+    const gPanelSidebar = PanelSidebar.getInstance();
+    const panelId = contextPanel()?.id;
+    if (panelId) {
+      gPanelSidebar.mutePanel(panelId);
+    }
+  }
+
+  private handleChangeZoomLevelCommand(type: "in" | "out" | "reset") {
+    const gPanelSidebar = PanelSidebar.getInstance();
+    const panelId = contextPanel()?.id;
+    if (panelId) {
+      gPanelSidebar.changeZoomLevel(panelId, type);
+    }
+  }
+
   private sidebarContextMenu() {
     const gPanelSidebar = PanelSidebar.getInstance();
     return (
       <xul:popupset>
         <xul:menupopup
-          id="webpanel-context"
-          onpopupshowing="gPanelSidebar.contextMenu.show(event);"
+          id="panel-sidebar-panel-context"
+          onPopupShowing={(e) => this.handlePopupShowing(e)}
+          onPopupHiding={() => this.handlePopupHiding()}
         >
           <xul:menuitem
-            id="unloadWebpanelMenu"
-            class="needLoadedWebpanel"
-            data-l10n-id="sidebar2-unload-panel"
+            id="panel-sidebar-unload"
             label="Unload this webpanel"
-            accesskey="U"
-            onCommand={() => gPanelSidebar.contextMenu.unloadWebpanel()}
+            onCommand={() => this.handleUnloadCommand()}
           />
-          <xul:menuseparator class="context-webpanel-separator" />
+          <Show when={contextPanel()?.type === "web"}>
+            <xul:menuseparator />
+            <xul:menuitem
+              id="panel-sidebar-panel-mute"
+              label="Mute/Unmute this webpanel"
+              onCommand={() => this.handleMuteCommand()}
+            />
+            <xul:menu
+              id="panel-sidebar-change-zoom-level"
+              label="Change zoom level"
+            >
+              <xul:menupopup id="panel-sidebar-change-zoom-level-popup">
+                <xul:menuitem
+                  id="panel-sidebar-zoom-in"
+                  label="Zoom in"
+                  onCommand={() => this.handleChangeZoomLevelCommand("in")}
+                />
+                <xul:menuitem
+                  id="panel-sidebar-zoom-out"
+                  label="Zoom out"
+                  onCommand={() => this.handleChangeZoomLevelCommand("out")}
+                />
+                <xul:menuitem
+                  id="panel-sidebar-reset-zoom"
+                  label="Reset zoom"
+                  onCommand={() => this.handleChangeZoomLevelCommand("reset")}
+                />
+              </xul:menupopup>
+            </xul:menu>
+            <xul:menuitem
+              id="panel-sidebar-change-ua"
+              label="Switch User agent to Mobile/Desktop Version at this Webpanel"
+              accesskey="R"
+            />
+          </Show>
+          <xul:menuseparator />
           <xul:menuitem
-            id="muteMenu"
-            class="needLoadedWebpanel"
-            data-l10n-id="sidebar2-mute-and-unmute"
-            label="Mute/Unmute this webpanel"
-            accesskey="M"
-            onCommand={() => gPanelSidebar.contextMenu.muteWebpanel()}
-          />
-          <xul:menu
-            id="changeZoomLevelMenu"
-            class="needLoadedWebpanel needRunningExtensionsPanel"
-            data-l10n-id="sidebar2-change-zoom-level"
-            accesskey="Z"
-          >
-            <xul:menupopup id="changeZoomLevelPopup">
-              <xul:menuitem
-                id="zoomInMenu"
-                accesskey="I"
-                data-l10n-id="sidebar2-zoom-in"
-                onCommand={() => gPanelSidebar.contextMenu.zoomIn()}
-              />
-              <xul:menuitem
-                id="zoomOutMenu"
-                accesskey="O"
-                data-l10n-id="sidebar2-zoom-out"
-                onCommand={() => gPanelSidebar.contextMenu.zoomOut()}
-              />
-              <xul:menuitem
-                id="resetZoomMenu"
-                accesskey="R"
-                data-l10n-id="sidebar2-reset-zoom"
-                onCommand={() => gPanelSidebar.contextMenu.resetZoom()}
-              />
-            </xul:menupopup>
-          </xul:menu>
-          <xul:menuitem
-            id="changeUAWebpanelMenu"
-            data-l10n-id="sidebar2-change-ua-panel"
-            label="Switch User agent to Mobile/Desktop Version at this Webpanel"
-            accesskey="R"
-            onCommand={() => gPanelSidebar.contextMenu.changeUserAgent()}
-          />
-          <xul:menuseparator class="context-webpanel-separator" />
-          <xul:menuitem
-            id="deleteWebpanelMenu"
-            data-l10n-id="sidebar2-delete-panel"
-            accesskey="D"
-            onCommand={() => gPanelSidebar.contextMenu.deleteWebpanel()}
-          />
-        </xul:menupopup>
-
-        <xul:menupopup
-          id="all-panel-context"
-          onpopupshowing="gPanelSidebar.contextMenu.show(event);"
-        >
-          <xul:menuitem
-            id="unloadWebpanelMenu"
-            class="needLoadedWebpanel"
-            data-l10n-id="sidebar2-unload-panel"
-            label="Unload this webpanel"
-            accesskey="U"
-            onCommand={() => gPanelSidebar.contextMenu.unloadWebpanel()}
-          />
-          <xul:menuseparator class="context-webpanel-separator" />
-          <xul:menuitem
-            id="deleteWebpanelMenu"
-            data-l10n-id="sidebar2-delete-panel"
-            accesskey="D"
-            onCommand={() => gPanelSidebar.contextMenu.deleteWebpanel()}
-          />
-        </xul:menupopup>
-
-        <xul:menupopup id="width-size-context">
-          <xul:menuitem
-            id="setWidthMenu"
-            data-l10n-id="sidebar2-keep-width-for-global"
-            label="Set width for All Panel"
-            accesskey="S"
-            onCommand={() => gPanelSidebar.keepWidthToGlobalValue()}
+            id="panel-sidebar-delete"
+            label="Delete this panel"
+            onCommand={() => this.handleDeleteCommand()}
           />
         </xul:menupopup>
       </xul:popupset>

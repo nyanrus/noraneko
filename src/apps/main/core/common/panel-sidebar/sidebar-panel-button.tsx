@@ -67,8 +67,9 @@ export function PanelSidebarButton({ panel }: { panel: Panel }) {
     <xul:toolbarbutton
       id={panel.id}
       class={`${panel.type} panel-sidebar-panel`}
-      context="all-panel-context"
+      context="panel-sidebar-panel-context"
       data-checked={selectedPanelId() === panel.id}
+      data-panel-id={panel.id}
       style={{
         "list-style-image": `url(${faviconUrl()})`,
       }}

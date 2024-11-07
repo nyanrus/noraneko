@@ -17,6 +17,7 @@ import {
 import type { Panel } from "./utils/type";
 import { createEffect } from "solid-js";
 import { getExtensionSidebarAction } from "./extension-panels";
+import { WebsitePanel } from "./website-panel-window-parent";
 
 export class PanelSidebar {
   private static instance: PanelSidebar;
@@ -198,5 +199,40 @@ export class PanelSidebar {
       "width",
       `${panel.width !== 0 ? panel.width : panelSidebarConfig().globalWidth}px`,
     );
+  }
+
+  public deletePanel(panelId: string) {
+    this.unloadPanel(panelId);
+    setPanelSidebarData((prev) => prev.filter((p) => p.id !== panelId));
+  }
+
+  public unloadPanel(panelId: string) {
+    const browser = this.getBrowserElement(panelId);
+    if (browser) {
+      browser.remove();
+    }
+
+    setSelectedPanelId(null);
+  }
+
+  public mutePanel(panelId: string) {
+    const gWebsitePanel = WebsitePanel.getInstance();
+    gWebsitePanel.toggleMutePanel(panelId);
+  }
+
+  public changeZoomLevel(panelId: string, type: "in" | "out" | "reset") {
+    const gWebsitePanel = WebsitePanel.getInstance();
+
+    switch (type) {
+      case "in":
+        gWebsitePanel.zoomInPanel(panelId);
+        break;
+      case "out":
+        gWebsitePanel.zoomOutPanel(panelId);
+        break;
+      case "reset":
+        gWebsitePanel.resetZoomLevelPanel(panelId);
+        break;
+    }
   }
 }
