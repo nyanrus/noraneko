@@ -7,7 +7,7 @@ import { render } from "@nora/solid-xul";
 import { createEffect } from "solid-js";
 import { panelSidebarConfig } from "../panel-sidebar/data";
 
-export namespace FlexOrder {
+export namespace gFlexOrder {
   const fxSidebarPosition = "sidebar.position_start";
   const fxSidebarId = "sidebar-box";
   const fxSidebarSplitterId = "sidebar-splitter";

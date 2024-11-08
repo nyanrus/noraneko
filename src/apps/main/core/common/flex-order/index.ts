@@ -3,10 +3,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { FlexOrder } from "./flex-order";
+import { gFlexOrder } from "./flex-order";
 
 export async function init() {
-  FlexOrder.init();
+  gFlexOrder.init();
 
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   (import.meta as any).hot?.accept(async (m: any) => {
