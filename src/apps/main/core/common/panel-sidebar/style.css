@@ -29,7 +29,6 @@
   scrollbar-width: thin;
   border-left: 1px solid var(--chrome-content-separator-color);
   border-right: 1px solid var(--chrome-content-separator-color);
-  order: 1;
 }
 
 #panel-sidebar-select-box:-moz-lwtheme {
@@ -41,14 +40,12 @@
   background: var(--toolbar-bgcolor);
   border: var(--toolbar-bgcolor) 0.1px solid;
   border-bottom: solid 5px var(--toolbar-bgcolor);
-  order: 2;
 }
 
 /* Panel Sidebar Splitter */
 #panel-sidebar-splitter {
   margin-inline: 0;
   border-color: transparent;
-  order: 3;
 }
 
 #panel-sidebar-box[positionend] + .panel-sidebar-splitter {
