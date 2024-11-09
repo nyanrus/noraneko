@@ -18,7 +18,6 @@ export namespace gFlexOrder {
   const browserBoxId = "appcontent";
 
   export function init() {
-    console.log("FlexOrder init");
     applyFlexOrder();
     Services.prefs.addObserver(fxSidebarPosition, applyFlexOrder);
 

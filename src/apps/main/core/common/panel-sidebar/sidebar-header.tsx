@@ -42,12 +42,19 @@ export function SidebarHeader() {
         />
       </Show>
       <xul:spacer flex="1" />
-      <xul:toolbarbutton
-        id="panel-sidebar-keeppanelwidth"
-        onCommand={() => gPanelSidebar.saveCurrentSidebarWidth()}
-        context="width-size-context"
-        class="panel-sidebar-actions"
-      />
+      <Show
+        when={
+          gPanelSidebar.getPanelData(selectedPanelId() ?? "")?.type === "web"
+        }
+      >
+        <xul:toolbarbutton
+          id="panel-sidebar-open-in-main-window"
+          onCommand={() =>
+            gPanelSidebar.openInMainWindow(selectedPanelId() ?? "")
+          }
+          class="panel-sidebar-actions"
+        />
+      </Show>
       <xul:toolbarbutton
         id="panel-sidebar-close"
         onCommand={() => setSelectedPanelId(null)}

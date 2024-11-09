@@ -103,8 +103,12 @@ export class SidebarContextMenuElem {
             label="Unload this webpanel"
             onCommand={() => this.handleUnloadCommand()}
           />
+          <xul:menuitem
+            id="panel-sidebar-keeppanelwidth"
+            label="Keep panel width"
+            onCommand={() => gPanelSidebar.saveCurrentSidebarWidth()}
+          />
           <Show when={contextPanel()?.type === "web"}>
-            <xul:menuseparator />
             <xul:menuitem
               id="panel-sidebar-panel-mute"
               label="Mute/Unmute this webpanel"

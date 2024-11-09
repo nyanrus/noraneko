@@ -201,6 +201,14 @@ export class PanelSidebar {
     );
   }
 
+  public openInMainWindow(panelId: string) {
+    const url = this.getPanelData(panelId)?.url;
+    window.gBrowser.addTab(url, {
+      triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+      inBackground: false,
+    });
+  }
+
   public deletePanel(panelId: string) {
     this.unloadPanel(panelId);
     setPanelSidebarData((prev) => prev.filter((p) => p.id !== panelId));

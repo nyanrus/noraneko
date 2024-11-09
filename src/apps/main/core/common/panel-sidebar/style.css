@@ -48,6 +48,10 @@
   border-color: transparent;
 }
 
+#panel-sidebar-box {
+  min-width: 225px;
+}
+
 #panel-sidebar-box[positionend] + .panel-sidebar-splitter {
   border-color: transparent;
 }
@@ -206,8 +210,8 @@
 #panel-sidebar-go-index {
   list-style-image: url("chrome://browser/skin/home.svg");
 }
-#panel-sidebar-keeppanelwidth {
-  list-style-image: url("chrome://floorp/skin/designs/lepton/screenshot.svg");
+#panel-sidebar-open-in-main-window {
+  list-style-image: url("chrome://browser/skin/open.svg");
 }
 #panel-sidebar-close {
   list-style-image: url("chrome://global/skin/icons/close.svg");

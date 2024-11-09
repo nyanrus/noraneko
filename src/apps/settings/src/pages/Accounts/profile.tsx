@@ -57,7 +57,11 @@ export default function Profile({ accountAndProfileData }: ProfileProps) {
 
       <Flex gap={4}>
         <Link
-          href="https://docs.floorp.app/ja/docs/other/contributors"
+          href="about:profile"
+          onClick={(e) => {
+            e.preventDefault();
+            window.NRAddTab("about:profiles");
+          }}
           target="_blank"
           fontSize="sm"
           display="flex"
