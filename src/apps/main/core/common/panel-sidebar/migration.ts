@@ -17,11 +17,14 @@ export async function migratePanelSidebarData(callback: () => void) {
     undefined,
   );
 
-  if (!data && oldData) {
+  if (oldData) {
+    const newSidebar = convertSidebar(JSON.parse(oldData) as OldSidebar);
     Services.prefs.setStringPref(
       PanelSidebarStaticNames.panelSidebarDataPrefName,
-      oldData,
+      JSON.stringify(newSidebar),
     );
+
+    Services.prefs.clearUserPref("floorp.browser.sidebar2.data");
 
     // Create a new config
     const globalWidth = Services.prefs.getIntPref(
@@ -49,6 +52,7 @@ export async function migratePanelSidebarData(callback: () => void) {
       autoUnload,
       position_start,
       displayed,
+      webExtensionRunningEnabled: false,
     };
 
     Services.prefs.setStringPref(
@@ -57,4 +61,63 @@ export async function migratePanelSidebarData(callback: () => void) {
     );
   }
   callback();
+}
+
+type OldSidebarData = {
+  url: string;
+  width?: number;
+  usercontext?: number;
+  zoomLevel?: number;
+};
+
+type OldSidebar = {
+  data: { [key: string]: OldSidebarData };
+  index: string[];
+};
+
+type NewSidebarItem = {
+  id: string;
+  type: "extension" | "static" | "web";
+  width: number;
+  url: string;
+  userContextId: number | null;
+  zoomLevel: number | null;
+};
+
+type NewSidebar = {
+  data: NewSidebarItem[];
+};
+
+function convertSidebar(oldSidebar: OldSidebar): NewSidebar {
+  const newSidebar: NewSidebar = { data: [] };
+
+  oldSidebar.index.forEach((key) => {
+    const item = oldSidebar.data[key];
+    const url = item.url;
+    let type: "extension" | "static" | "web";
+    const id = key;
+    let width = item.width || 0;
+    const userContextId = item.usercontext || null;
+    const zoomLevel = item.zoomLevel || null;
+
+    if (url.startsWith("extension")) {
+      type = "extension";
+      width = width || 450; // 任意のデフォルト値
+    } else if (url.startsWith("floorp//")) {
+      type = "static";
+    } else {
+      type = "web";
+    }
+
+    newSidebar.data.push({
+      id,
+      type,
+      width,
+      url,
+      userContextId,
+      zoomLevel,
+    });
+  });
+
+  return newSidebar;
 }

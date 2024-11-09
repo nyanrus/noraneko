@@ -32,8 +32,6 @@ export default function Profile({ accountAndProfileData }: ProfileProps) {
           style={{ fontSize: "24px", color: "#3182F6" }}
         />
       }
-      footerLink="https://docs.floorp.app/ja/docs/other/profiles"
-      footerLinkText={t("accounts.profileManagement")}
     >
       <Text color={textColor}>
         {t("accounts.profileManagementDescription")}

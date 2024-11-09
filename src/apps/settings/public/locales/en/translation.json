@@ -112,7 +112,6 @@
     "accounts.openProfileManager": "Open Profile Manager",
     "accounts.openProfileSaveLocation": "Open Profile Save Location",
     "accounts.mozillaAccountSyncSettings": "Mozilla Account Sync Settings",
-    "accounts.manageAccounts": "Manage Accounts",
     "accounts.syncedTo": "Synced to {{email}}",
     "accounts.syncFloorpNotesToMozillaAccount": "Sync Floorp Notes to Mozilla Account (Experimental)",
     "accounts.floorpFeatureSyncSettings": "Floorp Feature Sync Settings",
