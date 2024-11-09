@@ -5,7 +5,7 @@
 
 import type { Panel } from "../utils/type";
 
-export function WebSiteBrowser({ id, type, url }: Panel) {
+export function WebSiteBrowser({ id, type, url, userContextId }: Panel) {
   return (
     <xul:browser
       id={`sidebar-panel-${id}`}
@@ -20,6 +20,7 @@ export function WebSiteBrowser({ id, type, url }: Panel) {
       messagemanagergroup="browsers"
       autocompletepopup="PopupAutoComplete"
       initialBrowsingContextGroupId="40"
+      usercontextid={`${userContextId ?? 0}`}
       // temporary to use <Browser> Element for waiting for the new API
       src={url ?? ""}
       type="content"
