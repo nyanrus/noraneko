@@ -98,3 +98,6 @@ Services.prefs.addObserver(
 function getPanelSidebarConfig(stringData: string) {
   return JSON.parse(stringData) || {};
 }
+
+/** Floating state */
+export const [isFloating, setIsFloating] = createSignal(false);

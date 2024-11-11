@@ -8,8 +8,8 @@ import style from "./style.css?inline";
 import { SidebarHeader } from "./sidebar-header";
 import { SidebarSelectbox } from "./sidebar-selectbox";
 import { SidebarSplitter } from "./sidebar-splitter";
-import { createEffect } from "solid-js";
-import { selectedPanelId } from "./data";
+import { createEffect, Show } from "solid-js";
+import { selectedPanelId, isFloating, setSelectedPanelId } from "./data";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -51,6 +51,33 @@ export class PanelSidebarElem {
         );
       }
     });
+
+    document?.addEventListener("click", (event) => {
+      if (!isFloating()) {
+        return;
+      }
+
+      const sidebarBox = document?.getElementById("panel-sidebar-box");
+      const selectBox = document?.getElementById("panel-sidebar-select-box");
+      const splitter = document?.getElementById("panel-sidebar-splitter");
+      const browsers = sidebarBox?.querySelectorAll(".sidebar-panel-browser");
+
+      const clickedBrowser = (event.target as XULElement).ownerDocument
+        ?.activeElement;
+      const clickedBrowserIsSidebarBrowser = Array.from(browsers ?? []).some(
+        (browser) => browser === clickedBrowser,
+      );
+
+      const insideSidebar =
+        sidebarBox?.contains(event.target as Node) ||
+        clickedBrowserIsSidebarBrowser;
+      const insideSelectBox = selectBox?.contains(event.target as Node);
+      const insideSplitter = splitter?.contains(event.target as Node);
+
+      if (!insideSidebar && !insideSelectBox && !insideSplitter) {
+        setSelectedPanelId(null);
+      }
+    });
   }
 
   private style() {
@@ -60,11 +87,17 @@ export class PanelSidebarElem {
   private sidebar() {
     return (
       <>
-        <xul:vbox id="panel-sidebar-box" class="chromeclass-extrachrome">
+        <xul:vbox
+          id="panel-sidebar-box"
+          class="chromeclass-extrachrome"
+          data-floating={isFloating().toString()}
+        >
           <SidebarHeader />
           <xul:vbox id="panel-sidebar-browser-box" style="flex: 1;" />
         </xul:vbox>
-        <SidebarSplitter />
+        <Show when={!isFloating()}>
+          <SidebarSplitter />
+        </Show>
         <SidebarSelectbox />
       </>
     );
