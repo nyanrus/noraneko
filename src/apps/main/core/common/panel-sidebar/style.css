@@ -36,10 +36,8 @@
 }
 
 /* Panel Sidebar Box */
-.panel-sidebar-box {
+#panel-sidebar-box {
   background: var(--toolbar-bgcolor);
-  border: var(--toolbar-bgcolor) 0.1px solid;
-  border-bottom: solid 5px var(--toolbar-bgcolor);
 }
 
 /* Panel Sidebar Splitter */
