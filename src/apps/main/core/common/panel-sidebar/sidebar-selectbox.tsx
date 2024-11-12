@@ -27,7 +27,7 @@ export function SidebarSelectbox() {
       <xul:spacer flex="1" />
       <xul:vbox id="panel-sidebar-bottomButtonBox">
         <xul:toolbarbutton
-          class="sidepanel-browser-icon"
+          class="panel-sidebar-panel"
           data-l10n-id="sidebar2-hide-sidebar"
           onCommand={() =>
             Services.prefs.setBoolPref("floorp.browser.sidebar.enable", false)
@@ -35,7 +35,7 @@ export function SidebarSelectbox() {
           id="panel-sidebar-hide-icon"
         />
         <xul:toolbarbutton
-          class="sidepanel-browser-icon"
+          class="panel-sidebar-panel"
           data-l10n-id="sidebar-addons-button"
           onCommand={() =>
             window.BrowserAddonUI.openAddonsMgr("addons://list/extension")
@@ -43,7 +43,7 @@ export function SidebarSelectbox() {
           id="panel-sidebar-addons-icon"
         />
         <xul:toolbarbutton
-          class="sidepanel-browser-icon"
+          class="panel-sidebar-panel"
           data-l10n-id="sidebar-passwords-button"
           onCommand={() =>
             window.LoginHelper.openPasswordManager(window, {
@@ -53,7 +53,7 @@ export function SidebarSelectbox() {
           id="panel-sidebar-passwords-icon"
         />
         <xul:toolbarbutton
-          class="sidepanel-browser-icon"
+          class="panel-sidebar-panel"
           data-l10n-id="sidebar-preferences-button"
           onCommand={() => window.openPreferences()}
           id="panel-sidebar-preferences-icon"

@@ -135,7 +135,7 @@ export class WebsitePanelWindowChild {
     mainWindow.setAttribute("windowtype", "navigator:webpanel");
 
     // Tab modifications
-    window.gBrowser.loadURI(Services.io.newURI(loadURL), {
+    window.gBrowser.loadURI(Services.io.newURI(loadURL as string), {
       triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
     });
 

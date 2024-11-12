@@ -200,28 +200,7 @@
   border: unset;
 }
 
-/* Icons */
-#panel-sidebar-add {
-  list-style-image: url("chrome://global/skin/icons/plus.svg");
-}
-#panel-sidebar-back {
-  list-style-image: url("chrome://browser/skin/back.svg");
-}
-#panel-sidebar-forward {
-  list-style-image: url("chrome://browser/skin/forward.svg");
-}
-#panel-sidebar-reload {
-  list-style-image: url("chrome://global/skin/icons/reload.svg");
-}
-#panel-sidebar-go-index {
-  list-style-image: url("chrome://browser/skin/home.svg");
-}
-#panel-sidebar-open-in-main-window {
-  list-style-image: url("chrome://browser/skin/open.svg");
-}
-#panel-sidebar-close {
-  list-style-image: url("chrome://global/skin/icons/close.svg");
-}
+/* Floating */
 
 #panel-sidebar-box[data-floating="true"] {
   position: fixed;
@@ -288,4 +267,37 @@
 
 #floating-splitter-side[data-floating-splitter-side="end"] {
   right: 0;
+}
+
+/* Icons */
+#panel-sidebar-add {
+  list-style-image: url("chrome://global/skin/icons/plus.svg");
+}
+#panel-sidebar-back {
+  list-style-image: url("chrome://browser/skin/back.svg");
+}
+#panel-sidebar-forward {
+  list-style-image: url("chrome://browser/skin/forward.svg");
+}
+#panel-sidebar-reload {
+  list-style-image: url("chrome://global/skin/icons/reload.svg");
+}
+#panel-sidebar-go-index {
+  list-style-image: url("chrome://browser/skin/home.svg");
+}
+#panel-sidebar-open-in-main-window {
+  list-style-image: url("chrome://browser/skin/open.svg");
+}
+#panel-sidebar-close {
+  list-style-image: url("chrome://global/skin/icons/close.svg");
+}
+#panel-sidebar-addons-icon {
+  list-style-image: url("chrome://mozapps/skin/extensions/extension.svg");
+}
+
+#panel-sidebar-passwords-icon {
+  list-style-image: url("chrome://browser/skin/login.svg");
+}
+#panel-sidebar-preferences-icon {
+  list-style-image: url("chrome://global/skin/icons/settings.svg");
 }
