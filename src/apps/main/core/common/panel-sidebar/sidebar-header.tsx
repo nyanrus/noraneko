@@ -4,7 +4,12 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { Show } from "solid-js";
-import { selectedPanelId, setSelectedPanelId, setIsFloating } from "./data";
+import {
+  selectedPanelId,
+  setSelectedPanelId,
+  setIsFloating,
+  isFloating,
+} from "./data";
 import { PanelNavigator } from "./panel-navigator";
 import { PanelSidebar } from "./panel-sidebar";
 
@@ -48,6 +53,12 @@ export function SidebarHeader() {
         }
       >
         <xul:toolbarbutton
+          id="panel-sidebar-float"
+          onCommand={() => setIsFloating(!isFloating())}
+          class="panel-sidebar-actions"
+          data-l10n-id="sidebar-float-button"
+        />
+        <xul:toolbarbutton
           id="panel-sidebar-open-in-main-window"
           onCommand={() =>
             gPanelSidebar.openInMainWindow(selectedPanelId() ?? "")
@@ -55,12 +66,6 @@ export function SidebarHeader() {
           class="panel-sidebar-actions"
         />
       </Show>
-      <xul:toolbarbutton
-        id="panel-sidebar-float"
-        onCommand={() => setIsFloating((prev) => !prev)}
-        class="panel-sidebar-actions"
-        data-l10n-id="sidebar-float-button"
-      />
       <xul:toolbarbutton
         id="panel-sidebar-close"
         onCommand={() => setSelectedPanelId(null)}

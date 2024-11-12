@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { createEffect } from "solid-js";
-import { isFloating, setSelectedPanelId } from "./data";
+import { isFloating, panelSidebarConfig, setSelectedPanelId } from "./data";
 
 export class PanelSidebarFloating {
   private static instance: PanelSidebarFloating;
@@ -27,6 +27,19 @@ export class PanelSidebarFloating {
         this.removeHeightToSidebarBox();
         this.resizeObserver?.disconnect();
         document?.removeEventListener("click", this.handleOutsideClick);
+      }
+    });
+
+    createEffect(() => {
+      const position = panelSidebarConfig().position_start;
+      if (position) {
+        document
+          ?.getElementById("panel-sidebar-box")
+          ?.setAttribute("data-floating-splitter-side", "start");
+      } else {
+        document
+          ?.getElementById("panel-sidebar-box")
+          ?.setAttribute("data-floating-splitter-side", "end");
       }
     });
   }

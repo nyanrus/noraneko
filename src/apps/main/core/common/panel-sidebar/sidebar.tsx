@@ -10,6 +10,7 @@ import { SidebarSelectbox } from "./sidebar-selectbox";
 import { SidebarSplitter } from "./sidebar-splitter";
 import { createEffect, Show } from "solid-js";
 import { selectedPanelId, isFloating } from "./data";
+import { FloatingSplitter } from "./floating-splitter";
 
 export class PanelSidebarElem {
   private static instance: PanelSidebarElem;
@@ -67,6 +68,9 @@ export class PanelSidebarElem {
         >
           <SidebarHeader />
           <xul:vbox id="panel-sidebar-browser-box" style="flex: 1;" />
+          <Show when={isFloating()}>
+            <FloatingSplitter />
+          </Show>
         </xul:vbox>
         <Show when={!isFloating()}>
           <SidebarSplitter />
