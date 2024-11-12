@@ -5,6 +5,7 @@
 
 import { createEffect } from "solid-js";
 import { isFloating, panelSidebarConfig, setSelectedPanelId } from "./data";
+import { STATIC_PANEL_DATA } from "./static-panels";
 
 export class PanelSidebarFloating {
   private static instance: PanelSidebarFloating;
@@ -92,14 +93,22 @@ export class PanelSidebarFloating {
     const clickedBrowserIsSidebarBrowser = Array.from(browsers ?? []).some(
       (browser) => browser === clickedBrowser,
     );
-
+    const clickedElementIsChromeSidebar = Object.values(STATIC_PANEL_DATA).some(
+      (panel) =>
+        panel.url === (clickedBrowser as XULElement).ownerDocument?.documentURI,
+    );
     const insideSidebar =
       sidebarBox?.contains(event.target as Node) ||
       clickedBrowserIsSidebarBrowser;
     const insideSelectBox = selectBox?.contains(event.target as Node);
     const insideSplitter = splitter?.contains(event.target as Node);
 
-    if (!insideSidebar && !insideSelectBox && !insideSplitter) {
+    if (
+      !insideSidebar &&
+      !insideSelectBox &&
+      !insideSplitter &&
+      !clickedElementIsChromeSidebar
+    ) {
       setSelectedPanelId(null);
     }
   };
