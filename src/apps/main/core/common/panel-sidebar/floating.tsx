@@ -7,6 +7,10 @@ import { createEffect } from "solid-js";
 import { isFloating, panelSidebarConfig, setSelectedPanelId } from "./data";
 import { STATIC_PANEL_DATA } from "./static-panels";
 
+const { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs",
+);
+
 export class PanelSidebarFloating {
   private static instance: PanelSidebarFloating;
   public static getInstance() {
@@ -97,6 +101,9 @@ export class PanelSidebarFloating {
       (panel) =>
         panel.url === (clickedBrowser as XULElement).ownerDocument?.documentURI,
     );
+    const clickedElementIsWebTypeBrowser = clickedBrowser?.baseURI?.startsWith(
+      `${AppConstants.BROWSER_CHROME_URL}?floorpWebPanelId`,
+    );
     const insideSidebar =
       sidebarBox?.contains(event.target as Node) ||
       clickedBrowserIsSidebarBrowser;
@@ -107,7 +114,8 @@ export class PanelSidebarFloating {
       !insideSidebar &&
       !insideSelectBox &&
       !insideSplitter &&
-      !clickedElementIsChromeSidebar
+      !clickedElementIsChromeSidebar &&
+      !clickedElementIsWebTypeBrowser
     ) {
       setSelectedPanelId(null);
     }
