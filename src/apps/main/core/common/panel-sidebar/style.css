@@ -226,8 +226,6 @@
 #panel-sidebar-box[data-floating="true"] {
   position: fixed;
   right: var(--panel-sidebar-width);
-  top: 80px;
-  height: calc(100vh - 100px);
   z-index: 999;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   border-radius: 8px;

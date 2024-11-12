@@ -4,12 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { Show } from "solid-js";
-import {
-  selectedPanelId,
-  setSelectedPanelId,
-  isFloating,
-  setIsFloating,
-} from "./data";
+import { selectedPanelId, setSelectedPanelId, setIsFloating } from "./data";
 import { PanelNavigator } from "./panel-navigator";
 import { PanelSidebar } from "./panel-sidebar";
 
@@ -62,7 +57,7 @@ export function SidebarHeader() {
       </Show>
       <xul:toolbarbutton
         id="panel-sidebar-float"
-        onCommand={() => setIsFloating(!isFloating())}
+        onCommand={() => setIsFloating((prev) => !prev)}
         class="panel-sidebar-actions"
         data-l10n-id="sidebar-float-button"
       />

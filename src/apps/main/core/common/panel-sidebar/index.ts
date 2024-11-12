@@ -9,6 +9,7 @@ import { SidebarContextMenuElem } from "./sidebar-contextMenu";
 import { migratePanelSidebarData } from "./migration";
 import { WebsitePanelWindowChild } from "./website-panel-window-child";
 import { PanelSidebarAddModal } from "./panel-sidebar-modal";
+import { PanelSidebarFloating } from "./floating";
 
 export async function init() {
   migratePanelSidebarData(() => {
@@ -16,6 +17,7 @@ export async function init() {
     PanelSidebarElem.getInstance();
     SidebarContextMenuElem.getInstance();
     PanelSidebarAddModal.getInstance();
+    PanelSidebarFloating.getInstance();
     PanelSidebar.getInstance();
   });
 
