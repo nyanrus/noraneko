@@ -101,3 +101,7 @@ function getPanelSidebarConfig(stringData: string) {
 
 /** Floating state */
 export const [isFloating, setIsFloating] = createSignal(false);
+
+/** Floating DraggingState */
+export const [isFloatingDragging, setIsFloatingDragging] =
+  createSignal<boolean>(false);

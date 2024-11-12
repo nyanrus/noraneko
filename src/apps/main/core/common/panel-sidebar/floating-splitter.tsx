@@ -4,10 +4,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { createEffect } from "solid-js";
-import { panelSidebarConfig } from "./data";
+import { panelSidebarConfig, setIsFloatingDragging } from "./data";
 
 export function FloatingSplitter() {
   const onMouseDown = (e: MouseEvent) => {
+    setIsFloatingDragging(true);
     const sidebarBox = document?.getElementById(
       "panel-sidebar-box",
     ) as XULElement;
@@ -38,6 +39,7 @@ export function FloatingSplitter() {
     };
 
     const onMouseUp = () => {
+      setIsFloatingDragging(false);
       document?.removeEventListener("mousemove", onMouseMove);
       document?.removeEventListener("mouseup", onMouseUp);
     };
