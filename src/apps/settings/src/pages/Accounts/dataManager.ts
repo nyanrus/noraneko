@@ -12,6 +12,6 @@ export async function useAccountAndProfileData(): Promise<AccountsFormData> {
     accountInfo: homeData,
     profileDir: "テスト",
     profileName: "テスト",
-    asyncNoesViaMozillaAccount: true,
+    syncNotesWithMozAccount: true,
   };
 }

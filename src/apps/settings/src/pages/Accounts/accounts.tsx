@@ -17,6 +17,7 @@ import {
   Switch,
   Flex,
   Spacer,
+  Box,
 } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import Card from "@/components/Card";
@@ -38,25 +39,30 @@ export default function Accounts(props: AccountsProps) {
         <IconMdiAccountCog style={{ fontSize: "24px", color: "#ff7708" }} />
       }
     >
-      <HStack spacing={6} align="stretch" mb={4}>
-        <Avatar
-          size="md"
-          src={props.accountAndProfileData?.accountInfo.avatarURL}
-        />
-        <VStack align="stretch" spacing={0}>
-          <Text fontSize="md" color={textColor}>
-            {props.accountAndProfileData?.accountInfo.displayName ??
-              t("accounts.notLoggedIn")}
-          </Text>
-          <Text fontSize="md" color={useColorModeValue("gray.500", "gray.400")}>
-            {props.accountAndProfileData?.accountInfo.email
-              ? t("accounts.syncedTo", {
-                  email: props.accountAndProfileData?.accountInfo.email,
-                })
-              : t("accounts.notSynced")}
-          </Text>
-        </VStack>
-      </HStack>
+      <Box p="2">
+        <HStack spacing={6} align="stretch" mb={4}>
+          <Avatar
+            size="md"
+            src={props.accountAndProfileData?.accountInfo.avatarURL}
+          />
+          <VStack align="stretch" spacing={0}>
+            <Text fontSize="md" color={textColor}>
+              {props.accountAndProfileData?.accountInfo.displayName ??
+                t("accounts.notLoggedIn")}
+            </Text>
+            <Text
+              fontSize="md"
+              color={useColorModeValue("gray.500", "gray.400")}
+            >
+              {props.accountAndProfileData?.accountInfo.email
+                ? t("accounts.syncedTo", {
+                    email: props.accountAndProfileData?.accountInfo.email,
+                  })
+                : t("accounts.notSynced")}
+            </Text>
+          </VStack>
+        </HStack>
+      </Box>
       <Link
         href="https://accounts.firefox.com/signin"
         target="_blank"
@@ -76,13 +82,13 @@ export default function Accounts(props: AccountsProps) {
       <Text fontSize="lg" mb={2}>
         {t("accounts.floorpFeatureSyncSettings")}
       </Text>
-      <FormControl>
+      <FormControl padding={2}>
         <Flex justifyContent="space-between">
           <FormLabel flex={1}>
             {t("accounts.syncFloorpNotesToMozillaAccount")}
           </FormLabel>
           <Controller
-            name="asyncNoesViaMozillaAccount"
+            name="syncNotesWithMozAccount"
             render={({ field: { onChange, value } }) => (
               <Switch
                 colorScheme={"blue"}
@@ -94,7 +100,7 @@ export default function Accounts(props: AccountsProps) {
         </Flex>
       </FormControl>
 
-      <Spacer my={2} />
+      {/* <Spacer my={2} /> */}
 
       <Link
         fontSize="sm"

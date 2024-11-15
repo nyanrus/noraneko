@@ -46,7 +46,7 @@ export default function About() {
             alt="logo"
           />
         }
-        footerLink="https://noraneko.example.com/about"
+        footerLink="https://github.com/nyanrus/noraneko/releases"
         footerLinkText={t("about.releaseNotes")}
       >
         <Text fontSize="md" mb={3} color={textColor} maxW={"700px"}>
@@ -59,9 +59,7 @@ export default function About() {
           })}
         </Text>
 
-        <Text color={textColor} mb={4}>
-          {t("about.browserDescription")}
-        </Text>
+        <Text color={textColor}>{t("about.browserDescription")}</Text>
       </Card>
 
       <Spacer my={4} />
@@ -77,7 +75,7 @@ export default function About() {
           {t("about.openSourceLicense")}
         </Text>
         <Link
-          href="https://docs.floorp.app/ja/docs/other/contributors"
+          href="https://github.com/nyanrus/noraneko/blob/main/LICENSE"
           target="_blank"
           fontSize="sm"
           display="flex"

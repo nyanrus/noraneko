@@ -16,7 +16,7 @@ const MenuItem = ({
   onClick?: () => void;
 }) => {
   const { colorMode } = useColorMode();
-  const [isMobile] = useMediaQuery("(max-width: 768px)")
+  const [isMobile] = useMediaQuery("(max-width: 768px)");
   return (
     <Link to={to ?? ""} onClick={onClick}>
       <HStack
@@ -25,15 +25,21 @@ const MenuItem = ({
         px={4}
         py={3}
         borderRadius="0 25px 25px 0"
-        bg={selected ? (colorMode === "light" ? "blue.50" : "blue.900") : "transparent"}
+        bg={
+          selected
+            ? colorMode === "light"
+              ? "blue.50"
+              : "blue.900"
+            : "transparent"
+        }
         _hover={{
           bg: selected
             ? colorMode === "light"
               ? "blue.100"
               : "blue.800"
             : colorMode === "light"
-            ? "gray.100"
-            : "gray.700",
+              ? "gray.100"
+              : "gray.700",
         }}
         transition="background-color 0.2s"
       >

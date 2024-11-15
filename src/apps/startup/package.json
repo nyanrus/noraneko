@@ -1,5 +1,8 @@
 {
   "name": "@nora/startup",
-  "private":true,
-  "type": "module"
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
 }
