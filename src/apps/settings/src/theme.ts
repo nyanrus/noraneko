@@ -1,4 +1,4 @@
-import { extendTheme, type StyleFunctionProps } from "@chakra-ui/react";
+import { extendTheme, theme, type StyleFunctionProps } from "@chakra-ui/react";
 import { mode } from "@chakra-ui/theme-tools";
 
 const colors = {
@@ -11,7 +11,7 @@ const colors = {
 
 const createGlobalStyles = (props: Record<string, unknown>) => ({
   body: {
-    color: mode("chakra-ui-text-color", "whiteAlpha.900")(props),
+    color: mode("gray.900", "gray.100")(props),
     bg: mode("chakra-ui-body-bg", "#1a1a1a")(props),
   },
 });
@@ -35,6 +35,11 @@ const SwitchStyles = {
   }),
 };
 
+const fonts = {
+  heading: `'Open-Sans', ${theme.fonts.heading}, sans-serif`,
+  body: `'Open-Sans', ${theme.fonts.body}, sans-serif`,
+};
+
 const customTheme = extendTheme({
   config: {
     initialColorMode: "system",
@@ -48,6 +53,7 @@ const customTheme = extendTheme({
     },
     Switch: SwitchStyles,
   },
+  fonts,
   colors,
 });
 

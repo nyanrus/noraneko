@@ -30,15 +30,16 @@ function Card({
     <Flex
       flexDirection={"column"}
       borderWidth={1}
-      borderRadius="md"
-      p={"15px 20px"}
+      borderRadius="xl"
+      p={"12px 18px"}
+      borderColor={useColorModeValue("gray.300", "gray.600")}
       {...props}
     >
-      <HStack mb={2}>
+      <HStack mb={3}>
         {icon}
         {title ? (
           <Text
-            fontFamily={`"Google Sans",Roboto,A1rial,sans-serif`}
+            // fontFamily={`"Google Sans",Roboto,A1rial,sans-serif`}
             lineHeight={"1.75em"}
             fontSize={"1.375rem"}
             fontWeight={"400"}
@@ -82,8 +83,8 @@ function Footer({
       >
         <HStack
           align="flex-start"
-          m={"12.5px 10px -5px 5px"}
-          p={"10px"}
+          m={"8px 10px -5px 5px"}
+          p={"8px 10px"}
           rounded={"15px"}
           _hover={{ bg: useColorModeValue("gray.100", "gray.700") }}
         >

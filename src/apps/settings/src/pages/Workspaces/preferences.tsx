@@ -51,7 +51,7 @@ export default function Preferences() {
         <VStack align="stretch" spacing={4} paddingInlineStart={"10px"}>
           <Text fontSize="lg">{t("workspaces.enableOrDisable")}</Text>
           <FormControl>
-            <Flex justifyContent="space-between">
+            <Flex justifyContent="space-between" ml={3}>
               <FormLabel flex={1}>{t("workspaces.enableWorkspaces")}</FormLabel>
               <Controller
                 name="enabled"
@@ -68,7 +68,7 @@ export default function Preferences() {
                 )}
               />
             </Flex>
-            <FormHelperText mt={0}>
+            <FormHelperText mt={0} ml={3} mr={9}>
               {t("workspaces.enableWorkspacesDescription")}
             </FormHelperText>
           </FormControl>
@@ -78,7 +78,7 @@ export default function Preferences() {
           <Text fontSize="lg">{t("workspaces.otherSettings")}</Text>
           <FormControl>
             <Flex justifyContent="space-between">
-              <FormLabel flex={1}>
+              <FormLabel flex={1} ml={3} mr={9}>
                 {t("workspaces.closePopupWhenSelectingWorkspace")}
               </FormLabel>
               <Controller
@@ -97,7 +97,7 @@ export default function Preferences() {
 
           <FormControl>
             <Flex justifyContent="space-between">
-              <FormLabel flex={1}>
+              <FormLabel flex={1} ml={3} mr={9}>
                 {t("workspaces.showWorkspaceNameOnToolbar")}
               </FormLabel>
               <Controller
@@ -116,7 +116,9 @@ export default function Preferences() {
 
           <FormControl>
             <Flex justifyContent="space-between">
-              <FormLabel flex={1}>{t("workspaces.manageOnBms")}</FormLabel>
+              <FormLabel flex={1} ml={3} mr={9}>
+                {t("workspaces.manageOnBms")}
+              </FormLabel>
               <Controller
                 name="manageOnBms"
                 control={control}
@@ -129,7 +131,7 @@ export default function Preferences() {
                 )}
               />
             </Flex>
-            <FormHelperText mt={0}>
+            <FormHelperText mt={0} ml={3} mr={9}>
               {t("workspaces.manageOnBmsDescription")}
             </FormHelperText>
           </FormControl>

@@ -5,6 +5,8 @@ import App from "./App";
 import customTheme from "./theme";
 import "./i18n";
 
+import "./page.css";
+
 const rootElement = document?.getElementById("root");
 ReactDOM.createRoot(rootElement as HTMLElement).render(
   <React.StrictMode>

@@ -37,10 +37,10 @@ export default function About() {
   }, []);
 
   useEffect(() => {
-    if (accountAndProfileData?.asyncNoesViaMozillaAccount) {
+    if (accountAndProfileData?.syncNotesWithMozAccount) {
       setValue(
-        "asyncNoesViaMozillaAccount",
-        accountAndProfileData.asyncNoesViaMozillaAccount,
+        "syncNotesWithMozAccount",
+        accountAndProfileData.syncNotesWithMozAccount,
       );
     }
   }, [accountAndProfileData, setValue]);
