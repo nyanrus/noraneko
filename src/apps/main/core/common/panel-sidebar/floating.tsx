@@ -21,6 +21,7 @@ export class PanelSidebarFloating {
   }
 
   private resizeObserver: ResizeObserver | null = null;
+  private parentHeightTargetId = "tabbrowser-tabbox";
 
   constructor() {
     createEffect(() => {
@@ -50,27 +51,27 @@ export class PanelSidebarFloating {
   }
 
   private initResizeObserver() {
-    const browserElem = document?.getElementById("browser");
+    const appContentElem = document?.getElementById(this.parentHeightTargetId);
     const sidebarBox = document?.getElementById("panel-sidebar-box");
 
-    if (!browserElem || !sidebarBox) {
+    if (!appContentElem || !sidebarBox) {
       return;
     }
 
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.target.id === "browser" && isFloating()) {
+        if (entry.target.id === this.parentHeightTargetId && isFloating()) {
           this.applyHeightToSidebarBox();
         }
       }
     });
 
-    this.resizeObserver.observe(browserElem);
+    this.resizeObserver.observe(appContentElem);
   }
 
   private applyHeightToSidebarBox() {
     (document?.getElementById("panel-sidebar-box") as XULElement).style.height =
-      `${this.getBrowserHeight() - 50}px`;
+      `${this.getBrowserHeight() - 20}px`;
   }
 
   private removeHeightToSidebarBox() {
@@ -79,7 +80,9 @@ export class PanelSidebarFloating {
   }
 
   private getBrowserHeight() {
-    return document?.getElementById("browser")?.clientHeight ?? 0;
+    return (
+      document?.getElementById(this.parentHeightTargetId)?.clientHeight ?? 0
+    );
   }
 
   private handleOutsideClick = (event: MouseEvent) => {
