@@ -86,7 +86,7 @@ const {
     }
   },
   insertNode: (parent: Node, node: JSX.Element, anchor?: Node): void => {
-    //console.log(node);
+    console.log(node);
     if (node instanceof Node) {
       parent.insertBefore(node, anchor ?? null);
     } else {
