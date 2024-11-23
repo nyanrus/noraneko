@@ -78,6 +78,8 @@ declare module "solid-js" {
         | "end_before"
         | "bottomleft topleft"
         | "overlap";
+      onPopupShowing?: () => void;
+      onpopupshowing?: string;
     }
 
     interface XULMenuElement extends XULElementBase {
@@ -89,6 +91,7 @@ declare module "solid-js" {
     interface XULBoxElement extends XULElementBase {
       pack?: string;
       orient?: "horizontal" | "vertical";
+      popup?: string;
       clicktoscroll?: boolean;
     }
 
