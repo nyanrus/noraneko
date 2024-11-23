@@ -4,7 +4,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { createEffect, createSignal } from "solid-js";
-import { strDefaultConfig, strDefaultData } from "./utils/default-prerf.js";
+import {
+  defaultEnabled,
+  strDefaultConfig,
+  strDefaultData,
+} from "./utils/default-prerf.js";
 import { PanelSidebarStaticNames } from "./utils/panel-sidebar-static-names.js";
 import {
   type Panels,
@@ -105,3 +109,25 @@ export const [isFloating, setIsFloating] = createSignal(false);
 /** Floating DraggingState */
 export const [isFloatingDragging, setIsFloatingDragging] =
   createSignal<boolean>(false);
+
+/** Panel Sidebar Enabled */
+export const [isPanelSidebarEnabled, setIsPanelSidebarEnabled] =
+  createSignal<boolean>(defaultEnabled);
+
+createEffect(() => {
+  Services.prefs.setBoolPref(
+    PanelSidebarStaticNames.panelSidebarEnabledPrefName,
+    isPanelSidebarEnabled(),
+  );
+});
+
+Services.prefs.addObserver(
+  PanelSidebarStaticNames.panelSidebarEnabledPrefName,
+  () =>
+    setIsPanelSidebarEnabled(
+      Services.prefs.getBoolPref(
+        PanelSidebarStaticNames.panelSidebarEnabledPrefName,
+        defaultEnabled,
+      ),
+    ),
+);

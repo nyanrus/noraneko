@@ -131,8 +131,6 @@ export namespace gFlexOrder {
       orders.browserBox,
     );
 
-    console.log("renderOrderStyle", style);
-
     render(() => style, document?.head, {
       // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       hotCtx: (import.meta as any)?.hot,

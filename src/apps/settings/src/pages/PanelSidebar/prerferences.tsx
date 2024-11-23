@@ -12,37 +12,56 @@ import {
   FormLabel,
   FormControl,
   FormHelperText,
-  Select,
   Input,
   Alert,
   AlertDescription,
   AlertIcon,
   Link,
+  Radio,
+  RadioGroup,
+  Stack,
+  useDisclosure,
 } from "@chakra-ui/react";
 import Card from "@/components/Card";
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import RestartWarningDialog from "@/components/RestartWarningDialog";
 
 export default function Preferences() {
   const { t } = useTranslation();
   const { control } = useFormContext();
 
+  const {
+    isOpen: isOpenEnablePanelSidebar,
+    onOpen: onOpenEnablePanelSidebar,
+    onClose: onCloseEnablePanelSidebar,
+  } = useDisclosure();
+
   return (
     <>
+      <RestartWarningDialog
+        description={t(
+          "panelSidebar.needRestartDescriptionForEnableAndDisable",
+        )}
+        onClose={onCloseEnablePanelSidebar}
+        isOpen={isOpenEnablePanelSidebar}
+      />
       <Card
         icon={
           <IconLucideSidebar style={{ fontSize: "24px", color: "#6e05d1" }} />
         }
-        title={"パネルサイドバーの基本設定"}
+        title={t("panelSidebar.basicSettings")}
         footerLink="https://docs.floorp.app/docs/features/how-to-use-workspaces"
-        footerLinkText={"パネルサイドバーの使い方と機能、カスタマイズについて"}
+        footerLinkText={t("panelSidebar.howToUseAndCustomize")}
       >
         <VStack align="stretch" spacing={4} paddingInlineStart={"10px"}>
-          <Text fontSize="lg">有効化・無効化</Text>
+          <Text fontSize="lg">{t("panelSidebar.enableOrDisable")}</Text>
           <FormControl>
             <Flex justifyContent="space-between">
-              <FormLabel flex={1}>パネルサイドバーを有効にする</FormLabel>
+              <FormLabel flex={1}>
+                {t("panelSidebar.enablePanelSidebar")}
+              </FormLabel>
               <Controller
                 name="enabled"
                 control={control}
@@ -50,6 +69,7 @@ export default function Preferences() {
                   <Switch
                     colorScheme={"blue"}
                     onChange={(e) => {
+                      onOpenEnablePanelSidebar();
                       onChange(e.target.checked);
                     }}
                     isChecked={value}
@@ -58,21 +78,20 @@ export default function Preferences() {
               />
             </Flex>
             <FormHelperText mt={0}>
-              パネルサイドバーは Firefox
-              のサイドバーと異なるため、互いに干渉することはありません。
-              パネルサイドバーは Firefox
-              のサイドバーと異なりウェブページを表示することも可能です。ワークスペース機能を表示したサイドバーで管理することもできます。
+              {t("panelSidebar.enableDescription")}
             </FormHelperText>
           </FormControl>
 
           <Divider />
 
-          <Text fontSize="lg">その他のパネルサイドバー設定</Text>
+          <Text fontSize="lg">{t("panelSidebar.otherSettings")}</Text>
           <FormControl>
             <Flex justifyContent="space-between">
-              <FormLabel flex={1}>パネルを閉じるたびに終了する</FormLabel>
+              <FormLabel flex={1}>
+                {t("panelSidebar.autoUnloadOnClose")}
+              </FormLabel>
               <Controller
-                name="closePopupAfterClick"
+                name="autoUnload"
                 control={control}
                 render={({ field: { onChange, value } }) => (
                   <Switch
@@ -87,20 +106,24 @@ export default function Preferences() {
 
           <FormControl>
             <Flex justifyContent="space-between">
-              <FormLabel flex={1}>サイドバーを表示する位置</FormLabel>
+              <FormLabel flex={1}>{t("panelSidebar.position")}</FormLabel>
               <Controller
-                name="showWorkspaceNameOnToolbar"
+                name="position_start"
                 control={control}
                 render={({ field: { onChange, value } }) => (
-                  <Select
-                    width={"150px"}
-                    variant="filled"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
+                  <RadioGroup
+                    value={value ? "start" : "end"}
+                    onChange={(val) => onChange(val === "start")}
                   >
-                    <option value="left">左側</option>
-                    <option value="right">右側</option>
-                  </Select>
+                    <Stack direction="row" spacing={4}>
+                      <Radio value="end">
+                        {t("panelSidebar.positionLeft")}
+                      </Radio>
+                      <Radio value="start">
+                        {t("panelSidebar.positionRight")}
+                      </Radio>
+                    </Stack>
+                  </RadioGroup>
                 )}
               />
             </Flex>
@@ -108,9 +131,9 @@ export default function Preferences() {
 
           <FormControl>
             <Flex justifyContent="space-between">
-              <FormLabel flex={1}>ウェブパネルの幅のグローバル値</FormLabel>
+              <FormLabel flex={1}>{t("panelSidebar.globalWidth")}</FormLabel>
               <Controller
-                name="manageOnBms"
+                name="globalWidth"
                 control={control}
                 render={({ field: { onChange, value } }) => (
                   <Input
@@ -123,20 +146,18 @@ export default function Preferences() {
               />
             </Flex>
             <FormHelperText>
-              グローバル値はパネルに対して 0
-              の幅が設定されている場合に適用されます。
+              {t("panelSidebar.globalWidthDescription")}
             </FormHelperText>
             <Alert status="info" rounded={"md"} mt={4}>
               <AlertIcon />
               <AlertDescription>
-                Noraneko
-                は可能な限りパネルアイコンをウェブページから直接取得するようになったため、アイコンプロバイダーの設定は削除されました。
+                {t("panelSidebar.iconProviderRemoved")}
                 <br />
                 <Link
                   color="blue.500"
                   href="https://docs.floorp.app/docs/features/how-to-use-workspaces"
                 >
-                  詳細情報
+                  {t("design.learnMore")}
                 </Link>
               </AlertDescription>
             </Alert>

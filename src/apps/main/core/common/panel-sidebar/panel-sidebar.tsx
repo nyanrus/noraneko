@@ -158,6 +158,9 @@ export class PanelSidebar {
   public changePanel(panelId: string): void {
     if (panelId === selectedPanelId()) {
       setSelectedPanelId(null);
+      if (panelSidebarConfig().autoUnload) {
+        this.unloadPanel(panelId);
+      }
       return;
     }
 

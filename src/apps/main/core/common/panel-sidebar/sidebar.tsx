@@ -9,7 +9,12 @@ import { SidebarHeader } from "./sidebar-header";
 import { SidebarSelectbox } from "./sidebar-selectbox";
 import { SidebarSplitter } from "./sidebar-splitter";
 import { createEffect, Show } from "solid-js";
-import { selectedPanelId, isFloating, isFloatingDragging } from "./data";
+import {
+  selectedPanelId,
+  isFloating,
+  isFloatingDragging,
+  isPanelSidebarEnabled,
+} from "./data";
 import { FloatingSplitter } from "./floating-splitter";
 import { BrowserBox } from "./browser-box";
 
@@ -27,6 +32,10 @@ export class PanelSidebarElem {
   }
 
   constructor() {
+    if (!isPanelSidebarEnabled()) {
+      return;
+    }
+
     const parentElem = document?.getElementById("browser");
     const beforeElem = document?.getElementById("appcontent");
     render(() => this.sidebar(), parentElem, {

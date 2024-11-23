@@ -5,6 +5,8 @@
 
 import type { PanelSidebarConfig, PanelSidebarData } from "./type";
 
+export const defaultEnabled = true;
+
 const defaultConfig: PanelSidebarConfig = {
   globalWidth: 400,
   autoUnload: false,
