@@ -9,6 +9,7 @@ import AdmZip from "adm-zip";
 import { execa, type ResultPromise } from "execa";
 import { runBrowser } from "./scripts/launchBrowser/index.js";
 import { savePrefsForProfile } from "./scripts/launchBrowser/savePrefs.js";
+import { applyPatches } from "./scripts/git-patches/git-patches-manager.js";
 
 //? when the linux binary has published, I'll sync linux bin version
 const VERSION = process.platform === "win32" ? "001" : "000";
@@ -95,6 +96,7 @@ let devInit = false;
 
 async function run(mode: "dev" | "test" = "dev") {
   await initBin();
+  await applyPatches();
   if (!devInit) {
     console.log("run dev servers");
     devViteProcesses = [
