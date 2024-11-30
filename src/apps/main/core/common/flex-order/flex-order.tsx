@@ -15,7 +15,7 @@ export namespace gFlexOrder {
   const floorpSidebarId = "panel-sidebar-box";
   const floorpSidebarSplitterId = "panel-sidebar-splitter";
   const floorpSidebarSelectBoxId = "panel-sidebar-select-box";
-  const browserBoxId = "appcontent";
+  const browserBoxId = "tabbrowser-tabbox";
 
   export function init() {
     applyFlexOrder();

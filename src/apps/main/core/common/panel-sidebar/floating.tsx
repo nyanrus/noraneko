@@ -51,10 +51,12 @@ export class PanelSidebarFloating {
   }
 
   private initResizeObserver() {
-    const appContentElem = document?.getElementById(this.parentHeightTargetId);
+    const tabbrowserTabboxElem = document?.getElementById(
+      this.parentHeightTargetId,
+    );
     const sidebarBox = document?.getElementById("panel-sidebar-box");
 
-    if (!appContentElem || !sidebarBox) {
+    if (!tabbrowserTabboxElem || !sidebarBox) {
       return;
     }
 
@@ -66,7 +68,7 @@ export class PanelSidebarFloating {
       }
     });
 
-    this.resizeObserver.observe(appContentElem);
+    this.resizeObserver.observe(tabbrowserTabboxElem);
   }
 
   private applyHeightToSidebarBox() {

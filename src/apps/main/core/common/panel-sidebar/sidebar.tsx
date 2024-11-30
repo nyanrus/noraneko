@@ -37,7 +37,7 @@ export class PanelSidebarElem {
     }
 
     const parentElem = document?.getElementById("browser");
-    const beforeElem = document?.getElementById("appcontent");
+    const beforeElem = document?.getElementById("tabbrowser-tabbox");
     render(() => this.sidebar(), parentElem, {
       // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       hotCtx: (import.meta as any).hot,

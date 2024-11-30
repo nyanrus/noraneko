@@ -23,5 +23,6 @@
     "editor.defaultFormatter": "biomejs.biome"
   },
   "oxc.enable": true,
-  "git.scanRepositories": ["./"]
+  "git.scanRepositories": ["./"],
+  "git.ignoredRepositories": ["../_dist/*"]
 }

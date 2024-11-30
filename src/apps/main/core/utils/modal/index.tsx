@@ -8,7 +8,9 @@ import { Portal } from "solid-js/web";
 import modalStyle from "./styles.css?inline";
 import { render } from "@nora/solid-xul";
 
-const targetParent = document?.getElementById("appcontent") as HTMLElement;
+const targetParent = document?.getElementById(
+  "tabbrowser-tabbox",
+) as HTMLElement;
 
 render(() => <style>{modalStyle}</style>, document?.head, {
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
