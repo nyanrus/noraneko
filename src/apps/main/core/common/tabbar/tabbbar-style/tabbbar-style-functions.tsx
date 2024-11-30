@@ -28,23 +28,45 @@ export namespace gTabbarStyleFunctions {
     return document?.querySelector("#browser") as XULElement | null;
   }
   function getUrlbarContainer(): XULElement | null {
-    return document?.querySelector(".urlbar-container") as XULElement | null;
+    return document?.querySelector("#urlbar-container") as XULElement | null;
   }
   function isVerticalTabbar() {
     return config().tabbar.tabbarStyle === "vertical";
   }
 
   export function revertToDefaultStyle() {
-    getTabbarElement()?.removeAttribute("floorp-tabbar-display-style");
-    getTabbarElement()?.removeAttribute("hidden");
-    getTabbarElement()?.appendChild(
-      document?.querySelector("#floorp-tabbar-window-manage-container") as Node,
+    const tabbarElement = getTabbarElement();
+    const titleBarElement = getTitleBarElement();
+    const navigatorToolbox = getNavigatorToolboxtabbarElement();
+    const urlbarContainer = getUrlbarContainer();
+    const windowManageContainer = document?.querySelector(
+      "#floorp-tabbar-window-manage-container",
+    ) as Node;
+    const tabbarModifyCss = document?.querySelector(
+      "#floorp-tabbar-modify-css",
     );
-    getTitleBarElement()?.appendChild(getTabbarElement() as Node);
-    getNavigatorToolboxtabbarElement()?.prepend(getTitleBarElement() as Node);
-    document?.querySelector("#floorp-tabbar-modify-css")?.remove();
-    getTabbarElement()?.removeAttribute("floorp-tabbar-display-style");
-    getUrlbarContainer()?.style.removeProperty("margin-top");
+
+    // Remove attributes and styles
+    tabbarElement?.removeAttribute("floorp-tabbar-display-style");
+    tabbarElement?.removeAttribute("hidden");
+
+    // Move elements to default positions
+    if (tabbarElement && windowManageContainer) {
+      tabbarElement.appendChild(windowManageContainer);
+    }
+
+    if (titleBarElement && tabbarElement) {
+      titleBarElement.appendChild(tabbarElement);
+    }
+
+    if (navigatorToolbox && titleBarElement) {
+      navigatorToolbox.prepend(titleBarElement);
+    }
+
+    // Clean up
+    tabbarModifyCss?.remove();
+    tabbarElement?.removeAttribute("floorp-tabbar-display-style");
+    urlbarContainer?.style.removeProperty("margin-top");
   }
 
   export function defaultTabbarStyle() {
@@ -103,7 +125,8 @@ export namespace gTabbarStyleFunctions {
         TabbarStyleModifyCSSElement({ style: config().tabbar.tabbarPosition }),
       document?.head,
       {
-        hotCtx: import.meta.hot,
+        // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+        hotCtx: (import.meta as any).hot,
       },
     );
 
