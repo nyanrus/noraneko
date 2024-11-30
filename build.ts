@@ -141,6 +141,11 @@ async function run(mode: "dev" | "test" = "dev") {
       stdout: "inherit",
       cwd: r("./src/apps/modules"),
     })`pnpm build`;
+    await execa({
+      preferLocal: true,
+      stdout: "inherit",
+      cwd: r("./src/apps/modules"),
+    })`pnpm genJarManifest`;
 
     if (mode === "test") {
       devExecaProcesses.push(
@@ -250,6 +255,16 @@ async function release(mode: "before" | "after") {
 
       //applyMixin(binPath),
     ]);
+    await execa({
+      preferLocal: true,
+      stdout: "inherit",
+      cwd: r("./src/apps/modules"),
+    })`pnpm build`;
+    await execa({
+      preferLocal: true,
+      stdout: "inherit",
+      cwd: r("./src/apps/modules"),
+    })`pnpm genJarManifest`;
     await injectManifest("./_dist", false);
   } else if (mode === "after") {
     const binPath = "../obj-x86_64-pc-windows-msvc/dist/bin";

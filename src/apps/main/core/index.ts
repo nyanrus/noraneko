@@ -22,7 +22,7 @@ const modules_keys = {
 
 export default async function initScripts() {
   // Import required modules and initialize i18n
-  ChromeUtils.importESModule("resource://noraneko/BrowserGlue.sys.mjs");
+  ChromeUtils.importESModule("resource://noraneko/modules/BrowserGlue.sys.mjs");
   initI18N();
 
   // Set up preferences for features
