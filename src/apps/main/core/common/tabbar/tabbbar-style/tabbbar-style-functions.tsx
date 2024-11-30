@@ -15,9 +15,6 @@ export namespace gTabbarStyleFunctions {
   function getTabbarElement(): XULElement | null {
     return document?.querySelector("#TabsToolbar") as XULElement | null;
   }
-  function getTitleBarElement(): XULElement | null {
-    return document?.querySelector("#titlebar") as XULElement | null;
-  }
   function getNavbarElement(): XULElement | null {
     return document?.querySelector("#nav-bar") as XULElement | null;
   }
@@ -36,7 +33,6 @@ export namespace gTabbarStyleFunctions {
 
   export function revertToDefaultStyle() {
     const tabbarElement = getTabbarElement();
-    const titleBarElement = getTitleBarElement();
     const navigatorToolbox = getNavigatorToolboxtabbarElement();
     const urlbarContainer = getUrlbarContainer();
     const windowManageContainer = document?.querySelector(
@@ -45,6 +41,9 @@ export namespace gTabbarStyleFunctions {
     const tabbarModifyCss = document?.querySelector(
       "#floorp-tabbar-modify-css",
     );
+
+    // Add flex to tabbarElement
+    tabbarElement?.setAttribute("flex", "1");
 
     // Remove attributes and styles
     tabbarElement?.removeAttribute("floorp-tabbar-display-style");
@@ -55,12 +54,8 @@ export namespace gTabbarStyleFunctions {
       tabbarElement.appendChild(windowManageContainer);
     }
 
-    if (titleBarElement && tabbarElement) {
-      titleBarElement.appendChild(tabbarElement);
-    }
-
-    if (navigatorToolbox && titleBarElement) {
-      navigatorToolbox.prepend(titleBarElement);
+    if (navigatorToolbox && tabbarElement) {
+      navigatorToolbox.prepend(tabbarElement);
     }
 
     // Clean up
@@ -85,9 +80,11 @@ export namespace gTabbarStyleFunctions {
   }
 
   export function optimiseToVerticalTabbar() {
-    //optimize vertical tabbar
-    getTabbarElement()?.setAttribute("hidden", "true");
-    getNavbarElement()?.appendChild(
+    const tabbarElement = getTabbarElement();
+    const navbarElement = getNavbarElement();
+
+    tabbarElement?.setAttribute("hidden", "true");
+    navbarElement?.appendChild(
       document?.querySelector("#floorp-tabbar-window-manage-container") as Node,
     );
     checkPaddingEnabled();
@@ -97,11 +94,24 @@ export namespace gTabbarStyleFunctions {
     if (isVerticalTabbar()) {
       return;
     }
-    getNavigatorToolboxtabbarElement()?.appendChild(getTabbarElement() as Node);
-    getPanelUIMenuButton()?.after(
-      document?.querySelector("#floorp-tabbar-window-manage-container") as Node,
-    );
-    getTabbarElement()?.setAttribute("floorp-tabbar-display-style", "2");
+
+    const navigatorToolbox = getNavigatorToolboxtabbarElement();
+    const tabbarElement = getTabbarElement();
+    const panelUIMenuButton = getPanelUIMenuButton();
+
+    if (navigatorToolbox && tabbarElement) {
+      navigatorToolbox.appendChild(tabbarElement);
+    }
+
+    if (panelUIMenuButton) {
+      panelUIMenuButton.after(
+        document?.querySelector(
+          "#floorp-tabbar-window-manage-container",
+        ) as Node,
+      );
+    }
+
+    tabbarElement?.setAttribute("floorp-tabbar-display-style", "2");
   }
 
   export function bottomOfWindow() {
@@ -109,12 +119,24 @@ export namespace gTabbarStyleFunctions {
       return;
     }
 
-    getBrowserElement()?.after(getTitleBarElement() as Node);
-    getPanelUIMenuButton()?.after(
-      document?.querySelector("#floorp-tabbar-window-manage-container") as Node,
-    );
-    getTabbarElement()?.setAttribute("floorp-tabbar-display-style", "3");
-    // set margin to the top of urlbar container & allow moving the window
+    const browserElement = getBrowserElement();
+    const tabbarElement = getTabbarElement();
+    const panelUIMenuButton = getPanelUIMenuButton();
+
+    if (browserElement && tabbarElement) {
+      browserElement.after(tabbarElement);
+    }
+
+    if (panelUIMenuButton) {
+      panelUIMenuButton.after(
+        document?.querySelector(
+          "#floorp-tabbar-window-manage-container",
+        ) as Node,
+      );
+    }
+
+    tabbarElement?.removeAttribute("flex");
+    tabbarElement?.setAttribute("floorp-tabbar-display-style", "3");
     getUrlbarContainer()?.style.setProperty("margin-top", "5px");
   }
 
