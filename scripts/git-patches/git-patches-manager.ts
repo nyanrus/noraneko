@@ -22,6 +22,15 @@ export async function initializeBinGit() {
 
   console.log("Initializing git repository in _dist/bin");
 
+  // create .gitignore
+  await fs.writeFile(
+    path.join(BIN_DIR, ".gitignore"),
+    `
+./noraneko/*
+./browser/chrome/browser/res/activity-stream/data/content/abouthomecache/*
+`,
+  );
+
   // Initialize git repository
   await execa("git", ["init"], { cwd: BIN_DIR });
   await execa("git", ["add", "."], { cwd: BIN_DIR });

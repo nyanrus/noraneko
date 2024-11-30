@@ -10,6 +10,7 @@ import { execa, type ResultPromise } from "execa";
 import { runBrowser } from "./scripts/launchBrowser/index.js";
 import { savePrefsForProfile } from "./scripts/launchBrowser/savePrefs.js";
 import { applyPatches } from "./scripts/git-patches/git-patches-manager.js";
+import { initializeBinGit } from "./scripts/git-patches/git-patches-manager.js";
 
 //? when the linux binary has published, I'll sync linux bin version
 const VERSION = process.platform === "win32" ? "001" : "000";
@@ -87,6 +88,16 @@ async function initBin() {
     await fs.mkdir(binDir, { recursive: true });
     await decompressBin();
   }
+}
+
+async function runWithInitBinGit() {
+  if (await isExists(binDir)) {
+    await fs.rm(binDir, { recursive: true, force: true });
+  }
+
+  await initBin();
+  await initializeBinGit();
+  await run();
 }
 
 let devViteProcesses: ViteDevServer[] | null = null;
@@ -259,6 +270,9 @@ if (process.argv[2]) {
       break;
     case "--release-build-after":
       release("after");
+      break;
+    case "--run-with-init-bin-git":
+      runWithInitBinGit();
       break;
   }
 }
