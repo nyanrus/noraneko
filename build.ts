@@ -11,6 +11,7 @@ import { runBrowser } from "./scripts/launchBrowser/index.js";
 import { savePrefsForProfile } from "./scripts/launchBrowser/savePrefs.js";
 import { applyPatches } from "./scripts/git-patches/git-patches-manager.js";
 import { initializeBinGit } from "./scripts/git-patches/git-patches-manager.js";
+import { writeVersion } from "./scripts/version/index.js";
 
 //? when the linux binary has published, I'll sync linux bin version
 const VERSION = process.platform === "win32" ? "001" : "000";
@@ -272,6 +273,10 @@ async function release(mode: "before" | "after") {
   }
 }
 
+async function version() {
+  await writeVersion(r("./gecko"));
+}
+
 if (process.argv[2]) {
   switch (process.argv[2]) {
     case "--run":
@@ -288,6 +293,8 @@ if (process.argv[2]) {
       break;
     case "--run-with-init-bin-git":
       runWithInitBinGit();
+    case "--write-version":
+      version();
       break;
   }
 }
