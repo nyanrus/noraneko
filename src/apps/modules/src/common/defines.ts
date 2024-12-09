@@ -1,5 +1,3 @@
-import z from "zod";
-
 interface PrefDatumBase {
   prefType: string;
   prefName: string;
@@ -7,17 +5,14 @@ interface PrefDatumBase {
 
 type PrefDatumBoolean = PrefDatumBase & {
   prefType: "boolean";
-  prefName: string;
 };
 
 type PrefDatumInteger = PrefDatumBase & {
   prefType: "integer";
-  prefName: string;
 };
 
 type PrefDatumString = PrefDatumBase & {
   prefType: "string";
-  prefName: string;
 };
 
 export type PrefDatum = PrefDatumBoolean | PrefDatumInteger | PrefDatumString;

@@ -4,7 +4,7 @@ export class NRSettingsChild extends JSWindowActorChild {
   actorCreated() {
     console.debug("NRSettingsChild created!");
     const window = this.contentWindow;
-    if (window?.location.port === "5183") {
+    if (window?.location.port === "5183" || window?.location.origin === "chrome://noraneko-settings" ) {
       console.debug("NRSettingsChild 5183!");
       Cu.exportFunction(this.NRSPing.bind(this), window, {
         defineAs: "NRSPing",
