@@ -152,19 +152,21 @@ jobs:
 
       - name: Create MAR package
         run: |
+          7za x ~/noraneko-dev/noraneko-133.0.4.en-US.win64.zip -o~/noraneko-dev
+
           chmod +x $(echo ./obj-*)/dist/host/bin/mar
           mkdir ~/noraneko-mar
           touch "$(echo ./obj-*)/dist/noraneko/precomplete"
           MAR="$(echo ./obj-*)/dist/host/bin/mar" MOZ_PRODUCT_VERSION=$(cat noraneko/gecko/config/version.txt) MAR_CHANNEL_ID=alpha ./tools/update-packaging/make_full_update.sh ~/noraneko-mar/noraneko-win-amd64-full.mar "$(echo ./obj-*)/dist/noraneko"
 
-          awk -F "=" '/^Version/ {print $2}' "$(echo ~)/noraneko-dev/application.ini" > ~/noraneko-mar/version.txt
+          awk -F "=" '/^Version/ {print $2}' "$(echo ~)/noraneko-dev/noraneko/application.ini" > ~/noraneko-mar/version.txt
           cp noraneko/gecko/config/version.txt ~/noraneko-mar/noraneko_version.txt
           echo "$(cat ~/noraneko-mar/version.txt)@$(cat ~/noraneko-mar/noraneko_version.txt)" > ~/noraneko-mar/version_display.txt
 
           shasum --algorithm 512 ~/noraneko-mar/noraneko-win-amd64-full.mar | cut -c 1-128 > ~/noraneko-mar/mar_shasum.txt
           stat --format "%s" ~/noraneko-mar/noraneko-win-amd64-full.mar > ~/noraneko-mar/mar_size.txt
 
-          awk -F "=" '/BuildID/ {print $2}' "$(echo ~)/noraneko-dev/application.ini" > ~/noraneko-mar/buildid.txt
+          awk -F "=" '/BuildID/ {print $2}' "$(echo ~)/noraneko-dev/noraneko/application.ini" > ~/noraneko-mar/buildid.txt
 
           mkdir ~/noraneko-publish
 
