@@ -4,8 +4,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import type { Panel } from "../utils/type";
+import { panelSidebarConfig } from "../data";
 
 export function WebSiteBrowser({ id, type, url, userContextId }: Panel) {
+  const addonEnabled = panelSidebarConfig().webExtensionRunningEnabled;
   return (
     <xul:browser
       id={`sidebar-panel-${id}`}
@@ -21,7 +23,14 @@ export function WebSiteBrowser({ id, type, url, userContextId }: Panel) {
       autocompletepopup="PopupAutoComplete"
       initialBrowsingContextGroupId="40"
       usercontextid={`${userContextId ?? 0}`}
-      src={`chrome://browser/content/browser.xhtml?floorpWebPanelId=${id}`}
+      type={addonEnabled ? undefined : "content"}
+      remote={addonEnabled ? undefined : "true"}
+      maychangeremoteness={addonEnabled ? undefined : "true"}
+      src={
+        addonEnabled
+          ? `chrome://browser/content/browser.xhtml?floorpWebPanelId=${id}`
+          : (url ?? "")
+      }
     />
   );
 }

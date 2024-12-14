@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { Show } from "solid-js";
+import { Show, createMemo } from "solid-js";
 import {
   selectedPanelId,
   setSelectedPanelId,
@@ -15,13 +15,13 @@ import { PanelSidebar } from "./panel-sidebar";
 
 export function SidebarHeader() {
   const gPanelSidebar = PanelSidebar.getInstance();
+  const currentPanel = createMemo(() =>
+    gPanelSidebar.getPanelData(selectedPanelId() ?? "")
+  );
+
   return (
     <xul:box id="panel-sidebar-header" align="center">
-      <Show
-        when={
-          gPanelSidebar.getPanelData(selectedPanelId() ?? "")?.type === "web"
-        }
-      >
+      <Show when={currentPanel()?.type === "web"}>
         <xul:toolbarbutton
           id="panel-sidebar-back"
           class="panel-sidebar-actions toolbarbutton-1 chromeclass-toolbar-additional"
@@ -47,17 +47,13 @@ export function SidebarHeader() {
         />
       </Show>
       <xul:spacer flex="1" />
-      <Show
-        when={
-          gPanelSidebar.getPanelData(selectedPanelId() ?? "")?.type === "web"
-        }
-      >
-        <xul:toolbarbutton
+      <xul:toolbarbutton
           id="panel-sidebar-float"
           onCommand={() => setIsFloating(!isFloating())}
           class="panel-sidebar-actions"
           data-l10n-id="sidebar-float-button"
         />
+      <Show when={currentPanel()?.type === "web"}>
         <xul:toolbarbutton
           id="panel-sidebar-open-in-main-window"
           onCommand={() =>
