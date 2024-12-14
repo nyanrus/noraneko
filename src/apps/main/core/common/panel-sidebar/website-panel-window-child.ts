@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import style from "./web-site-browser-style.css?inline";
 import type { Panels } from "./utils/type";
 
 const PANEL_SIDEBAR_DATA_PREF_NAME = "floorp.panelSidebar.data";
@@ -68,6 +69,7 @@ export class WebsitePanelWindowChild {
       return;
     }
 
+    this.setStyle();
     window.floorpWebPanelWindow = true;
     window.SessionStore.promiseInitialized.then(() =>
       this.createWebpanelWindow(),
@@ -130,10 +132,14 @@ export class WebsitePanelWindowChild {
     window.gBrowser.removeTab(tab);
   }
 
+  setStyle() {
+    const styleElement = document?.createElement("style") as HTMLStyleElement;
+    styleElement.textContent = style;
+    document?.head?.appendChild(styleElement);
+  }
+
   createWebpanelWindow() {
     const { userContextId, userAgent, loadURL, mainWindow } = this;
-
-    console.log("createWebpanelWindow", this.webpanelId);
 
     mainWindow.setAttribute("BSM-window", "true");
     mainWindow.setAttribute("BMS-usercontextid", userContextId.toString());

@@ -29,7 +29,7 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "oxc.enable": true,
   "git.scanRepositories": ["./"],

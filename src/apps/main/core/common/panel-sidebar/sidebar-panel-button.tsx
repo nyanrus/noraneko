@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { createSignal, createEffect, Show } from "solid-js";
-import { getFaviconURLForPanel } from "./utils/favicon-getter";
+import { Show, createResource } from "solid-js";
+import { getFaviconURLForPanel, DEFAULT_FAVICON } from "./utils/favicon-getter";
 import { PanelSidebar } from "./panel-sidebar";
 import { selectedPanelId, panelSidebarData, setPanelSidebarData } from "./data";
 import type { Panel } from "./utils/type";
@@ -13,12 +13,7 @@ import { getUserContextColor } from "./utils/userContextColor-getter";
 
 export function PanelSidebarButton({ panel }: { panel: Panel }) {
   const gPanelSidebar = PanelSidebar.getInstance();
-  const [faviconUrl, setFaviconUrl] = createSignal("");
-
-  createEffect(async () => {
-    const iconUrl = await getFaviconURLForPanel(panel);
-    setFaviconUrl(iconUrl);
-  });
+  const [faviconUrl] = createResource(() => getFaviconURLForPanel(panel));
 
   const handleDragStart = (e: DragEvent) => {
     e.dataTransfer?.setData("text/plain", panel.id);
@@ -80,7 +75,7 @@ export function PanelSidebarButton({ panel }: { panel: Panel }) {
         data-checked={selectedPanelId() === panel.id}
         data-panel-id={panel.id}
         style={{
-          "list-style-image": `url(${faviconUrl()})`,
+          "list-style-image": `url(${faviconUrl() || DEFAULT_FAVICON})`,
         }}
         onCommand={() => {
           gPanelSidebar.changePanel(panel.id);

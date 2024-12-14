@@ -11,8 +11,8 @@ const { PlacesUtils } = ChromeUtils.importESModule(
   "resource://gre/modules/PlacesUtils.sys.mjs",
 );
 
+export const DEFAULT_FAVICON = "chrome://devtools/skin/images/globe.svg";
 const gFavicons = PlacesUtils.favicons as nsIFaviconService;
-const DEFAULT_FAVICON = "chrome://devtools/skin/images/globe.svg";
 
 export async function getFaviconURLForPanel(panel: Panel): Promise<string> {
   try {
