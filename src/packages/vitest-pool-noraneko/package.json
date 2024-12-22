@@ -1,0 +1,17 @@
+{
+  "name": "vitest-pool-noraneko",
+  "version": "0.1.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "nyanrus",
+  "license": "MPL-2.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "birpc": "^0.2.19",
+    "vitest": "^2.1.8"
+  }
+}
