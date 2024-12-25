@@ -24,7 +24,9 @@ export default async function initScripts() {
   // Import required modules and initialize i18n
   ChromeUtils.importESModule("resource://noraneko/modules/BrowserGlue.sys.mjs");
   initI18N();
+  try{
   console.debug(`[noraneko-buildid2]\nuuid: ${import.meta.env.__BUILDID2__}\ndate: ${new Date(Number.parseInt(import.meta.env.__BUILDID2__.slice(0, 13).replace("-", ""), 16)).toISOString()}`);
+  }catch{}
 
   setPrefFeatures(modules_keys)
 

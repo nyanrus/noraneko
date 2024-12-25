@@ -1,3 +1,12 @@
-import { defineConfig } from "vitest";
+import {defineConfig} from "vitest/config"
 
-defineConfig
+export default defineConfig({
+root: ".",
+  test: {
+    name: "Noraneko",
+    pool: "./src/pool/index.ts",
+    typecheck: {
+      enabled: true
+    }
+  }
+})

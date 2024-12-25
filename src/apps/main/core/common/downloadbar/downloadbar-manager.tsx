@@ -8,7 +8,7 @@ import type {} from "solid-styled-jsx";
 
 export class DownloadBarManager {
   _showDownloadBar = createSignal(
-    Services.prefs.getBoolPref("noraneko.downloadbar.enable", false),
+    Services.prefs.getBoolPref("noraneko.downloadbar.enable", true),
   );
   showDownloadBar = this._showDownloadBar[0];
   setShowDownloadBar = this._showDownloadBar[1];

@@ -12,5 +12,5 @@ export function init() {
     hotCtx: import.meta.hot,
   });
 
-  import.meta.hot?.accept((m) => m?.initShareMode());
+  import.meta.hot?.accept((m) => m?.init());
 }

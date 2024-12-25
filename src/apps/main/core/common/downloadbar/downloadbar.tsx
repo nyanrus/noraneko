@@ -5,7 +5,7 @@
 
 import downloadbarStyle from "./downloadbar.css?inline";
 
-export function DonwloadBar() {
+export function Downloadbar() {
   return (
     <>
       <vbox

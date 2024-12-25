@@ -87,13 +87,13 @@ export default defineConfig({
 
   plugins: [
     tsconfigPaths(),
-    {
-      name: "solid-xul-refresh",
-      apply: "serve",
-      handleHotUpdate(ctx) {
-        console.log(`handle hot : ${JSON.stringify(ctx.modules)}`);
-      },
-    },
+    // {
+    //   name: "solid-xul-refresh",
+    //   apply: "serve",
+    //   handleHotUpdate(ctx) {
+    //     console.log(`handle hot : ${JSON.stringify(ctx.modules)}`);
+    //   },
+    // },
     solidPlugin({
       solid: {
         generate: "universal",
