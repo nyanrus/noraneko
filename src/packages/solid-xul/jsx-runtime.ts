@@ -79,6 +79,7 @@ declare module "solid-js" {
         | "bottomleft topleft"
         | "overlap";
       onPopupShowing?: () => void;
+      onPopupHiding?: () => void;
       onpopupshowing?: string;
     }
 
@@ -101,6 +102,22 @@ declare module "solid-js" {
       oncommand?: string;
       onCommand?: () => void;
       context?: string;
+      image?: string;
+    }
+
+    interface XULButtonElement extends XULElementBase {
+      label?: string;
+      accesskey?: string;
+      oncommand?: string;
+      onCommand?: () => void;
+      context?: string;
+      image?: string;
+    }
+
+    interface XULImageElement extends XULElementBase {
+      src?: string;
+      width?: string;
+      height?: string;
     }
 
     interface XULTabElement
@@ -112,6 +129,7 @@ declare module "solid-js" {
     interface IntrinsicElements {
       "xul:arrowscrollbox": XULElementBase;
       "xul:browser": XULBrowserElement;
+      "xul:button": XULButtonElement;
       "xul:menuitem": XULMenuitemElement;
       "xul:window": XULElementBase;
       "xul:linkset": XULElementBase;
@@ -166,7 +184,7 @@ declare module "solid-js" {
       "xul:description": XULElementBase;
       "xul:checkbox": XULElementBase;
       "xul:richlistitem": XULRichListItem;
-      "xul:image": XULElementBase;
+      "xul:image": XULImageElement;
       "xul:label": XULElementBase;
     }
 

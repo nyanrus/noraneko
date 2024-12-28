@@ -16,7 +16,7 @@ const JS_WINDOW_ACTORS: {
   NRAboutNewTab: {
     child: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRAboutNewTabChild.sys.mts",
+        "../actors/NRAboutNewTabChild.sys.mts"
       ),
 
       events: {
@@ -35,7 +35,7 @@ const JS_WINDOW_ACTORS: {
   NRAboutPreferences: {
     child: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRAboutPreferencesChild.sys.mts",
+        "../actors/NRAboutPreferencesChild.sys.mts"
       ),
       events: {
         DOMContentLoaded: {},
@@ -59,71 +59,87 @@ const JS_WINDOW_ACTORS: {
     //* port seems to not be supported
     //https://searchfox.org/mozilla-central/rev/3966e5534ddf922b186af4777051d579fd052bad/dom/chrome-webidl/JSWindowActor.webidl#99
     //https://searchfox.org/mozilla-central/rev/3966e5534ddf922b186af4777051d579fd052bad/dom/chrome-webidl/MatchPattern.webidl#17
-    matches: ["*://localhost/*", "chrome://noraneko-settings/*"],
+    matches: ["*:///*", "chrome://noraneko-settings/*"],
   },
   NRTabManager: {
     parent: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRTabManagerParent.sys.mts",
+        "../actors/NRTabManagerParent.sys.mts"
       ),
     },
     child: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRTabManagerChild.sys.mts",
+        "../actors/NRTabManagerChild.sys.mts"
       ),
       events: {
         DOMDocElementInserted: {},
       },
     },
-    matches: ["*://localhost/*"],
+    matches: ["*:///*"],
   },
   NRSyncManager: {
     parent: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRSyncManagerParent.sys.mts",
+        "../actors/NRSyncManagerParent.sys.mts"
       ),
     },
     child: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRSyncManagerChild.sys.mts",
+        "../actors/NRSyncManagerChild.sys.mts"
       ),
       events: {
         DOMDocElementInserted: {},
       },
     },
-    matches: ["*://localhost/*"],
+    matches: ["*:///*"],
   },
   NRAppConstants: {
     parent: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRAppConstantsParent.sys.mts",
+        "../actors/NRAppConstantsParent.sys.mts"
       ),
     },
     child: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRAppConstantsChild.sys.mts",
+        "../actors/NRAppConstantsChild.sys.mts"
       ),
       events: {
         DOMDocElementInserted: {},
       },
     },
-    matches: ["*://localhost/*"],
+    matches: ["*:///*"],
   },
   NRRestartBrowser: {
     parent: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRRestartBrowserParent.sys.mts",
+        "../actors/NRRestartBrowserParent.sys.mts"
       ),
     },
     child: {
       esModuleURI: localPathToResourceURI(
-        "../actors/NRRestartBrowserChild.sys.mts",
+        "../actors/NRRestartBrowserChild.sys.mts"
       ),
       events: {
         DOMDocElementInserted: {},
       },
     },
-    matches: ["*://localhost/*"],
+    matches: ["*:///*"],
+  },
+  NRProgressiveWebApp: {
+    parent: {
+      esModuleURI: localPathToResourceURI(
+        "../actors/NRProgressiveWebAppParent.sys.mts"
+      ),
+    },
+    child: {
+      esModuleURI: localPathToResourceURI(
+        "../actors/NRProgressiveWebAppChild.sys.mts"
+      ),
+      events: {
+        pageshow: {},
+      },
+    },
+    allFrames: true,
   },
 };
 

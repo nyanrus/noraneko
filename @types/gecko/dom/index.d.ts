@@ -22,7 +22,10 @@ declare var Cc: nsIXPCComponents_Classes & {
   [key: string]: {
     getService: (
       t: typeof Ci[keyof typeof Ci],
-    ) => unknown;
+    ) => any;
+    createInstance: (
+      aClass: typeof Ci[keyof typeof Ci],
+    ) => any;
   };
 };
 interface CSSStyleDeclaration {
@@ -32,6 +35,21 @@ interface CSSStyleDeclaration {
     flexDirection: string;
     flexTemplateAreas: string;
 }
+
+interface nsIXPCComponents extends nsISupports {
+  readonly interfaces: nsIXPCComponents_Interfaces;
+  readonly results: nsIXPCComponents_Results;
+  isSuccessCode(result: any): boolean;
+  readonly classes: nsIXPCComponents_Classes;
+  readonly stack: nsIStackFrame;
+  readonly manager: nsIComponentManager;
+  readonly utils: nsIXPCComponents_Utils;
+  readonly ID: nsIXPCComponents_ID;
+  readonly Exception: any;
+  readonly Constructor: nsIXPCComponents_Constructor;
+  returnCode: any;
+}
+
 /* NORA END */
 
 // interface CSSStyleDeclaration {

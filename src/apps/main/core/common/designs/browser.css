@@ -194,7 +194,7 @@ browser[type="content"] > html {
   margin-inline: 8px 0;
   margin-bottom: 0;
   color: var(--button-primary-color);
-  background-color: var(--button-primary-bgcolor);
+  background-color: var(--color-accent-primary);
   margin-left: auto;
   margin-right: 5px;
 }
@@ -260,17 +260,17 @@ browser[type="content"] > html {
 }
 
 #ssbPageAction-image {
-  list-style-image: url("chrome://floorp/skin/designs/lepton/pwa-install.svg");
+  list-style-image: url("chrome://branding/content/about-logo-private.png");
 }
 
 #ssbPageAction-image[open-ssb="true"] {
-  list-style-image: url("chrome://floorp/skin/designs/lepton/pwa-launch.svg");
+  list-style-image: url("chrome://branding/content/about-logo-private.png");
 }
 
 #run-ssb-contextmenu {
-  --menuitem-image: url("chrome://floorp/skin/designs/lepton/pwa-launch.svg");
+  --menuitem-image: url("chrome://branding/content/about-logo-private.png");
 }
 
 #uninstall-ssb-contextmenu {
-  --menuitem-image: url("chrome://floorp/skin/designs/lepton/pwa-remove.svg");
+  --menuitem-image: url("chrome://branding/content/about-logo-private.png");
 }
