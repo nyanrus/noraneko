@@ -3,9 +3,9 @@
   "description": "This module has .sys.mjs files for Firefox Module System esp. for Actor",
   "type": "module",
   "devDependencies": {
-    "@swc/core": "^1.7.26",
-    "@swc/cli": "0.4.1-nightly.20240914",
-    "oxlint": "^0.9.9"
+    "@swc/cli": "0.5.2",
+    "@swc/core": "^1.10.3",
+    "oxlint": "^0.15.3"
   },
   "scripts": {
     "build": "swc ./src -d _dist --strip-leading-paths --out-file-extension mjs",
