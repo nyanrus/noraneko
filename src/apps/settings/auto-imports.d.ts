@@ -9,6 +9,7 @@ declare global {
   const IconCarbonHome: typeof import('~icons/carbon/home.jsx')['default']
   const IconCodiconExtensions: typeof import('~icons/codicon/extensions.jsx')['default']
   const IconFluentMdl2Tab: typeof import('~icons/fluent-mdl2/tab.jsx')['default']
+  const IconIcOutlineDelete: typeof import('~icons/ic/outline-delete.jsx')['default']
   const IconIcOutlineKeyboard: typeof import('~icons/ic/outline-keyboard.jsx')['default']
   const IconIcOutlineOpenInNew: typeof import('~icons/ic/outline-open-in-new.jsx')['default']
   const IconIcRoundLanguage: typeof import('~icons/ic/round-language.jsx')['default']
