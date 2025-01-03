@@ -22,7 +22,7 @@ export function initI18N() {
     debug: true,
     resources,
     defaultNS,
-    ns: ["undo"],
+    ns: ["undo","rss"],
     fallbackLng: ["en-US", "dev"],
   });
 }

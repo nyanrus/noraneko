@@ -1,0 +1,8 @@
+{
+  "subscribe": {
+    "label": "購読する"
+  },
+  "rss-url": {
+    "label": "'{url}'のRSSフィードを購読しますか?"
+  }
+}

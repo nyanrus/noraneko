@@ -11,7 +11,9 @@
  重複をチェックする
  定期取得する
  */
- import { render } from "@nora/solid-xul";
+ import { createRootHMR, render } from "@nora/solid-xul";
+import i18next from "i18next";
+import { addI18nObserver } from "../../../i18n/config";
 import { RSSAction } from "./rss";
 //URLの一時保管用変数
  let currentURL = "";
@@ -27,6 +29,7 @@ import { RSSAction } from "./rss";
      window.gFloorp.rssReader = {
        closePopup: this.closePopup,
        addRSSFeed: this.addRSSFeed,
+       onPopup: this.onPopup,
      };
      //ボタン、ポップアップ等のレンダリング
      render(RSSAction, document.getElementById("page-action-buttons")?.firstElementChild);
@@ -49,6 +52,21 @@ import { RSSAction } from "./rss";
  //ポップアップを閉じる
  export function closePopup() {
    document.getElementById("rss-panel").hidePopup();
+ }
+ export function onPopup() {
+  const rssUrl = document?.getElementById("rss-content-label");
+  createRootHMR(
+    () => {
+      addI18nObserver((locale) => {
+        rssUrl.label = i18next.t("rss-url.label", {
+          lng: locale,
+          url: currentURL,
+          ns: "rss"
+        });
+      });
+    },
+    import.meta.hot,
+  );
  }
  //RSSリーダーに項目を追加、重複の場合はポップアップのボタンを削除に変更
  export function addRSSFeed() {
