@@ -33,7 +33,7 @@
     display: flex;
   }
   
-  #rss-app-install-button {
+  #rss-subscribe-button {
     appearance: none;
     border: 0;
     border-radius: 4px;
@@ -48,15 +48,15 @@
     margin-right: 5px;
   }
   
-  #rss-app-install-button:hover {
+  #rss-subscribe-button:hover {
     background-color: var(--button-primary-hover-bgcolor);
   }
   
-  #rss-app-install-button:hover:active {
+  #rss-subscribe-button:hover:active {
     background-color: var(--button-primary-active-bgcolor);
   }
   
-  #rss-app-cancel-button {
+  #rss-cancel-button {
     appearance: none;
     border: 0;
     border-radius: 4px;
@@ -71,14 +71,14 @@
     margin-bottom: 0;
   }
   
-  #rss-app-cancel-button:hover {
+  #rss-cancel-button:hover {
     background-color: var(
       --button-hover-bgcolor,
       color-mix(in srgb, currentColor 17%, transparent)
     );
   }
   
-  #rss-app-cancel-button:active {
+  #rss-cancel-button:active {
     background-color: var(
       --button-active-bgcolor,
       color-mix(in srgb, currentColor 30%, transparent)

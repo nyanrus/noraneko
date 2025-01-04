@@ -2,7 +2,10 @@
   "subscribe": {
     "label": "Subscribe"
   },
+  "unsubscribe": {
+    "label": "Unubscribe"
+  },
   "rss-url": {
-    "label": "Would you like to subscribe to RSS Feed on '{url}'?"
+    "label": "Would you like to subscribe to RSS Feed on '{{url}}'?"
   }
 }

@@ -144,6 +144,7 @@ const JS_WINDOW_ACTORS: {
       },
     },
     messageManagerGroups: ["browsers"],
+    allFrames: true,
   },
 };
 

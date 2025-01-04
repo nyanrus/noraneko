@@ -2,7 +2,10 @@
   "subscribe": {
     "label": "購読する"
   },
+  "unsubscribe": {
+    "label": "購読を解除"
+  },
   "rss-url": {
-    "label": "'{url}'のRSSフィードを購読しますか?"
+    "label": "'{{url}}'のRSSフィードを購読しますか?"
   }
 }
