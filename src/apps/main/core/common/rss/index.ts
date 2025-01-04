@@ -11,20 +11,33 @@
  重複をチェックする
  定期取得する
  */
+
  import { createRootHMR, render } from "@nora/solid-xul";
 import i18next from "i18next";
-import { createResource, createSignal } from "solid-js";
+import { Accessor, createEffect, createResource, createSignal, Resource, Setter } from "solid-js";
 import { addI18nObserver } from "../../../i18n/config";
 import { RSSAction } from "./rss";
 import { parseXML } from "./xml-parser";
-//URLの一時保管用変数
-const [getCurrentURL,setCurrentURL] = createSignal("")
-const [rssResult] = createResource(getCurrentURL, fetchRSS);
- //URLのリスト、Prefへの置き換えを要検討 prefで配列使う方法は?
- let URLlist = [];
-const [getRSSList,setRSSList] = createSignal(
-  Services.prefs.getStringPref("noraneko.rssreader.list", ""),
-);
+
+function createConfig() : [Accessor<string[]>,Setter<string[]>,Accessor<string>,Setter<string>,Resource<{}|null>,(info?: unknown) => {} | Promise<{} | null | undefined> | null | undefined]{
+  const [getURLList,setURLList] = createSignal(
+    JSON.parse(Services.prefs.getStringPref("noraneko.rss.list", "[]"))
+  );
+  const [getCurrentURL,setCurrentURL] = createSignal("")
+  const [rssResult, {refetch}] = createResource(getCurrentURL, fetchRSS);
+  //念の為名前変更
+  const RSSRefetch = refetch;
+  createEffect(() => {
+    Services.prefs.setStringPref(
+      "noraneko.rss.list",
+      JSON.stringify(getURLList()),
+    );
+  });
+  return [getURLList,setURLList,getCurrentURL,setCurrentURL,rssResult,RSSRefetch];
+}
+
+export const [getURLList,setURLList,getCurrentURL,setCurrentURL,rssResult,RSSRefetch] = createRootHMR(createConfig,import.meta.hot)
+
 //ポップアップを閉じる
 export function closePopup() {
   document.getElementById("rss-panel").hidePopup();
@@ -60,18 +73,20 @@ export function onPopup() {
 }
 
 function existRSSFeed() {
-  if(URLlist.indexOf(getCurrentURL()) == -1) {
+  if(getURLList().indexOf(getCurrentURL()) == -1) {
     return false;
   }
   return true;
 }
  //RSSリーダーに項目を追加、重複の場合はポップアップのボタンを削除に変更
  export function addRSSFeed() {
-   if(URLlist.indexOf(getCurrentURL()) == -1) {
-     URLlist.push(getCurrentURL());
-     console.log(URLlist);
+  const prev = getURLList();
+   const index = prev.indexOf(getCurrentURL());
+   if(index == -1) {
+     setURLList([...prev,getCurrentURL()]);
    } else {
-     console.log("duplicate");
+    prev.splice(index,1);
+    setURLList([...prev]);
    }
    closePopup();
  }
@@ -79,6 +94,11 @@ function existRSSFeed() {
  //初期化
  export function init() {
      console.log("[nor@rss] Init")
+     //一定期間でURLリストを渡して更新
+     setInterval(() => {
+      RSSRefetch(getURLList());
+      console.log(rssResult());
+     },10000);
      //window.gFloorp.rssReaderへの関数登録
      if (!window.gFloorp) {
        window.gFloorp = {};
@@ -112,9 +132,14 @@ function existRSSFeed() {
 
 
  //RSS情報の取得、間隔はユーザーが指定できるように
- async function fetchRSS() {
+ async function fetchRSS(url: string | string[] = getCurrentURL()) {
     console.log("run feed!")
-    const res = await fetch(getCurrentURL());
+    console.log(url);
+    if(Array.isArray(url)) {
+      console.log("isArray");
+      return null;
+    }
+    const res = await fetch(url);
     const data = await res.text();
     const parseData = parseXML(data);
     if(parseData != null) {
