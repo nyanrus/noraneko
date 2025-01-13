@@ -3,32 +3,33 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { WorkspacesServices } from "./workspaces.js";
+import { TWorkspaceID } from "../utils/type";
+import { WorkspacesService } from "../workspacesService";
 
 export function ContextMenu(props: {
   disableBefore: boolean;
   disableAfter: boolean;
-  contextWorkspaceId: string;
+  contextWorkspaceId: TWorkspaceID;
+  ctx: WorkspacesService
 }) {
-  const { disableBefore, disableAfter, contextWorkspaceId } = props;
-  const gWorkspacesServices = WorkspacesServices.getInstance();
-
   return (
     <>
       <xul:menuitem
         data-l10n-id="reorder-this-workspace-to-up"
         label="Move this Workspace Up"
-        disabled={disableBefore}
+        disabled={props.disableBefore}
         onCommand={() =>
-          gWorkspacesServices.reorderWorkspaceUp(contextWorkspaceId)
+          //TODO: validate ID
+          props.ctx.reorderWorkspaceUp(props.contextWorkspaceId)
         }
       />
       <xul:menuitem
         data-l10n-id="reorder-this-workspace-to-down"
         label="Move this Workspace Down"
-        disabled={disableAfter}
+        disabled={props.disableAfter}
         onCommand={() =>
-          gWorkspacesServices.reorderWorkspaceDown(contextWorkspaceId)
+          //TODO: validate ID
+          props.ctx.reorderWorkspaceDown(props.contextWorkspaceId)
         }
       />
       <xul:menuseparator class="workspaces-context-menu-separator" />
@@ -36,14 +37,16 @@ export function ContextMenu(props: {
         data-l10n-id="delete-this-workspace"
         label="Delete Workspace"
         onCommand={() =>
-          gWorkspacesServices.deleteWorkspace(contextWorkspaceId)
+          //TODO: validate ID
+          props.ctx.deleteWorkspace(props.contextWorkspaceId)
         }
       />
       <xul:menuitem
         data-l10n-id="manage-this-workspaces"
         label="Manage Workspace"
         onCommand={() =>
-          gWorkspacesServices.manageWorkspaceFromDialog(contextWorkspaceId)
+          //TODO: validate ID
+          props.ctx.manageWorkspaceFromDialog(props.contextWorkspaceId)
         }
       />
     </>

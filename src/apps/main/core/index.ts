@@ -11,7 +11,7 @@ const MODULES = {
   const MODULES_COMMON = import.meta.glob("./common/*/index.ts");
 
   Object.entries(MODULES_COMMON).map((v) => {
-    MODULES.common[v[0].replace("./common/", "").replace("/index.ts", "")] =
+    MODULES.common[v[0].replaceAll(/\.\/common\/([a-zA-Z-]+)\/index\.ts/g,"$1")] =
       v[1] as () => Promise<unknown>;
   });
 }
@@ -19,13 +19,14 @@ const MODULES = {
 {
   MODULES.static = {
     downloadbar: () => import("./static/downloadbar/index"),
-    overrides: () => import("./static/overrides/index")
+    overrides: () => import("./static/overrides/index"),
+    prefs: () => import("./static/prefs/index"),
   }
 }
 
 const modules_keys = {
   common: Object.keys(MODULES.common),
-  static: Object.keys(MODULES.static)
+  static: Object.keys(MODULES.static),
 };
 
 export default async function initScripts() {
@@ -102,7 +103,7 @@ async function loadEnabledModules(enabled_features: typeof modules_keys) {
         ) {
           try {
             const module = await categoryValue[moduleName]();
-            modules.push(Object.assign({name: moduleName},module as { init?: typeof Function }));
+            modules.push(Object.assign({name: moduleName},module as { init?: typeof Function, initBeforeSessionStoreInit?: typeof Function }));
           } catch (e) {
             console.error(`[noraneko] Failed to load module ${moduleName}:`, e);
           }
@@ -114,7 +115,14 @@ async function loadEnabledModules(enabled_features: typeof modules_keys) {
   return modules;
 }
 
-async function initializeModules(modules: Array<{ init?: typeof Function, name:string }>) {
+async function initializeModules(modules: Array<{ init?: typeof Function, initBeforeSessionStoreInit?:typeof Function, name:string }>) {
+  for (const module of modules) {
+    try {
+      await module?.initBeforeSessionStoreInit?.();
+    }catch(e) {
+      console.error(`[noraneko] Failed to initBeforeSessionStoreInit module ${module.name}:`, e);
+    }
+  }
   // @ts-expect-error SessionStore type not defined
   await SessionStore.promiseInitialized;
 
