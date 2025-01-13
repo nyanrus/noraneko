@@ -14,7 +14,7 @@
 
  import { createRootHMR, render } from "@nora/solid-xul";
 import i18next from "i18next";
-import { Accessor, createEffect, createResource, createSignal, Resource, Setter } from "solid-js";
+import { Accessor, Resource, Setter, createEffect, createResource, createSignal } from "solid-js";
 import { addI18nObserver } from "../../../i18n/config";
 import { RSSAction } from "./rss";
 import { parseXML } from "./xml-parser";
@@ -96,7 +96,7 @@ function existRSSFeed() {
      console.log("[nor@rss] Init")
      //一定期間でURLリストを渡して更新
      setInterval(() => {
-      RSSRefetch(getURLList());
+      RSSRefetch({value: getURLList()});
       console.log(rssResult());
      },10000);
      //window.gFloorp.rssReaderへの関数登録
@@ -132,7 +132,7 @@ function existRSSFeed() {
 
 
  //RSS情報の取得、間隔はユーザーが指定できるように
- async function fetchRSS(url: string | string[] = getCurrentURL()) {
+ async function fetchRSS({value: url = getCurrentURL()}) {
     console.log("run feed!")
     console.log(url);
     if(Array.isArray(url)) {
