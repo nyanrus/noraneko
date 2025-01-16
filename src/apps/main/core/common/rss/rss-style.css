@@ -1,0 +1,100 @@
+
+@media not (prefers-contrast) {
+    :root:not([lwtheme]) {
+      --button-primary-bgcolor: light-dark(rgb(0, 97, 224), rgb(0, 221, 255));
+      --button-primary-hover-bgcolor: light-dark(rgb(2, 80, 187), rgb(128, 235, 255));
+      --button-primary-active-bgcolor: light-dark(rgb(5, 62, 148), rgb(170, 242, 255));
+      --button-primary-color: light-dark(rgb(251, 251, 254), rgb(43, 42, 51));
+      --button-bgcolor: light-dark(
+        rgba(207, 207, 216, .33),
+        rgba(0, 0, 0, .33)
+      );
+      --button-hover-bgcolor: light-dark(
+        rgba(207, 207, 216, .66),
+        rgba(207, 207, 216, .20)
+      );
+      --button-active-bgcolor: light-dark(
+        rgb(207, 207, 216),
+        rgba(207, 207, 216, .40)
+      );
+      --button-color: light-dark(rgb(21, 20, 26), rgb(251, 251, 254));
+    }
+  }
+
+#rss-box {
+    min-width: 350px;
+  }
+  
+  #rss-content-description {
+    color: var(--menu-disabled-color) !important;
+  }
+  
+  #rss-content-hbox {
+    display: flex;
+  }
+  
+  #rss-subscribe-button {
+    appearance: none;
+    border: 0;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-weight: 600;
+    min-width: 0;
+    margin-inline: 8px 0;
+    margin-bottom: 0;
+    color: var(--button-primary-color);
+    background-color: var(--button-primary-bgcolor);
+    margin-left: auto;
+    margin-right: 5px;
+  }
+  
+  #rss-subscribe-button:hover {
+    background-color: var(--button-primary-hover-bgcolor);
+  }
+  
+  #rss-subscribe-button:hover:active {
+    background-color: var(--button-primary-active-bgcolor);
+  }
+  
+  #rss-cancel-button {
+    appearance: none;
+    border: 0;
+    border-radius: 4px;
+    color: var(--button-color, inherit);
+    background-color: var(
+      --button-bgcolor,
+      color-mix(in srgb, currentColor 13%, transparent)
+    );
+    padding: 8px 16px;
+    font-weight: 600;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+  
+  #rss-cancel-button:hover {
+    background-color: var(
+      --button-hover-bgcolor,
+      color-mix(in srgb, currentColor 17%, transparent)
+    );
+  }
+  
+  #rss-cancel-button:active {
+    background-color: var(
+      --button-active-bgcolor,
+      color-mix(in srgb, currentColor 30%, transparent)
+    );
+  }
+  
+  #rss-button-hbox {
+    margin-top: 15px;
+    height: 35px;
+    margin-bottom: 5px;
+  }
+  
+  #rss-content-label-vbox {
+    flex: 6;
+  }
+  
+  #rssPageAction-image {
+    list-style-image: url("chrome://noraneko-startup/content/rss/rss-icon.svg");
+  }

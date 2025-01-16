@@ -157,6 +157,27 @@ const JS_WINDOW_ACTORS: {
     },
     matches: ["*://localhost/*", "chrome://noraneko-settings/*"],
   },
+  NRFeaturesRss: {
+    parent: {
+      esModuleURI: localPathToResourceURI(
+        "../actors/NRFeaturesRssParent.sys.mts"
+      ),
+    },
+    child: {
+      esModuleURI: localPathToResourceURI(
+        "../actors/NRFeaturesRssChild.sys.mts"
+      ),
+      events: {
+        DOMHeadElementParsed: {},
+        DOMLinkAdded: {},
+        DOMLinkChanged: {},
+        pageshow: {},
+        pagehide: {},
+      },
+    },
+    messageManagerGroups: ["browsers"],
+    allFrames: true,
+  },
 };
 
 ActorManagerParent.addJSWindowActors(JS_WINDOW_ACTORS);
