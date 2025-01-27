@@ -1,18 +1,17 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
-import { injectManifest } from "./scripts/inject/manifest";
-import { injectXHTML, injectXHTMLDev } from "./scripts/inject/xhtml";
-import { applyMixin } from "./scripts/inject/mixin-loader";
-import puppeteer, { type Browser } from "puppeteer-core";
-import { createServer, type ViteDevServer, build as buildVite } from "vite";
 import AdmZip from "adm-zip";
 import { execa, type ResultPromise } from "execa";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import puppeteer, { type Browser } from "puppeteer-core";
+import { build as buildVite, createServer, type ViteDevServer } from "vite";
+import { applyPatches, initializeBinGit } from "./scripts/git-patches/git-patches-manager";
+import { injectManifest } from "./scripts/inject/manifest";
+import { applyMixin } from "./scripts/inject/mixin-loader";
+import { injectXHTML, injectXHTMLDev } from "./scripts/inject/xhtml";
 import { runBrowser } from "./scripts/launchBrowser/index";
 import { savePrefsForProfile } from "./scripts/launchBrowser/savePrefs";
-import { writeVersion } from "./scripts/update/version";
 import { writeBuildid2 } from "./scripts/update/buildid2";
-import { applyPatches } from "./scripts/git-patches/git-patches-manager";
-import { initializeBinGit } from "./scripts/git-patches/git-patches-manager";
+import { writeVersion } from "./scripts/update/version";
 
 //? when the linux binary has published, I'll sync linux bin version
 const VERSION = process.platform === "win32" ? "001" : "000";
@@ -33,6 +32,7 @@ const isExists = async (path: string) => {
 
 const getBinArchive = async () => {
   if (process.platform === "win32") {
+    console.log(fs.glob("noraneko-*.win64.zip"))
     for await (const x of fs.glob("noraneko-*.win64.zip")) {
       return x
     }
