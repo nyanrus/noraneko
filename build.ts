@@ -202,12 +202,6 @@ async function run(mode: "dev" | "test" | "release" = "dev") {
   }
 
   await Promise.all([
-    buildVite({
-      mode,
-      root: r("./src/apps/startup"),
-      configFile: r("./src/apps/startup/vite.config.ts"),
-    }),
-
     (async () => {
       await injectXHTML(binDir);
     })(),

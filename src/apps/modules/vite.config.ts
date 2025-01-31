@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 
-import swc from "unplugin-swc"
 import fs from "fs/promises"
 
 let entry = []
@@ -9,7 +8,10 @@ for await (const x of fs.glob(import.meta.dirname + "/src/**/*.mts")) {
 }
 
 export default defineConfig({
+  base: "resource://noraneko",
   build: {
+    target:"firefox133",
+    assetsInlineLimit: 0,
     outDir: "_dist",
     reportCompressedSize: false,
     modulePreload: false,
@@ -34,14 +36,4 @@ export default defineConfig({
       },
     },
   },
-  plugins: [
-    swc.vite({
-      "jsc": {
-        "target":"esnext",
-        "parser": {
-          "syntax":"typescript"
-        }
-      }
-    }),
-  ]
 });
