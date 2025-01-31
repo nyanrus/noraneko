@@ -13,6 +13,8 @@ import { writeBuildid2 } from "./scripts/update/buildid2.ts";
 import { $, ProcessPromise } from "zx";
 import { usePwsh } from 'zx'
 import chalk from "chalk";
+import {expandGlob} from "@std/fs"
+import process from "node:process";
 
 switch (process.platform) {
   case "win32":
@@ -38,8 +40,8 @@ const isExists = async (path: string) => {
 
 const getBinArchive = async () => {
   if (process.platform === "win32") {
-    for await (const x of fs.glob("noraneko-*.win64.zip")) {
-      return x
+    for await (const x of expandGlob("noraneko-*.win64.zip")) {
+      return x.path
     }
   } if (process.platform === "linux") {
     const arch = process.arch;
@@ -171,7 +173,7 @@ async function run(mode: "dev" | "test" | "release" = "dev") {
   if (mode !== "release") {
     if (!devInit) {
       console.log("run dev servers");
-      devViteProcess = $`node --experimental-strip-types ./scripts/launchDev/child-dev.ts ${mode} ${buildid2 ?? ""}`.stdio("pipe").nothrow();
+      devViteProcess = $`deno run -A ./scripts/launchDev/child-dev.ts ${mode} ${buildid2 ?? ""}`.stdio("pipe").nothrow();
 
       let resolve: Function | undefined = undefined;
       const temp_prm = new Promise<void>((rs,_rj)=>{
@@ -187,7 +189,7 @@ async function run(mode: "dev" | "test" | "release" = "dev") {
         process.stdout.write(temp)
       }})();
       await temp_prm;
-      await $`node --experimental-strip-types ./scripts/launchDev/child-build.ts ${mode} ${buildid2 ?? ""}`
+      await $`deno run -A ./scripts/launchDev/child-build.ts ${mode} ${buildid2 ?? ""}`
 
       // env
       if (process.platform === "darwin") {
@@ -225,7 +227,7 @@ async function run(mode: "dev" | "test" | "release" = "dev") {
   await fs.mkdir("./_dist/profile/test", { recursive: true });
   await savePrefsForProfile("./_dist/profile/test");
 
-  browserProcess = $`node --experimental-strip-types ./scripts/launchDev/child-browser.ts`.stdio("pipe").nothrow();
+  browserProcess = $`deno run -A ./scripts/launchDev/child-browser.ts`.stdio("pipe").nothrow();
 
   (async () => {for await (const temp of browserProcess.stdout) {
     process.stdout.write(temp)
@@ -279,7 +281,7 @@ async function release(mode: "before" | "after") {
   } catch {}
   console.log(`[build] buildid2: ${buildid2}`);
   if (mode === "before") {
-    await $`node --experimental-strip-types ./scripts/launchDev/child-build.ts production ${buildid2 ?? ""}`
+    await $`deno run -A ./scripts/launchDev/child-build.ts production ${buildid2 ?? ""}`
     await injectManifest("./_dist", false);
   } else if (mode === "after") {
     const binPath = "../obj-x86_64-pc-windows-msvc/dist/bin";
