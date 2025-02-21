@@ -1,6 +1,13 @@
 {
   "compilerOptions": {
-    "types": ["vite/client"],
-    "jsx": "react-jsx"
+    "types": [
+      "vite/client"
+    ],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "jsxImportSourceTypes": "@types/react"
+  },
+  "imports": {
+    "@/": "./src/"
   }
 }
