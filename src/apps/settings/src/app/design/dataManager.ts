@@ -1,18 +1,26 @@
-
 export async function saveDesignSettings(settings: any) {
   if (Object.keys(settings).length === 0) {
     return;
   }
-  return await new Promise((resolve) => {
+  return await new Promise((resolve, reject) => {
     window.NRSPrefGet(
       {
         prefName: "floorp.design.configs",
         prefType: "string",
       },
-      (stringData: string) => {
-        const oldData = JSON.parse(JSON.parse(stringData).prefValue);
+      (result: { prefValue: string | null; error?: string }) => {
+        if (result.error) {
+          reject(new Error(result.error));
+          return;
+        }
+        if (!result.prefValue) {
+          reject(new Error("No existing design config found"));
+          return;
+        }
 
-        const newData: any = {
+        const oldData = JSON.parse(result.prefValue);
+
+        const newData = {
           ...oldData,
           globalConfigs: {
             ...oldData.globalConfigs,
@@ -45,25 +53,39 @@ export async function saveDesignSettings(settings: any) {
             prefName: "floorp.design.configs",
             prefValue: JSON.stringify(newData),
           },
-          () => resolve(true),
+          (result: { success?: boolean; error?: string }) => {
+            if (result.error) {
+              reject(new Error(result.error));
+            } else {
+              resolve(true);
+            }
+          },
         );
       },
     );
   });
 }
 
-export async function getDesignSettings(): Promise<any> {
-  return await new Promise((resolve) => {
+export async function getDesignSettings(): Promise<DesignSettings> {
+  return await new Promise((resolve, reject) => {
     window.NRSPrefGet(
       {
         prefName: "floorp.design.configs",
         prefType: "string",
       },
-      (stringData: string) => {
-        const data = JSON.parse(JSON.parse(stringData).prefValue);
-        const formData: any = {
+      (result: { prefValue: string | null; error?: string }) => {
+        if (result.error) {
+          reject(new Error(result.error));
+          return;
+        }
+        if (!result.prefValue) {
+          reject(new Error("No design config found"));
+          return;
+        }
+
+        const data = JSON.parse(result.prefValue);
+        const formData: DesignSettings = {
           design: data.globalConfigs.userInterface,
-          faviconColor: data.globalConfigs.faviconColor,
           position: data.tabbar.tabbarPosition,
           style: data.tabbar.tabbarStyle,
           tabOpenPosition: data.tab.tabOpenPosition,
