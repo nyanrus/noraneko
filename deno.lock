@@ -6165,6 +6165,10 @@
         }
       },
       "src/apps/modules": {
+        "dependencies": [
+          "jsr:@nora/lib-dom-gecko@*",
+          "npm:vite@*"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:@swc/cli@0.6.0",

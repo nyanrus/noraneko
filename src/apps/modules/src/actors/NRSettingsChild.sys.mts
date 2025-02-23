@@ -3,25 +3,12 @@ import {
   NRSettingsParentFunctions,
   PrefGetParams,
   PrefSetParams,
-} from "../common/defines.js";
+} from "../common/defines.ts";
 
 export class NRSettingsChild extends JSWindowActorChild {
-  rpcCallback: Function | null = null;
   rpc;
   constructor() {
     super();
-    this.rpc = createBirpc<NRSettingsParentFunctions, {}>(
-      {},
-      {
-        post: (data) => this.sendAsyncMessage("birpc", data),
-        on: (callback) => {
-          this.rpcCallback = callback;
-        },
-        // these are required when using WebSocket
-        serialize: (v) => JSON.stringify(v),
-        deserialize: (v) => JSON.parse(v),
-      },
-    );
   }
   actorCreated() {
     console.debug("NRSettingsChild created!");
@@ -31,89 +18,121 @@ export class NRSettingsChild extends JSWindowActorChild {
       Cu.exportFunction(this.NRSPing.bind(this), window, {
         defineAs: "NRSPing",
       });
-      Cu.exportFunction(this.NRS_getBoolPref.bind(this), window, {
-        defineAs: "NRS_getBoolPref",
+      Cu.exportFunction(this.NRSettingsSend.bind(this), window, {
+        defineAs: "NRSettingsSend",
       });
-      Cu.exportFunction(this.NRSPrefGet.bind(this), window, {
-        defineAs: "NRSPrefGet",
-      });
-      Cu.exportFunction(this.NRSPrefSet.bind(this), window, {
-        defineAs: "NRSPrefSet",
-      });
+      Cu.exportFunction(
+        this.NRSettingsRegisterReceiveCallback.bind(this),
+        window,
+        {
+          defineAs: "NRSettingsRegisterReceiveCallback",
+        },
+      );
     }
   }
   NRSPing() {
     return true;
   }
-  /**
-   * Wrap a promise so content can use Promise methods.
-   */
-  wrapPromise<T>(promise: Promise<T>) {
-    return new (this.contentWindow!.Promise as PromiseConstructorLike)<T>((
-      resolve,
-      reject,
-    ) => promise.then(resolve, reject));
-  }
-  NRS_getBoolPref(prefName: string): PromiseLike<boolean | null> {
-    return this.wrapPromise(this.rpc.getBoolPref(prefName));
-  }
-  async NRSPrefGet(params: PrefGetParams, callback: Function) {
-    try {
-      let result;
-      switch (params.prefType) {
-        case "boolean":
-          result = await this.rpc.getBoolPref(params.prefName);
-          break;
-        case "number":
-          result = await this.rpc.getIntPref(params.prefName);
-          break;
-        case "string":
-          result = await this.rpc.getStringPref(params.prefName);
-          break;
-        default:
-          throw new Error("Invalid pref type");
-      }
-      callback({ prefValue: result });
-    } catch (error) {
-      console.error("Error in NRSPrefGet:", error);
-      callback({ error: error.message });
+
+  sendToPage: ((data: string) => void) | null = null;
+
+  NRSettingsSend(data: string) {
+    if (this.sendToPage) {
+      this.sendToPage(data);
     }
   }
 
-  async NRSPrefSet(params: PrefSetParams, callback: Function) {
+  NRSettingsRegisterReceiveCallback(callback: (data: string) => void) {
+    this.rpc = createBirpc<{}, NRSettingsParentFunctions>(
+      {
+        getBoolPref: (prefName: string): Promise<boolean | null> => {
+          return this.NRSPrefGet({ prefName, "prefType": "boolean" });
+        },
+        getIntPref: (prefName: string): Promise<number | null> => {
+          return this.NRSPrefGet({ prefName, "prefType": "number" });
+        },
+        getStringPref: (prefName: string): Promise<string | null> => {
+          return this.NRSPrefGet({ prefName, "prefType": "string" });
+        },
+        setBoolPref: (
+          prefName: string,
+          prefValue: boolean,
+        ): Promise<void> => {
+          return this.NRSPrefSet({ prefName, prefValue, prefType: "boolean" });
+        },
+        setIntPref: (
+          prefName: string,
+          prefValue: number,
+        ): Promise<void> => {
+          return this.NRSPrefSet({ prefName, prefValue, prefType: "number" });
+        },
+        setStringPref: (
+          prefName: string,
+          prefValue: string,
+        ): Promise<void> => {
+          return this.NRSPrefSet({ prefName, prefValue, prefType: "string" });
+        },
+      },
+      {
+        post: (data) => callback(data),
+        on: (callback) => {
+          this.sendToPage = callback;
+        },
+        // these are required when using WebSocket
+        serialize: (v) => JSON.stringify(v),
+        deserialize: (v) => JSON.parse(v),
+      },
+    );
+  }
+
+  async NRSPrefGet(params: PrefGetParams): Promise<any> {
     try {
+      let funcName;
       switch (params.prefType) {
         case "boolean":
-          await this.rpc.setBoolPref(
-            params.prefName,
-            params.prefValue as boolean,
-          );
+          funcName = "getBoolPref";
           break;
         case "number":
-          await this.rpc.setIntPref(
-            params.prefName,
-            params.prefValue as number,
-          );
+          funcName = "getIntPref";
           break;
         case "string":
-          await this.rpc.setStringPref(
-            params.prefName,
-            params.prefValue as string,
-          );
+          funcName = "getStringPref";
           break;
         default:
           throw new Error("Invalid pref type");
       }
-      callback({ success: true });
+      return await this.sendQuery(funcName, {
+        name: params.prefName,
+      });
     } catch (error) {
-      console.error("Error in NRSPrefSet:", error);
-      callback({ error: error.message });
+      console.error("Error in NRSPrefGet:", error);
+      return null;
     }
   }
-  async receiveMessage(message: ReceiveMessageArgument) {
-    switch (message.name) {
-      case "birpc":
-        this.rpcCallback?.(message.data);
+
+  async NRSPrefSet(params: PrefSetParams) {
+    try {
+      let funcName;
+      switch (params.prefType) {
+        case "boolean":
+          funcName = "setBoolPref";
+          break;
+        case "number":
+          funcName = "setIntPref";
+          break;
+        case "string":
+          funcName = "getStringPref";
+          break;
+        default:
+          throw new Error("Invalid pref type");
+      }
+      return await this.sendQuery(funcName, {
+        name: params.prefName,
+        value: params.prefValue,
+      });
+    } catch (error) {
+      console.error("Error in NRSPrefSet:", error);
+      return null;
     }
   }
 }
