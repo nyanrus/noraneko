@@ -289,15 +289,24 @@ function Drops() {
               ))}
             </div>
           ))}
+          {!seen.attestations.every((a: any) => a.ok) && (
+            <div style={{ marginTop: "0.8rem", padding: "0.7rem 0.9rem", borderRadius: "0.5rem", background: "#fdeaea", border: "1px solid #f2b8b5", color: "#8c1d18", fontSize: "0.9rem" }}>
+              <strong>入れるときは、特に注意して。</strong>
+              <br />
+              この registry の判が無いか、合っていない。中身が registry のレビューを通ったものかどうか、ここからは分からない。
+              上の「書いたもの」と「実際に実行される」を自分で読んで、それでも入れたいときだけ「入れる」を押して。
+            </div>
+          )}
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem" }}>
             <button disabled={busy} onClick={() => navigator.clipboard.writeText(sheetText(seen))}>
               コピー(AI や人に見せる一枚)
             </button>
             <button
               disabled={busy}
+              style={seen.attestations.every((a: any) => a.ok) ? undefined : { borderColor: "#b3261e", color: "#8c1d18" }}
               onClick={() => run(async () => { await dropsApi.installDrop(seen); setSeen(null); }, `入った: ${seen.code}`)}
             >
-              入れる
+              {seen.attestations.every((a: any) => a.ok) ? "入れる" : "判なしでも入れる"}
             </button>
           </div>
         </div>
