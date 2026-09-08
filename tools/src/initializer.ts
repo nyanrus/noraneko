@@ -17,23 +17,43 @@ import {
 } from "./defines.ts";
 import { Logger, runCommand, exists, safeRemove } from "./utils.ts";
 
-// runtime の置き場(GitHub release)。
-// - NORANEKO_RUNTIME_TAG=passed-20260902074154 のように tag を指せば、その release(prerelease でも)。
-// - 未指定なら latest。ただし Apple Silicon の tar.xz は platform が揃うまで prerelease にしか無いので、
-//   その資産を持つ一番新しい release を API で探す(無ければ latest に落ちて、404 で分かる)。
+// runtime の取り先。
+// 1. NORANEKO_RUNTIME_TAG=passed-20260902074154 のように tag を指せば GitHub release のその tag。
+// 2. 無ければ dl.f3liz.casa(noraneko-ci の産物、B2)。/latest/<target> が最新の sha へ 302 する。
+// 3. dl に無ければ GitHub release。Apple Silicon の tar.xz は platform が揃うまで prerelease にしか無いので、
+//    その資産を持つ一番新しい release を API で探し、無ければ latest。
 const NORANEKO_RUNTIME_REPO = "f3liz-casa/noraneko-runtime";
+const NORANEKO_DL = "https://dl.f3liz.casa/noraneko-runtime";
 const NORANEKO_RUNTIME_TAG = Deno.env.get("NORANEKO_RUNTIME_TAG");
-let runtimeBaseCache: string | undefined;
-async function runtimeBase(filename: string): Promise<string> {
-  if (runtimeBaseCache) return runtimeBaseCache;
-  const dl = (tag: string) =>
-    `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/download/${tag}`;
+const urlCache = new Map<string, string>();
+async function runtimeUrl(filename: string): Promise<string> {
+  const cached = urlCache.get(filename);
+  if (cached) return cached;
+  const gh = (tag: string) =>
+    `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/download/${tag}/${filename}`;
+  let url = `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/latest/download/${filename}`;
   if (NORANEKO_RUNTIME_TAG) {
-    runtimeBaseCache = dl(NORANEKO_RUNTIME_TAG);
+    url = gh(NORANEKO_RUNTIME_TAG);
   } else {
-    runtimeBaseCache =
-      `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/latest/download`;
-    if (PLATFORM === "darwin" && Deno.build.arch === "aarch64") {
+    const target = PLATFORM === "darwin"
+      ? `macos-${Deno.build.arch}`
+      : PLATFORM === "linux"
+      ? `linux-${Deno.build.arch}`
+      : undefined;
+    let found = false;
+    if (target) {
+      try {
+        const head = await fetch(`${NORANEKO_DL}/latest/${target}`, { method: "HEAD" });
+        if (head.ok) {
+          logger.info(`Runtime from dl.f3liz.casa: ${head.url}`);
+          url = head.url;
+          found = true;
+        }
+      } catch {
+        // dl に届かなければ GitHub へ
+      }
+    }
+    if (!found && PLATFORM === "darwin" && Deno.build.arch === "aarch64") {
       try {
         const resp = await fetch(
           `https://api.github.com/repos/${NORANEKO_RUNTIME_REPO}/releases?per_page=30`,
@@ -49,7 +69,7 @@ async function runtimeBase(filename: string): Promise<string> {
           );
           if (hit) {
             logger.info(`Runtime release with ${filename}: ${hit.tag_name}`);
-            runtimeBaseCache = dl(hit.tag_name);
+            url = gh(hit.tag_name);
           }
         }
       } catch {
@@ -57,7 +77,8 @@ async function runtimeBase(filename: string): Promise<string> {
       }
     }
   }
-  return runtimeBaseCache;
+  urlCache.set(filename, url);
+  return url;
 }
 
 const logger = new Logger("initializer");
@@ -218,7 +239,7 @@ export async function decompressBin(): Promise<void> {
   const binArchive = STOCK_FIREFOX ? getStockArchive() : getBinArchive();
   const downloadUrl = STOCK_FIREFOX
     ? (binArchive as { url: string }).url
-    : `${await runtimeBase(binArchive.filename)}/${binArchive.filename}`;
+    : await runtimeUrl(binArchive.filename);
   logger.info(
     `Binary extraction started: ${binArchive.filename}` +
       (STOCK_FIREFOX ? " (stock Firefox)" : ""),
@@ -382,7 +403,7 @@ function deoptimizeOmni(omniPath: string): void {
 }
 
 export async function downloadBin(filename: string, url?: string): Promise<void> {
-  const downloadUrl = url ?? `${await runtimeBase(filename)}/${filename}`;
+  const downloadUrl = url ?? await runtimeUrl(filename);
   logger.info(`Downloading binary from ${downloadUrl}`);
 
   const resp = await fetch(downloadUrl);
