@@ -1,33 +1,29 @@
 // SPDX-License-Identifier: MPL-2.0
 
-// Shared content-script runtime. Bundled into every actor's content.js. It
-// builds the `parent` proxy (whose calls hop content -> background -> the
-// noraSettings-style experiment API in the main process) and the `ctx` helpers,
-// then runs the actor's content hook.
+// Shared page-side runtime. Bundled into every actor's content.js.
+//
+// content.js is loaded by the generated child.sys.mjs (a JSWindowActorChild) with
+// Services.scriptloader.loadSubScript(url, scope). `scope` puts `window`,
+// `document`, `exportFunction` and `__nora` on the scope chain, so the actor's
+// content hook can use `window` / `document` as free variables just like a
+// content script would, while actually running with the child actor's
+// privileges in the page's process. `__nora` is the bridge to the parent
+// (sendQuery) and to the page (exportFunction).
 
 import type { ActorMeta, ContentCtx, ContentHook } from "./defineActor.ts";
 
-// Provided by the privileged content-script sandbox / WebExtension environment.
-declare const exportFunction: (
-  fn: (...args: any[]) => unknown,
-  target: object,
-  options: { defineAs: string },
-) => void;
-declare const browser: {
-  runtime: { sendMessage(message: unknown): Promise<unknown> };
+// Provided on the scope chain by child.sys.mjs.
+declare const __nora: {
+  call(method: string, args: unknown[]): Promise<unknown>;
+  expose(funcs: Record<string, (...args: any[]) => unknown>): void;
 };
 
-export function runContent(meta: ActorMeta, hook: ContentHook): void {
+export function runContent(_meta: ActorMeta, hook: ContentHook): void {
   const parent = new Proxy(
     {},
     {
       get(_target, method: string) {
-        return (...args: unknown[]) =>
-          browser.runtime.sendMessage({
-            channel: meta.namespace,
-            method,
-            args,
-          });
+        return (...args: unknown[]) => __nora.call(method, args);
       },
     },
   ) as any;
@@ -35,9 +31,7 @@ export function runContent(meta: ActorMeta, hook: ContentHook): void {
   const ctx: ContentCtx = {
     dev: import.meta.env.MODE === "dev",
     expose(funcs) {
-      for (const [name, fn] of Object.entries(funcs)) {
-        exportFunction(fn, window as unknown as object, { defineAs: name });
-      }
+      __nora.expose(funcs);
     },
   };
 

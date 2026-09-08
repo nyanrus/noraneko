@@ -24,6 +24,10 @@ user_pref("devtools.console.stdout.chrome", true);
 // drops(modules/Drops.sys.mts)= temporary add-on を privileged にする(experiment_apis と about: への注入)。
 // firefox.js の既定は false(Nightly/DevEdition だけ true)。製品の既定をどうするかは別途
 user_pref("extensions.experiments.enabled", true);
+// webext-actors(xpi + JSWindowActor。Firefox の about:newtab と同じ形)を使う。on のものは古い JSActor が外れる(BrowserGlue)
+user_pref("noraneko.webext-actors.newtab.enabled", true);
+user_pref("noraneko.webext-actors.about-preferences.enabled", true);
+user_pref("noraneko.webext-actors.settings-bridge.enabled", true);
 `;
 
 export function savePrefs(profileDir: string): void {

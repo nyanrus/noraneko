@@ -5,18 +5,16 @@
  * Git が使えない人にも試してもらえるように、機能の束を dl.f3liz.casa/drop/<code>/ に置く。
  * about:nora:settings でコードを入れると、まず **見る**(inspectDrop: 落として sha256 を確かめ、
  * xpi の中の manifest / schema / source を zip として読む。JS は一切実行しない)、
- * それから本人が「入れる」を押して **入れる**(installDrop: ここで初めて temporary add-on として
- * install され、拡張の background と api.js が動き出す)。
+ * それから本人が「入れる」を押して **入れる**(installDrop: ここで初めて xpi の中のコードが動き出す)。
  *
- * なぜ temporary か: profile に普通に install した無署名の拡張は特権が無く、
- * about:home などへの content script は注入されない(restrictSchemes)。
- * temporary install は extensions.experiments.enabled(noraneko の既定 true)のとき
- * privileged 扱いになり、built-in と同じ力を持つ。署名の要求も掛からない。
- * 代わりに再起動で消えるので、起動時(final-ui-startup)に手元の xpi から入れ直す(一度入れたものだけ)。
- * 同じ id の built-in より優先されるので置き換わり、戻せば built-in に戻る。
- *
- * 親プロセスのコード(actor.mjs)は、importESModule が jar:file: を信用しないので、
- * resource://noraneko-drop-<code>-<版>/ の別名を xpi の root に張ってから読む(api.js はその URL を持っている)。
+ * 入れかたは Firefox 自身の about:newtab(newtab@mozilla.org)と同じ形:
+ * - xpi は入れ物。AddonManager には temporary add-on として入れる(about:debugging に見える。署名の要求が無い。
+ *   再起動で消えるので、起動時に手元の xpi から入れ直す。同じ id の built-in より優先される)。
+ * - ページに届く道は JSWindowActor(NoraActors.sys.mts)。resource://noraneko-drop-<code>-<版>/ の別名を
+ *   xpi の root に張り、その actor.json のとおりに親(parent.sys.mjs)と子(child.sys.mjs)を登録する。
+ *   同じ名前の built-in の actor は外れる(置き換え)。戻せば built-in を登録し直す。
+ * WebExtension の content_scripts は使わない。stock Firefox では about:* / chrome:* に注入されないから
+ * (webext-actors/README.md「addon 式が駄目だった理由」)。
  *
  * 作る側: tools/scripts/build-drop.rb(actor を xpi にして manifest.json を書く。source も同梱)。
  */
@@ -95,6 +93,7 @@ export interface InstalledDrop {
   ids: string[];
   files: string[];
   versions: string[];
+  actors?: string[]; // 登録した JSWindowActor の名前(外すときに使う)
   at: number;
   note?: string;
   registry?: string;
@@ -111,9 +110,9 @@ export interface DropInspection {
     version: string;
     file: string;
     sha256: string;
-    matches: string[];
-    permissions: string[];
-    functions: string[]; // 親プロセスで呼べる関数(experiment API の schema から)
+    matches: string[]; // content.js が動くページ(actor.json の matches)
+    permissions: string[]; // (xpi の manifest に permissions があれば。いまの actor には無い)
+    functions: string[]; // 親プロセスで呼べる関数(actor.json の methods)
     sources: { path: string; text: string }[]; // 書いたもの(source/)
     files: { path: string; text: string }[]; // 実際に実行される・読まれるもの(xpi の中の JS と JSON、source/ 以外)
   }[];
@@ -209,14 +208,11 @@ export async function inspectDrop(code: string, registryName?: string): Promise<
     const files = readZipEntries(path);
     console.log(`[noraneko-drops] inspect ${code}: ${e.file} ${files.size} entries`);
     const wm = JSON.parse(files.get("manifest.json") ?? "{}");
-    let functions: string[] = [];
+    let actor: { matches?: string[]; methods?: string[] } = {};
     try {
-      const schema = JSON.parse(files.get("schema.json") ?? "[]");
-      functions = (Array.isArray(schema) ? schema : [schema])
-        .flatMap((ns: { functions?: { name: string }[] }) => ns.functions ?? [])
-        .map((f: { name: string }) => f.name);
+      actor = JSON.parse(files.get("actor.json") ?? "{}");
     } catch {
-      // schema が無い・壊れているなら関数は空のまま(表示だけの話)
+      // actor.json が壊れているなら空のまま(表示だけの話。入れるときに改めて読んで失敗する)
     }
     entries.push({
       id: wm.browser_specific_settings?.gecko?.id ?? e.id,
@@ -224,9 +220,9 @@ export async function inspectDrop(code: string, registryName?: string): Promise<
       version: wm.version ?? e.version,
       file: e.file,
       sha256: e.sha256,
-      matches: (wm.content_scripts ?? []).flatMap((c: { matches?: string[] }) => c.matches ?? []),
+      matches: actor.matches ?? [],
       permissions: wm.permissions ?? [],
-      functions,
+      functions: actor.methods ?? [],
       sources: [...files.entries()]
         .filter(([n]) => n.startsWith("source/"))
         .map(([n, text]) => ({ path: n.slice("source/".length), text })),
@@ -239,22 +235,27 @@ export async function inspectDrop(code: string, registryName?: string): Promise<
   return { code, registry: reg, attestations, manifest: m, entries };
 }
 
-async function installFile(code: string, version: string, path: string): Promise<string> {
+async function installFile(code: string, version: string, path: string): Promise<{ id: string; actor: string }> {
   const file = new FileUtils.File(path);
-  // 親プロセスのコード(actor.mjs)を読むための別名。api.js が resource://<alias>/actor.mjs を読む
+  // xpi の root に別名を張る。parent.sys.mjs / child.sys.mjs / actor.mjs / content.js はこの URL で読まれる
+  // (importESModule は jar:file: を信用しない。content process にも同じ別名が届く)
   const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
   const alias = resAlias(code, version);
+  const root = `resource://${alias}/`;
   if (!res.hasSubstitution(alias)) {
-    res.setSubstitution(alias, Services.io.newURI(`jar:${Services.io.newFileURI(file).spec}!/`));
+    res.setSubstitutionWithFlags(
+      alias,
+      Services.io.newURI(`jar:${Services.io.newFileURI(file).spec}!/`),
+      Ci.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
+    );
   }
   try {
     const addon = await AddonManager.installTemporaryAddon(file);
-    const policy = (globalThis as { WebExtensionPolicy?: { getByID(id: string): { isPrivileged: boolean; extension?: { rootURI?: { spec: string } } } | null } }).WebExtensionPolicy?.getByID(addon.id);
-    console.log(
-      `[noraneko-drops] ${addon.id}: active=${addon.isActive} privileged=${policy?.isPrivileged} ` +
-        `root=${policy?.extension?.rootURI?.spec ?? "?"} alias=resource://${alias}/`,
-    );
-    return addon.id;
+    const NoraActors = ChromeUtils.importESModule("resource://noraneko/modules/NoraActors.sys.mjs");
+    const reg = await NoraActors.readActorJson(root);
+    NoraActors.register(root, reg);
+    console.log(`[noraneko-drops] ${addon.id} ${addon.version}: actor ${reg.name} ← ${root}`);
+    return { id: addon.id, actor: reg.name };
   } catch (e) {
     // "Extension is invalid" は manifest の error を additionalErrors に持っている。見えないと直せない
     const err = e as { message?: string; additionalErrors?: string[] };
@@ -270,19 +271,22 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
   const ids: string[] = [];
   const files: string[] = [];
   const versions: string[] = [];
+  const actors: string[] = [];
   for (const e of m.entries) {
     const path = PathUtils.join(dir, e.file);
     if (!(await IOUtils.exists(path))) throw new Error(`見てから入れて: ${e.file} が無い`);
     if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
       throw new Error(`sha256 mismatch at install: ${e.file}`);
     }
-    ids.push(await installFile(code, e.version, path));
+    const r = await installFile(code, e.version, path);
+    ids.push(r.id);
+    actors.push(r.actor);
     files.push(e.file);
     versions.push(e.version);
     console.log(`[noraneko-drops] installed ${e.id} ${e.version} from ${code}`);
   }
   const all = readInstalled();
-  all[code] = { ids, files, versions, at: Date.now(), note: m.note, registry: inspected.registry.name };
+  all[code] = { ids, files, versions, actors, at: Date.now(), note: m.note, registry: inspected.registry.name };
   writeInstalled(all);
   return ids;
 }
@@ -292,6 +296,8 @@ export async function removeDrop(code: string): Promise<void> {
   const all = readInstalled();
   const d = all[code];
   if (!d) return;
+  const NoraActors = ChromeUtils.importESModule("resource://noraneko/modules/NoraActors.sys.mjs");
+  for (const name of d.actors ?? []) NoraActors.unregister(name);
   for (const id of d.ids) {
     const addon = await AddonManager.getAddonByID(id);
     if (addon && addon.temporarilyInstalled) {
@@ -302,6 +308,8 @@ export async function removeDrop(code: string): Promise<void> {
   await IOUtils.remove(dropDir(code), { recursive: true, ignoreAbsent: true });
   delete all[code];
   writeInstalled(all);
+  // built-in の actor を登録し直す(同じ名前のものが戻る)
+  await ChromeUtils.importESModule("resource://noraneko/modules/NoranekoStartup.sys.mjs").registerBuiltinWebExtActors();
 }
 
 export function listDrops(): Record<string, InstalledDrop> {
