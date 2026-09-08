@@ -17,12 +17,48 @@ import {
 } from "./defines.ts";
 import { Logger, runCommand, exists, safeRemove } from "./utils.ts";
 
-// NORANEKO_RUNTIME_TAG=passed-20260902074154 のように tag を指すと prerelease も飲める。
-// 未指定なら latest(prerelease は含まれない)。
+// runtime の置き場(GitHub release)。
+// - NORANEKO_RUNTIME_TAG=passed-20260902074154 のように tag を指せば、その release(prerelease でも)。
+// - 未指定なら latest。ただし Apple Silicon の tar.xz は platform が揃うまで prerelease にしか無いので、
+//   その資産を持つ一番新しい release を API で探す(無ければ latest に落ちて、404 で分かる)。
+const NORANEKO_RUNTIME_REPO = "f3liz-casa/noraneko-runtime";
 const NORANEKO_RUNTIME_TAG = Deno.env.get("NORANEKO_RUNTIME_TAG");
-const NORANEKO_RUNTIME_BASE = NORANEKO_RUNTIME_TAG
-  ? `https://github.com/f3liz-casa/noraneko-runtime/releases/download/${NORANEKO_RUNTIME_TAG}`
-  : "https://github.com/f3liz-casa/noraneko-runtime/releases/latest/download";
+let runtimeBaseCache: string | undefined;
+async function runtimeBase(filename: string): Promise<string> {
+  if (runtimeBaseCache) return runtimeBaseCache;
+  const dl = (tag: string) =>
+    `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/download/${tag}`;
+  if (NORANEKO_RUNTIME_TAG) {
+    runtimeBaseCache = dl(NORANEKO_RUNTIME_TAG);
+  } else {
+    runtimeBaseCache =
+      `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/latest/download`;
+    if (PLATFORM === "darwin" && Deno.build.arch === "aarch64") {
+      try {
+        const resp = await fetch(
+          `https://api.github.com/repos/${NORANEKO_RUNTIME_REPO}/releases?per_page=30`,
+          { headers: { accept: "application/vnd.github+json" } },
+        );
+        if (resp.ok) {
+          const releases = (await resp.json()) as {
+            tag_name: string;
+            assets: { name: string }[];
+          }[];
+          const hit = releases.find((r) =>
+            r.assets.some((a) => a.name === filename)
+          );
+          if (hit) {
+            logger.info(`Runtime release with ${filename}: ${hit.tag_name}`);
+            runtimeBaseCache = dl(hit.tag_name);
+          }
+        }
+      } catch {
+        // API に届かなければ latest のまま
+      }
+    }
+  }
+  return runtimeBaseCache;
+}
 
 const logger = new Logger("initializer");
 
@@ -182,7 +218,7 @@ export async function decompressBin(): Promise<void> {
   const binArchive = STOCK_FIREFOX ? getStockArchive() : getBinArchive();
   const downloadUrl = STOCK_FIREFOX
     ? (binArchive as { url: string }).url
-    : `${NORANEKO_RUNTIME_BASE}/${binArchive.filename}`;
+    : `${await runtimeBase(binArchive.filename)}/${binArchive.filename}`;
   logger.info(
     `Binary extraction started: ${binArchive.filename}` +
       (STOCK_FIREFOX ? " (stock Firefox)" : ""),
@@ -346,7 +382,7 @@ function deoptimizeOmni(omniPath: string): void {
 }
 
 export async function downloadBin(filename: string, url?: string): Promise<void> {
-  const downloadUrl = url ?? `${NORANEKO_RUNTIME_BASE}/${filename}`;
+  const downloadUrl = url ?? `${await runtimeBase(filename)}/${filename}`;
   logger.info(`Downloading binary from ${downloadUrl}`);
 
   const resp = await fetch(downloadUrl);
@@ -368,7 +404,8 @@ export async function downloadBin(filename: string, url?: string): Promise<void>
  * No-op unless darwin + STOCK_FIREFOX.
  */
 export function resignMacApp(): void {
-  if (PLATFORM !== "darwin" || !STOCK_FIREFOX) {
+  // runtime の tar.xz(Apple Silicon)も ad-hoc 署名で来るので、omni.ja を直したあとは同じく結び直す
+  if (PLATFORM !== "darwin" || !(STOCK_FIREFOX || Deno.build.arch === "aarch64")) {
     return;
   }
   logger.info(`Ad-hoc re-signing ${APP_DIR} ...`);
