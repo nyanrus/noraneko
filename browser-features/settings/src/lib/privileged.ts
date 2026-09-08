@@ -45,6 +45,7 @@ export interface InspectedEntry {
   file: string;
   sha256: string;
   matches: string[];
+  chrome: boolean;
   permissions: string[];
   functions: string[];
   sources: { path: string; text: string }[];

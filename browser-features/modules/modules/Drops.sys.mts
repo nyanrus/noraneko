@@ -128,6 +128,7 @@ export interface DropInspection {
     file: string;
     sha256: string;
     matches: string[]; // content.js が動くページ(actor.json の matches)
+    chrome: boolean; // ブラウザの窓そのもの(browser.xhtml)にも効く(actor.json の includeChrome)
     permissions: string[]; // (xpi の manifest に permissions があれば。いまの actor には無い)
     functions: string[]; // 親プロセスで呼べる関数(actor.json の methods)
     sources: { path: string; text: string }[]; // 書いたもの(source/)
@@ -242,7 +243,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     const files = readZipEntries(path);
     console.log(`[noraneko-drops] inspect ${m.name}: ${e.file} ${files.size} entries`);
     const wm = JSON.parse(files.get("manifest.json") ?? "{}");
-    let actor: { matches?: string[]; methods?: string[] } = {};
+    let actor: { matches?: string[]; methods?: string[]; includeChrome?: boolean } = {};
     try {
       actor = JSON.parse(files.get("actor.json") ?? "{}");
     } catch {
@@ -255,6 +256,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
       file: e.file,
       sha256: e.sha256,
       matches: actor.matches ?? [],
+      chrome: actor.includeChrome === true,
       permissions: wm.permissions ?? [],
       functions: actor.methods ?? [],
       sources: [...files.entries()]

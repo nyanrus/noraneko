@@ -55,6 +55,7 @@ function Entry({ e }: { e: InspectedEntry }) {
     <div class="entry">
       <span class="name">{e.name} <code class="code">{e.id} @ {e.version}</code></span>
       <span class="fact">動くページ: {e.matches.join(", ") || "(なし)"}</span>
+      {e.chrome && <span class="fact">ブラウザの窓そのものに効く(タブや画面を作り替えられる)</span>}
       <span class="fact">権限: {e.permissions.join(", ") || "(なし)"}</span>
       <span class="fact">親プロセスで呼べる関数: {e.functions.join(", ") || "(なし)"}</span>
       {e.sources.map((src) => <FileView key={src.path} title="書いたもの" path={`source/${src.path}`} text={src.text} />)}

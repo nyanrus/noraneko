@@ -20,6 +20,7 @@ export interface ActorRegistration {
   methods: string[];
   replaces?: string | null; // 置き換える古い JSActor(BrowserGlue の名前)
   includeParent?: boolean;
+  includeChrome?: boolean; // ブラウザの窓そのもの(browser.xhtml)にも子を作る
   safeForUntrustedWebProcess?: boolean;
 }
 
@@ -87,8 +88,27 @@ export function register(root: string, a: ActorRegistration): void {
     matches: a.matches,
     allFrames: false,
     includeParent: a.includeParent ?? true,
+    ...(a.includeChrome ? { includeChrome: true } : {}),
     ...(a.safeForUntrustedWebProcess ? { safeForUntrustedWebProcess: true } : {}),
   } as WindowActorOptions);
   registered.set(a.name, root);
   console.log(`[nora-actors] ${a.name} ${a.version} ← ${root} (${a.matches.join(", ")}) on ${a.event}`);
+  if (a.includeChrome) runInOpenWindows(a);
+}
+
+/**
+ * 窓に効く actor は、もう開いている窓では合図(DOMContentLoaded など)が過ぎている。
+ * 設定で入れた瞬間や、起動時の restore が最初の窓より遅れたときのために、
+ * 開いている窓の子を起こして、合図が来たことにする(child.sys.mjs の #ran で二重には走らない)。
+ */
+function runInOpenWindows(a: ActorRegistration): void {
+  for (const win of Services.wm.getEnumerator("navigator:browser")) {
+    const w = win as Window & { windowGlobalChild?: { getActor(name: string): { handleEvent(e: { type: string }): void } } };
+    if (w.document?.readyState !== "complete") continue; // まだなら合図のほうが来る
+    try {
+      w.windowGlobalChild?.getActor(a.name).handleEvent({ type: a.event });
+    } catch (e) {
+      console.error(`[nora-actors] ${a.name}: could not run in an open window:`, e);
+    }
+  }
 }

@@ -102,6 +102,9 @@ function genManifest(a: Actor): string {
 /** Registration options + what a person can read before installing (methods, pages) */
 function genActorJson(a: Actor): string {
   const web = a.meta.matches.some((m) => /^(\*|https?):\/\//.test(m));
+  // the browser window itself (chrome://browser/content/browser.xhtml): the content hook then
+  // runs inside that window, with gBrowser and everything else in reach
+  const chrome = a.meta.matches.some((m) => m.startsWith("chrome://browser/"));
   const j = {
     name: actorName(a),
     id: a.meta.id,
@@ -113,6 +116,7 @@ function genActorJson(a: Actor): string {
     // pages in the parent process (chrome://, about:preferences) and in every content process
     // (about:newtab lives in "privilegedabout"). Web pages only when a match says so (dev localhost).
     includeParent: true,
+    includeChrome: chrome,
     safeForUntrustedWebProcess: web,
   };
   return JSON.stringify(j, null, 2) + "\n";
