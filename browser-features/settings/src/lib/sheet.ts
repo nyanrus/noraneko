@@ -10,7 +10,7 @@ export function sheetText(d: DropInspection): string {
   return d.entries
     .map((e) =>
       [
-        `# ${e.name}  ${e.id}  ${e.version}`,
+        `# ${d.name}  ${d.uuid}  ${e.name}  ${e.id}  ${e.version}`,
         `registry: ${d.registry.name}  判: ${attested}  連絡先: ${contact}`,
         `sha256: ${e.sha256}`,
         `動くページ: ${e.matches.join(", ") || "(なし)"}`,

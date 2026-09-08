@@ -18,7 +18,7 @@ export const readBool = (key: string): boolean => (prefsApi ? prefsApi.getBoolPr
 // ---- modules/Drops.sys.mts の型(こちらで写しを持つ。向こうが正) ----
 export interface Registry {
   name: string;
-  base: string;
+  base: string; // その registry の URL(裏は registry ごとの Worker と bucket。npm と jsr が別なのと同じ)
   identity: string;
   issuer: string;
 }
@@ -32,7 +32,8 @@ export interface AttestationCheck {
   rekorUrl?: string;
 }
 export interface DropManifest {
-  code: string;
+  uuid: string;
+  name: string; // 札
   note?: string;
   contact?: string | string[];
   source?: { repo?: string; commit?: string; commit_time?: string; path?: string };
@@ -50,13 +51,15 @@ export interface InspectedEntry {
   files: { path: string; text: string }[];
 }
 export interface DropInspection {
-  code: string;
+  uuid: string;
+  name: string; // 札
   registry: Registry;
   attestations: AttestationCheck[];
   manifest: DropManifest;
   entries: InspectedEntry[];
 }
 export interface InstalledDrop {
+  name?: string;
   ids: string[];
   files: string[];
   versions: string[];
@@ -67,9 +70,10 @@ export interface DropsApi {
   listRegistries(): Registry[];
   addRegistry(r: Registry): void;
   removeRegistry(name: string): void;
-  inspectDrop(code: string, registry?: string): Promise<DropInspection>;
+  inspectDrop(ref: string, registry?: string): Promise<DropInspection>; // ref = uuid
+  parseUuid(ref: string): string;
   installDrop(inspected: DropInspection): Promise<string[]>;
-  removeDrop(code: string): Promise<void>;
+  removeDrop(ref: string): Promise<void>;
   listDrops(): Record<string, InstalledDrop>;
 }
 

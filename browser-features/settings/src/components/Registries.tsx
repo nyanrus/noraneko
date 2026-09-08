@@ -33,7 +33,7 @@ export function Registries({ onChange }: { onChange: () => void }) {
 
   return (
     <details class="fold" open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
-      <summary>レジストリ({list.length})。既定は {DEFAULT_NAME}。自分のや友だちのを足せる</summary>
+      <summary>レジストリ({list.length})。既定は {DEFAULT_NAME}。自分のや友だちのを足せる(それぞれ別の URL と置き場。npm と jsr が別なのと同じ)</summary>
       {list.map((r) => (
         <div key={r.name} class="row">
           <span class="text">

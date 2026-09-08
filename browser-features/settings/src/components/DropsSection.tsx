@@ -8,12 +8,13 @@ import { useTask } from "../lib/useTask.ts";
 import { Registries } from "./Registries.tsx";
 import { DropSheet } from "./DropSheet.tsx";
 
-function Installed({ code, d, busy, onRemove }: { code: string; d: InstalledDrop; busy: boolean; onRemove: () => void }) {
+function Installed({ uuid, d, busy, onRemove }: { uuid: string; d: InstalledDrop; busy: boolean; onRemove: () => void }) {
   return (
     <div class="row">
       <span class="text">
-        <span class="label">{code}</span>
+        <span class="label">{d.name ?? uuid}</span>
         <span class="desc">{d.note ?? ""}</span>
+        <code class="code">{uuid}</code>
         <code class="code">{d.ids.join(", ")} @ {(d.versions ?? []).join(", ")} · {d.registry ?? "?"}</code>
       </span>
       <button class="quiet" disabled={busy} onClick={onRemove}>戻す</button>
@@ -22,43 +23,39 @@ function Installed({ code, d, busy, onRemove }: { code: string; d: InstalledDrop
 }
 
 export function DropsSection() {
-  const [code, setCode] = useState("");
-  const [registry, setRegistry] = useState<string>(dropsApi?.listRegistries()[0]?.name ?? "");
-  const [tick, setTick] = useState(0); // registry の一覧が変わったら select を描き直す
+  const [ref, setRef] = useState(""); // uuid(正体。registry は一覧に順に訊く)
+  const [tick, setTick] = useState(0); // registry の一覧が変わったら描き直す
   const [seen, setSeen] = useState<DropInspection | null>(null);
   const [installed, setInstalled] = useState<Record<string, InstalledDrop>>(dropsApi ? dropsApi.listDrops() : {});
   const { busy, msg, run } = useTask(() => setInstalled(dropsApi ? dropsApi.listDrops() : {}));
-  const registries = dropsApi ? dropsApi.listRegistries() : [];
   const entries = Object.entries(installed);
 
-  const inspect = () => run(async () => setSeen(await dropsApi!.inspectDrop(code, registry)), `見た: ${code}(まだ入れていない)`);
-  const install = (d: DropInspection) => run(async () => { await dropsApi!.installDrop(d); setSeen(null); }, `入った: ${d.code}`);
+  const inspect = () => run(async () => { setSeen(null); setSeen(await dropsApi!.inspectDrop(ref)); }, `見た: ${ref}(まだ入れていない)`);
+  const install = (d: DropInspection) => run(async () => { await dropsApi!.installDrop(d); setSeen(null); }, `入った: ${d.name}`);
   const remove = (c: string) => run(() => dropsApi!.removeDrop(c), `戻した: ${c}`);
 
   return (
     <section class="card">
       <h2>Drops</h2>
-      <p class="hint">コード一つで機能が降ってくる。入れると、まず中身を見る(何も実行しない)。それから「入れる」で built-in と入れ替わる。戻せば built-in に戻る。再起動は要らない。</p>
+      <p class="hint">uuid 一つで機能が降ってくる(名前は札、uuid が正体。drop のページからコピーする)。入れると、まず中身を見る(何も実行しない)。それから「入れる」で built-in と入れ替わる。戻せば built-in に戻る。再起動は要らない。</p>
       <Registries onChange={() => setTick(tick + 1)} />
       <div class="drop-input">
-        <select value={registry} onChange={(e) => setRegistry((e.currentTarget as HTMLSelectElement).value)} disabled={!dropsApi || busy}>
-          {registries.map((r) => <option key={r.name + tick} value={r.name}>{r.name}</option>)}
-        </select>
         <input
-          value={code}
-          placeholder="code"
+          key={tick}
+          value={ref}
+          placeholder="uuid(例: ec4dfa7c-9e5a-4c1d-8d0d-771e3ee81030)"
           disabled={!dropsApi || busy}
-          onInput={(e) => setCode((e.currentTarget as HTMLInputElement).value.trim())}
-          onKeyDown={(e) => { if (e.key === "Enter" && code && !busy) inspect(); }}
+          onInput={(e) => setRef((e.currentTarget as HTMLInputElement).value.trim())}
+          onKeyDown={(e) => { if (e.key === "Enter" && ref && !busy) inspect(); }}
         />
-        <button class="primary" disabled={!dropsApi || busy || !code} onClick={inspect}>見る</button>
+        <button class="primary" disabled={!dropsApi || busy || !ref} onClick={inspect}>見る</button>
       </div>
       {msg && <p class="msg">{msg}</p>}
       {seen && <DropSheet seen={seen} busy={busy} onInstall={() => install(seen)} />}
       {entries.length > 0 && (
         <div class="installed">
           <div class="k">入っているもの</div>
-          {entries.map(([c, d]) => <Installed key={c} code={c} d={d} busy={busy} onRemove={() => remove(c)} />)}
+          {entries.map(([u, d]) => <Installed key={u} uuid={u} d={d} busy={busy} onRemove={() => remove(u)} />)}
         </div>
       )}
     </section>

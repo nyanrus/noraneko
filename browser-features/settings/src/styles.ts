@@ -70,7 +70,7 @@ input::placeholder { color: var(--muted); }
 
 .drop-input { display: flex; gap: 0.5rem; align-items: stretch; margin-top: 0.4rem; }
 .drop-input input { flex: 1; font-size: 1.05rem; padding: 0.6rem 0.8rem; letter-spacing: 0.02em; }
-.drop-input select { max-width: 9rem; }
+
 .msg { margin: 0.7rem 0 0; color: var(--muted); font-size: 0.86rem; }
 
 details.fold > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; list-style: none; }
@@ -88,6 +88,7 @@ details.fold { margin-bottom: 0.8rem; }
 .sheet .stamp .id { font-size: 0.78rem; opacity: 0.85; overflow-wrap: anywhere; }
 .sheet .meta { margin: 0.6rem 0 0; color: var(--muted); font-size: 0.86rem; }
 .sheet .meta + .meta { margin-top: 0.2rem; }
+.sheet .meta .k { color: var(--ink); font-weight: var(--bold); font-size: 0.95rem; }
 .entry { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 0.25rem; }
 .entry .name { font-weight: var(--bold); display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
 .entry .fact { color: var(--muted); font-size: 0.85rem; }

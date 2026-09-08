@@ -78,6 +78,7 @@ export function DropSheet({ seen, busy, onInstall }: { seen: DropInspection; bus
   const ok = allAttested(seen);
   return (
     <div class="sheet">
+      <p class="meta" style={{ margin: "0 0 0.5rem" }}><span class="k">{seen.name}</span> <code class="code">{seen.uuid}</code> <span>· {seen.registry.name}</span></p>
       {seen.attestations.map((a) => <Stamp key={a.who} a={a} registry={seen.registry.name} />)}
       {seen.manifest.note && <p class="meta">{seen.manifest.note}</p>}
       <Contacts contact={seen.manifest.contact} />

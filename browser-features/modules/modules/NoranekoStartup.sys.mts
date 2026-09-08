@@ -31,7 +31,7 @@ export function onFinalUIStartup(): void {
     console.error("Failed to create default userChrome files:", error);
   });
 
-  // built-in の actor を登録してから、drops(手元の xpi)で置き換える。NORANEKO_DROP_CODE=<code> があれば落として入れる(Drops.sys.mts)
+  // built-in の actor を登録してから、drops(手元の xpi)で置き換える。NORANEKO_DROP_UUID=<uuid> があれば落として入れる(Drops.sys.mts)
   registerBuiltinWebExtActors()
     .catch((error) => {
       console.error("Failed to register builtin WebExtension actors:", error);

@@ -1,12 +1,12 @@
 #!/usr/bin/env ruby
 # build-drop: webext-actor を「降ってくる束(drop)」にする。
 #
-#   ruby scripts/build-drop.rb --code <code> [--note "..."] <actor> [<actor>...]
+#   ruby scripts/build-drop.rb --uuid <uuid> --name <name> [--note "..."] <actor> [<actor>...]
 #   (ふつうは scripts/build.rb が env を揃えて呼ぶ。noraneko の testbed の tools/scripts/build-drop.rb と同じもの)
 #
-# _dist/<actor>/ を xpi(= ただの zip)に固めて、_build/<code>/ に
-# <actor>.xpi と manifest.json(id / version / sha256)を書く。あとは B2 の drops/<code>/ に置くだけ
-# (dl.f3liz.casa/drop/<code>/… で配られ、about:nora:settings のコード欄で入る。modules/Drops.sys.mts)。
+# _dist/<actor>/ を xpi(= ただの zip)に固めて、_build/<name>/ に
+# <actor>.xpi と manifest.json(uuid / name / version / sha256)を書く。あとは dl.f3liz.casa/drop/<uuid> に置くだけ
+# (正体は uuid、name は札。about:nora:settings に uuid を入れると降ってくる。modules/Drops.sys.mts)。
 #
 # built-in と同じ id で profile に入るので:
 # - version は built-in より大きく(<version>.<commit の yyyymmddHHMM>)。同じ commit なら同じ版。
@@ -18,20 +18,22 @@ require "fileutils"
 require "tmpdir"
 require "time"
 
-code = nil
+uuid = nil
+name = nil
 note = nil
 actors = []
 args = ARGV.dup
 until args.empty?
   a = args.shift
   case a
-  when "--code" then code = args.shift
+  when "--uuid" then uuid = args.shift
+  when "--name" then name = args.shift
   when "--note" then note = args.shift
   else actors << a
   end
 end
-unless code&.match?(/\A[a-z0-9][a-z0-9._-]{0,63}\z/) && !actors.empty?
-  warn "usage: build-drop.rb --code <code> [--note ...] <actor>..."
+unless uuid&.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/) && name&.match?(/\A[a-z0-9][a-z0-9._-]{0,63}\z/) && !actors.empty?
+  warn "usage: build-drop.rb --uuid <uuid(小文字)> --name <name> [--note ...] <actor>..."
   exit 2
 end
 
@@ -39,7 +41,7 @@ end
 root = ENV.fetch("BUILD_ROOT") { File.expand_path("../..", __dir__) }
 actors_root = ENV.fetch("BUILD_ACTORS") { File.join(root, "browser-features/webext-actors") }
 dist = File.join(actors_root, "_dist")
-out = File.join(ENV.fetch("BUILD_OUT") { File.join(root, "_dist/drops") }, code)
+out = File.join(ENV.fetch("BUILD_OUT") { File.join(root, "_dist/drops") }, name)
 
 # reproducible: 同じ commit から同じ bytes が出るように。日時は「今」でなく commit の時刻。
 # zip の中の mtime も全部これに揃え、zip は TZ=UTC・ファイル一覧を sort して渡す(順も固定)。
@@ -81,15 +83,15 @@ entries = actors.map do |actor|
 
     # manifest.json: 版と名前を drop 用に
     manifest["version"] = version
-    manifest["name"] = "#{manifest["name"]} (drop #{code})"
+    manifest["name"] = "#{manifest["name"]} (drop #{name})"
     File.write(File.join(work, "manifest.json"), JSON.pretty_generate(manifest))
 
     # parent.sys.mjs / child.sys.mjs: built-in の resource:// ではなく、この xpi の actor.mjs / content.js を読む。
     # importESModule は jar:file: を信用しない("System modules must be loaded from a trusted scheme")。
     # 入れる側(modules/Drops.sys.mts)が resource://<alias>/ を xpi の root に張るので、ここではその URL に書き換えるだけ。
-    # alias の規則は Drops.sys.mts と同じ: ("noraneko-drop-" + code + "-" + version) を [a-z0-9] 以外 "-" に、小文字。
+    # alias の規則は Drops.sys.mts と同じ: ("noraneko-drop-" + uuid + "-" + version) を [a-z0-9] 以外 "-" に、小文字。
     # 版を含めるのは、module cache が URL 単位で、同じ session で版を替えたとき古いのが残らないように
-    res_alias = "noraneko-drop-#{code}-#{version}".gsub(/[^a-z0-9]/i, "-").downcase
+    res_alias = "noraneko-drop-#{uuid}-#{version}".gsub(/[^a-z0-9]/i, "-").downcase
     %w[parent.sys.mjs child.sys.mjs].each do |f|
       src_text = File.read(File.join(work, f))
       patched = src_text.gsub(%r{resource://noraneko-builtin/[^/"]+/}, "resource://#{res_alias}/")
@@ -143,5 +145,5 @@ source = {
   path: ENV.fetch("BUILD_SOURCE_PATH", "browser-features/webext-actors"),
 }
 File.write(File.join(out, "manifest.json"),
-           JSON.pretty_generate({ code: code, note: note, source: source, entries: entries }.compact) + "\n")
+           JSON.pretty_generate({ uuid: uuid, name: name, note: note, source: source, entries: entries }.compact) + "\n")
 puts "→ #{out}/manifest.json"
