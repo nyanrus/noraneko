@@ -20,6 +20,8 @@ export default defineConfig({
   target: "esnext",
   platform: "browser",
   clean: false,
+  // minify しない: xpi の中の JS を人が読めるままにする(drop は入れる本人が読む)
+  minify: false,
   treeshake: { manualPureFunctions: ["defineParent", "defineContent"] },
   outputOptions: { entryFileNames: "[name].js", codeSplitting: false },
 });

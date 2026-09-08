@@ -43,6 +43,7 @@
   ],
   "tasks": {
     "feles-build": "deno run -A tools/feles-build.ts",
+    "drop:build": "ruby tools/scripts/build-drop.rb",
     "gha:dev": "gaji dev",
     "gha:build": "gaji build"
   },
