@@ -56,6 +56,8 @@ interface Actor {
   dir: string;
   meta: ActorMeta;
   methods: Array<{ name: string; arity: number }>;
+  /** <dir>/wasm/main.bc.wasm.js exists: the actor keeps its logic in Tsubaki */
+  wasm: boolean;
 }
 
 function discoverActorDirs(): string[] {
@@ -83,7 +85,40 @@ async function loadActor(dir: string): Promise<Actor> {
     name,
     arity: parent[name].length,
   }));
-  return { dir, meta, methods };
+  let wasm = false;
+  try {
+    Deno.statSync(path.join(ROOT, dir, "wasm", "main.bc.wasm.js"));
+    wasm = true;
+  } catch {
+    // no wasm here
+  }
+  return { dir, meta, methods, wasm };
+}
+
+// wasm/ (the Tsubaki glue + .wasm) and ops/*.tsubaki go into _dist/<dir>/ as
+// they are: the child loads them by URL at run time.
+function copyTree(from: string, to: string): void {
+  Deno.mkdirSync(to, { recursive: true });
+  for (const e of Deno.readDirSync(from)) {
+    const src = path.join(from, e.name);
+    const dst = path.join(to, e.name);
+    if (e.isDirectory) copyTree(src, dst);
+    else Deno.copyFileSync(src, dst);
+  }
+}
+function copyRuntimeFiles(a: Actor): void {
+  if (a.wasm) copyTree(path.join(ROOT, a.dir, "wasm"), path.join(DIST, a.dir, "wasm"));
+  const ops = path.join(ROOT, a.dir, "ops");
+  try {
+    for (const e of Deno.readDirSync(ops)) {
+      if (e.isFile && e.name.endsWith(".tsubaki")) {
+        Deno.mkdirSync(path.join(DIST, a.dir, "ops"), { recursive: true });
+        Deno.copyFileSync(path.join(ops, e.name), path.join(DIST, a.dir, "ops", e.name));
+      }
+    }
+  } catch {
+    // no ops/ here
+  }
 }
 
 function genManifest(a: Actor): string {
@@ -159,7 +194,7 @@ function genChildModule(a: Actor): string {
 export class ${name}Child extends JSWindowActorChild {
   #ran = false;
   #onDestroy = [];
-
+${a.wasm ? tsubakiSandbox(a) : ""}
   handleEvent(event) {
     if (event.type !== "${runAtEvent(a)}" || this.#ran) return;
     this.#ran = true;
@@ -185,6 +220,8 @@ export class ${name}Child extends JSWindowActorChild {
           }
         },
         onDestroy: (fn) => actor.#onDestroy.push(fn),
+        base: "resource://noraneko-builtin/${a.dir}/",
+        ${a.wasm ? "tsubaki: actor.#tsubaki()," : "tsubaki: undefined,"}
       },
     };
     try {
@@ -210,6 +247,41 @@ export class ${name}Child extends JSWindowActorChild {
     }
   }
 }
+`;
+}
+
+// The actor keeps its logic in Tsubaki (wasm/): a Cu.Sandbox of its own per
+// window, so the wasm's globals (tsubakiEval, tsubakiCall) are this window's
+// and this actor's, not the shared system global's. The glue finds its .wasm
+// next to itself through document.currentScript.src, so the sandbox gets a
+// document with just that.
+function tsubakiSandbox(a: Actor): string {
+  return `
+  #tsubaki() {
+    const base = "resource://noraneko-builtin/${a.dir}/wasm/";
+    const sb = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal(), {
+      sandboxName: "${actorName(a)} tsubaki",
+      wantGlobalProperties: ["fetch", "TextDecoder", "TextEncoder", "URL"],
+    });
+    sb.console = console;
+    sb.document = { currentScript: { src: base + "main.bc.wasm.js" } };
+    sb.tsubakiEmbedded = true;
+    const ready = new Promise((resolve) => { sb.tsubakiOnReady = resolve; });
+    Services.scriptloader.loadSubScript(base + "main.bc.wasm.js", sb);
+    const ops = {
+      ready,
+      eval: (src) => sb.tsubakiEval(src),
+      call: (name, ...args) => sb.tsubakiCall(name, args),
+      // a .tsubaki file of this actor (ops/<file>), run at top level
+      async load(rel) {
+        await ready;
+        const text = await (await fetch("resource://noraneko-builtin/${a.dir}/" + rel)).text();
+        return sb.tsubakiEval(text);
+      },
+    };
+    this.#onDestroy.push(() => Cu.nukeSandbox(sb));
+    return ops;
+  }
 `;
 }
 
@@ -328,6 +400,7 @@ for (const a of actors) {
   await runTsdown("tsdown.actor.config.ts", a.dir);
   await runTsdown("tsdown.content.config.ts", a.dir);
   await assertReadable(path.join(DIST, a.dir, "content.js"));
+  copyRuntimeFiles(a);
 }
 
 console.log("[webext-actors] build complete.");

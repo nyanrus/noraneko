@@ -70,12 +70,17 @@ entries = actors.map do |actor|
 
   Dir.mktmpdir("nora-drop-") do |work|
     # _dist/<actor>/ の産物(manifest.json / actor.json / parent.sys.mjs / child.sys.mjs / actor.mjs / content.js)を作業場へ
-    FileUtils.cp(Dir.glob(File.join(src, "*")).select { |f| File.file?(f) }, work)
+    Dir.glob(File.join(src, "**", "*")).select { |f| File.file?(f) }.each do |f|
+      rel = f.sub("#{src}/", "")
+      FileUtils.mkdir_p(File.join(work, File.dirname(rel)))
+      FileUtils.cp(f, File.join(work, rel))
+    end
 
     # source を同梱する(入れる本人が読めるように。build された bytes が自分の source を持ち歩く)
     src_dir = actors_root
     FileUtils.mkdir_p(File.join(work, "source"))
-    (Dir.glob(File.join(src_dir, actor, "**", "*")).select { |f| File.file?(f) } + Dir.glob(File.join(src_dir, "_shared", "*.ts"))).each do |f|
+    # wasm/ is a build product, not source; it is in the xpi already (top level), not in source/
+    (Dir.glob(File.join(src_dir, actor, "**", "*")).select { |f| File.file?(f) && !f.start_with?(File.join(src_dir, actor, "wasm") + "/") } + Dir.glob(File.join(src_dir, "_shared", "*.ts"))).each do |f|
       rel = f.sub("#{src_dir}/", "")
       FileUtils.mkdir_p(File.join(work, "source", File.dirname(rel)))
       FileUtils.cp(f, File.join(work, "source", rel))
@@ -101,7 +106,8 @@ entries = actors.map do |actor|
 
     Dir.chdir(work) do
       files = Dir.glob("**/*", File::FNM_DOTMATCH).select { |f| File.file?(f) }.sort
-      js = files.select { |f| f.end_with?(".js", ".mjs") }
+      # wasm/ holds the Tsubaki glue: a build product (like the .wasm beside it), not the drop's own JS
+      js = files.select { |f| f.end_with?(".js", ".mjs") && !f.start_with?("wasm/") }
 
       # syntax check: 固める前に読めるか。壊れた印を入れて一日溶かした
       #   node --check <js> → parse だけ(deno check は .js でも JSDoc の import('./x') を型として追い、

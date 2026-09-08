@@ -185,6 +185,9 @@ async function findDrop(uuid: string, registryName?: string): Promise<{ reg: Reg
   throw new Error(`どの registry にも ${uuid} が無い(${misses.join(" / ")})`);
 }
 
+/** 読める字のもの。それ以外(.wasm など)は中を開かず、大きさだけ見せる */
+const TEXT_EXT = /\.(js|mjs|cjs|ts|tsx|json|md|css|html|xhtml|svg|txt|toml|tsubaki|jl)$/i;
+
 /** xpi(zip)の中を文字列で読む。実行はしない */
 function readZipEntries(path: string): Map<string, string> {
   const zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
@@ -193,6 +196,10 @@ function readZipEntries(path: string): Map<string, string> {
   try {
     for (const name of zr.findEntries("*")) {
       if (name.endsWith("/")) continue;
+      if (!TEXT_EXT.test(name)) {
+        out.set(name, `(binary, ${zr.getEntry(name).realSize} bytes)`);
+        continue;
+      }
       const stream = zr.getInputStream(name);
       const text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
       stream.close();
