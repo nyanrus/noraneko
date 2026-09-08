@@ -125,6 +125,7 @@ function Drops() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [seen, setSeen] = useState<any>(null); // inspectDrop の結果(まだ何も実行していない)
   const [installed, setInstalled] = useState<Record<string, any>>(
     dropsApi ? dropsApi.listDrops() : {},
   );
@@ -142,11 +143,24 @@ function Drops() {
       refresh();
     }
   };
+  const sheetText = (d: any) =>
+    d.entries
+      .map((e: any) =>
+        [
+          `# ${e.name}  ${e.id}  ${e.version}`,
+          `sha256: ${e.sha256}`,
+          `注入するページ: ${e.matches.join(", ") || "(なし)"}`,
+          `権限: ${e.permissions.join(", ") || "(なし)"}`,
+          `親プロセスで呼べる関数: ${e.functions.join(", ") || "(なし)"}`,
+          ...e.sources.map((s: any) => `\n--- source/${s.path} ---\n${s.text}`),
+        ].join("\n"),
+      )
+      .join("\n\n");
   return (
     <section style={s.section}>
       <h2 style={s.h2}>Drops</h2>
       <p style={s.hint}>
-        コードを入れると、その機能の束が降ってきて built-in を置き換える。戻すと built-in に戻る。再起動は要らない。
+        コードを入れると、まず中身を見る(何も実行しない)。それから「入れる」で built-in を置き換える。戻すと built-in に戻る。再起動は要らない。
       </p>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <input
@@ -158,18 +172,55 @@ function Drops() {
         />
         <button
           disabled={!dropsApi || busy || !code}
-          onClick={() => run(() => dropsApi.installDrop(code), `入った: ${code}`)}
+          onClick={() => run(async () => setSeen(await dropsApi.inspectDrop(code)), `見た: ${code}(まだ入れていない)`)}
         >
-          入れる
+          見る
         </button>
       </div>
       {msg && <p style={{ ...s.hint, marginTop: "0.6rem" }}>{msg}</p>}
+      {seen && (
+        <div style={{ marginTop: "0.8rem" }}>
+          {seen.manifest.note && <p style={s.hint}>{seen.manifest.note}</p>}
+          {seen.manifest.source?.repo && (
+            <p style={s.hint}>
+              source: <a href={`${seen.manifest.source.repo}/tree/${seen.manifest.source.commit ?? ""}`} target="_blank">
+                {seen.manifest.source.repo} @ {(seen.manifest.source.commit ?? "").slice(0, 10)}
+              </a>
+            </p>
+          )}
+          {seen.entries.map((e: any) => (
+            <div key={e.id} style={{ ...s.row, cursor: "default", flexDirection: "column" as const }}>
+              <span style={s.label}>{e.name} <code style={s.code}>{e.id} @ {e.version}</code></span>
+              <span style={s.desc}>注入するページ: {e.matches.join(", ") || "(なし)"}</span>
+              <span style={s.desc}>権限: {e.permissions.join(", ") || "(なし)"}</span>
+              <span style={s.desc}>親プロセスで呼べる関数: {e.functions.join(", ") || "(なし)"}</span>
+              {e.sources.map((src: any) => (
+                <details key={src.path} style={{ width: "100%" }}>
+                  <summary style={s.desc}>source/{src.path}</summary>
+                  <pre style={{ ...s.code, whiteSpace: "pre-wrap", maxHeight: "24rem", overflow: "auto", padding: "0.6rem" }}>{src.text}</pre>
+                </details>
+              ))}
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem" }}>
+            <button disabled={busy} onClick={() => navigator.clipboard.writeText(sheetText(seen))}>
+              コピー(AI や人に見せる一枚)
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => run(async () => { await dropsApi.installDrop(seen); setSeen(null); }, `入った: ${seen.code}`)}
+            >
+              入れる
+            </button>
+          </div>
+        </div>
+      )}
       {Object.entries(installed).map(([c, d]) => (
         <div key={c} style={s.row}>
           <span style={s.rowText}>
             <span style={s.label}>{c}</span>
             <span style={s.desc}>{(d as any).note ?? ""}</span>
-            <code style={s.code}>{(d as any).ids.join(", ")} @ {(d as any).version}</code>
+            <code style={s.code}>{(d as any).ids.join(", ")} @ {((d as any).versions ?? []).join(", ")}</code>
           </span>
           <button disabled={busy} onClick={() => run(() => dropsApi.removeDrop(c), `戻した: ${c}`)}>
             戻す
