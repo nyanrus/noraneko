@@ -73,7 +73,8 @@ export interface DropInspection {
     matches: string[];
     permissions: string[];
     functions: string[]; // 親プロセスで呼べる関数(experiment API の schema から)
-    sources: { path: string; text: string }[];
+    sources: { path: string; text: string }[]; // 書いたもの(source/)
+    files: { path: string; text: string }[]; // 実際に実行される・読まれるもの(xpi の中の JS と JSON、source/ 以外)
   }[];
 }
 
@@ -176,6 +177,10 @@ export async function inspectDrop(code: string): Promise<DropInspection> {
       sources: [...files.entries()]
         .filter(([n]) => n.startsWith("source/"))
         .map(([n, text]) => ({ path: n.slice("source/".length), text })),
+      files: [...files.entries()]
+        .filter(([n]) => !n.startsWith("source/"))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([n, text]) => ({ path: n, text })),
     });
   }
   return { code, manifest: m, entries };

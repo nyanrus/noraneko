@@ -152,7 +152,8 @@ function Drops() {
           `注入するページ: ${e.matches.join(", ") || "(なし)"}`,
           `権限: ${e.permissions.join(", ") || "(なし)"}`,
           `親プロセスで呼べる関数: ${e.functions.join(", ") || "(なし)"}`,
-          ...e.sources.map((s: any) => `\n--- source/${s.path} ---\n${s.text}`),
+          ...e.sources.map((s: any) => `\n--- source/${s.path}(書いたもの)---\n${s.text}`),
+          ...e.files.map((f: any) => `\n--- ${f.path}(実際に実行される)---\n${f.text}`),
         ].join("\n"),
       )
       .join("\n\n");
@@ -196,8 +197,14 @@ function Drops() {
               <span style={s.desc}>親プロセスで呼べる関数: {e.functions.join(", ") || "(なし)"}</span>
               {e.sources.map((src: any) => (
                 <details key={src.path} style={{ width: "100%" }}>
-                  <summary style={s.desc}>source/{src.path}</summary>
+                  <summary style={s.desc}>書いたもの: source/{src.path}</summary>
                   <pre style={{ ...s.code, whiteSpace: "pre-wrap", maxHeight: "24rem", overflow: "auto", padding: "0.6rem" }}>{src.text}</pre>
+                </details>
+              ))}
+              {e.files.map((f: any) => (
+                <details key={f.path} style={{ width: "100%" }}>
+                  <summary style={s.desc}>実際に実行される: {f.path}</summary>
+                  <pre style={{ ...s.code, whiteSpace: "pre-wrap", maxHeight: "24rem", overflow: "auto", padding: "0.6rem" }}>{f.text}</pre>
                 </details>
               ))}
             </div>

@@ -87,6 +87,11 @@ entries = actors.map do |actor|
       files = Dir.glob("**/*", File::FNM_DOTMATCH).select { |f| File.file?(f) }.sort
       js = files.select { |f| f.end_with?(".js", ".mjs") }
       system("deno", "check", "--quiet", *js) or abort "#{actor}: syntax check failed (deno check)"
+      # minify 禁止: 人が読めない JS は drop にしない(一行が長すぎるものは minify と見なす)
+      js.each do |f|
+        long = File.foreach(f).find { |l| l.length > 400 }
+        abort "#{actor}: #{f} looks minified (line > 400 chars). drop の JS は読める形で" if long
+      end
       files.select { |f| f.end_with?(".json") }.each do |f|
         JSON.parse(File.read(f)) rescue abort("#{actor}: #{f} is not valid JSON")
       end

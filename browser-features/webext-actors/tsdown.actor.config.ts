@@ -20,6 +20,8 @@ export default defineConfig({
   format: "esm",
   target: "esnext",
   clean: false,
+  // minify しない: xpi の中の JS を人が読めるままにする(drop は入れる本人が読む)
+  minify: false,
   treeshake: { manualPureFunctions: ["defineParent", "defineContent"] },
   external: [/^resource:\/\//, /^chrome:\/\//],
   outputOptions: { entryFileNames: "[name].mjs", codeSplitting: false },
