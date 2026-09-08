@@ -43,6 +43,9 @@ out = File.join(root, "_dist/drops", code)
 commit = `git -C #{root} rev-parse HEAD 2>/dev/null`.strip
 commit_time = `git -C #{root} log -1 --format=%ct 2>/dev/null`.strip.to_i
 abort "git の commit が読めない(reproducible にできない)" if commit.empty? || commit_time.zero?
+# 版の日時は分まで。mtime も同じ分に丸める(zip の時刻は 2 秒刻みで、秒がずれると bytes が変わる。
+# GitHub の PR は merge commit を checkout するので、秒違いの commit で同じ bytes を出すため)
+commit_time = commit_time - (commit_time % 60)
 stamp = Time.at(commit_time).utc.strftime("%Y%m%d%H%M")
 ENV["TZ"] = "UTC"
 
