@@ -158,6 +158,7 @@ function genChildModule(a: Actor): string {
 
 export class ${name}Child extends JSWindowActorChild {
   #ran = false;
+  #onDestroy = [];
 
   handleEvent(event) {
     if (event.type !== "${runAtEvent(a)}" || this.#ran) return;
@@ -176,6 +177,7 @@ export class ${name}Child extends JSWindowActorChild {
             Cu.exportFunction(fn, win, { defineAs: n });
           }
         },
+        onDestroy: (fn) => actor.#onDestroy.push(fn),
       },
     };
     try {
@@ -185,6 +187,18 @@ export class ${name}Child extends JSWindowActorChild {
       );
     } catch (e) {
       console.error("[${name}] content.js failed:", e);
+    }
+  }
+
+  // The actor was unregistered (drop removed or replaced) or the window is going
+  // away: give the content hook its chance to put things back.
+  didDestroy() {
+    for (const fn of this.#onDestroy.splice(0)) {
+      try {
+        fn();
+      } catch (e) {
+        console.error("[${name}] cleanup failed:", e);
+      }
     }
   }
 }

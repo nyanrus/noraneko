@@ -55,6 +55,11 @@ export interface ContentCtx {
   dev: boolean;
   /** Expose functions on the page window (via exportFunction). */
   expose(funcs: Record<string, (...args: any[]) => unknown>): void;
+  /**
+   * Run when this actor goes away in this window (the drop is removed or
+   * replaced). Put back what the hook changed: DOM, observers, listeners.
+   */
+  onDestroy(fn: () => void): void;
 }
 
 /** Proxy to the parent methods; each call is forwarded to the main process. */

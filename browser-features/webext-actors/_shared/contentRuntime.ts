@@ -16,6 +16,7 @@ import type { ActorMeta, ContentCtx, ContentHook } from "./defineActor.ts";
 declare const __nora: {
   call(method: string, args: unknown[]): Promise<unknown>;
   expose(funcs: Record<string, (...args: any[]) => unknown>): void;
+  onDestroy(fn: () => void): void;
 };
 
 export function runContent(_meta: ActorMeta, hook: ContentHook): void {
@@ -32,6 +33,9 @@ export function runContent(_meta: ActorMeta, hook: ContentHook): void {
     dev: import.meta.env.MODE === "dev",
     expose(funcs) {
       __nora.expose(funcs);
+    },
+    onDestroy(fn) {
+      __nora.onDestroy(fn);
     },
   };
 
