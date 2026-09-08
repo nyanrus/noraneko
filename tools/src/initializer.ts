@@ -17,8 +17,69 @@ import {
 } from "./defines.ts";
 import { Logger, runCommand, exists, safeRemove } from "./utils.ts";
 
-const NORANEKO_RUNTIME_BASE =
-  "https://github.com/f3liz-dev/noraneko-runtime/releases/latest/download";
+// runtime の取り先。
+// 1. NORANEKO_RUNTIME_TAG=passed-20260902074154 のように tag を指せば GitHub release のその tag。
+// 2. 無ければ dl.f3liz.casa(noraneko-ci の産物、B2)。/latest/<target> が最新の sha へ 302 する。
+// 3. dl に無ければ GitHub release。Apple Silicon の tar.xz は platform が揃うまで prerelease にしか無いので、
+//    その資産を持つ一番新しい release を API で探し、無ければ latest。
+const NORANEKO_RUNTIME_REPO = "f3liz-casa/noraneko-runtime";
+const NORANEKO_DL = "https://dl.f3liz.casa/noraneko-runtime";
+const NORANEKO_RUNTIME_TAG = Deno.env.get("NORANEKO_RUNTIME_TAG");
+const urlCache = new Map<string, string>();
+async function runtimeUrl(filename: string): Promise<string> {
+  const cached = urlCache.get(filename);
+  if (cached) return cached;
+  const gh = (tag: string) =>
+    `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/download/${tag}/${filename}`;
+  let url = `https://github.com/${NORANEKO_RUNTIME_REPO}/releases/latest/download/${filename}`;
+  if (NORANEKO_RUNTIME_TAG) {
+    url = gh(NORANEKO_RUNTIME_TAG);
+  } else {
+    const target = PLATFORM === "darwin"
+      ? `macos-${Deno.build.arch}`
+      : PLATFORM === "linux"
+      ? `linux-${Deno.build.arch}`
+      : undefined;
+    let found = false;
+    if (target) {
+      try {
+        const head = await fetch(`${NORANEKO_DL}/latest/${target}`, { method: "HEAD" });
+        if (head.ok) {
+          logger.info(`Runtime from dl.f3liz.casa: ${head.url}`);
+          url = head.url;
+          found = true;
+        }
+      } catch {
+        // dl に届かなければ GitHub へ
+      }
+    }
+    if (!found && PLATFORM === "darwin" && Deno.build.arch === "aarch64") {
+      try {
+        const resp = await fetch(
+          `https://api.github.com/repos/${NORANEKO_RUNTIME_REPO}/releases?per_page=30`,
+          { headers: { accept: "application/vnd.github+json" } },
+        );
+        if (resp.ok) {
+          const releases = (await resp.json()) as {
+            tag_name: string;
+            assets: { name: string }[];
+          }[];
+          const hit = releases.find((r) =>
+            r.assets.some((a) => a.name === filename)
+          );
+          if (hit) {
+            logger.info(`Runtime release with ${filename}: ${hit.tag_name}`);
+            url = gh(hit.tag_name);
+          }
+        }
+      } catch {
+        // API に届かなければ latest のまま
+      }
+    }
+  }
+  urlCache.set(filename, url);
+  return url;
+}
 
 const logger = new Logger("initializer");
 
@@ -178,7 +239,7 @@ export async function decompressBin(): Promise<void> {
   const binArchive = STOCK_FIREFOX ? getStockArchive() : getBinArchive();
   const downloadUrl = STOCK_FIREFOX
     ? (binArchive as { url: string }).url
-    : `${NORANEKO_RUNTIME_BASE}/${binArchive.filename}`;
+    : await runtimeUrl(binArchive.filename);
   logger.info(
     `Binary extraction started: ${binArchive.filename}` +
       (STOCK_FIREFOX ? " (stock Firefox)" : ""),
@@ -215,9 +276,25 @@ export async function decompressBin(): Promise<void> {
           throw new Error("Non-zip archives not supported on Windows");
 
         case "darwin": {
-          logger.info("macOS extraction (hdiutil)");
           const destDir = path.join(BIN_ROOT_DIR, BRANDING.base_name);
           Deno.mkdirSync(destDir, { recursive: true });
+          if (archivePath.endsWith(".tar.xz")) {
+            // aarch64 の .app は mach package(TAR)の staging: noraneko/Noraneko.app/…
+            // linux と同じく BIN_ROOT_DIR に展開すると destDir/Noraneko.app になる。
+            logger.info("macOS extraction (tar.xz)");
+            runCommand("tar", ["-xJf", archivePath, "-C", BIN_ROOT_DIR]);
+            try {
+              runCommand("xattr", ["-rc", destDir]);
+            } catch {
+              // xattr might not be present; ignore
+            }
+            runCommand("chmod", ["-R", "755", destDir]);
+            // Linux で cross した bundle は無署名。Apple Silicon は署名が無いと
+            // dyld が libxul を拒む("Couldn't load XPCOM")ので ad-hoc で署名する。
+            runCommand("codesign", ["--force", "--deep", "--sign", "-", APP_DIR]);
+            break;
+          }
+          logger.info("macOS extraction (hdiutil)");
           const mountPoint = await Deno.makeTempDir({
             prefix: "nora_dmg_mount_",
           });
@@ -326,7 +403,7 @@ function deoptimizeOmni(omniPath: string): void {
 }
 
 export async function downloadBin(filename: string, url?: string): Promise<void> {
-  const downloadUrl = url ?? `${NORANEKO_RUNTIME_BASE}/${filename}`;
+  const downloadUrl = url ?? await runtimeUrl(filename);
   logger.info(`Downloading binary from ${downloadUrl}`);
 
   const resp = await fetch(downloadUrl);
@@ -348,7 +425,8 @@ export async function downloadBin(filename: string, url?: string): Promise<void>
  * No-op unless darwin + STOCK_FIREFOX.
  */
 export function resignMacApp(): void {
-  if (PLATFORM !== "darwin" || !STOCK_FIREFOX) {
+  // runtime の tar.xz(Apple Silicon)も ad-hoc 署名で来るので、omni.ja を直したあとは同じく結び直す
+  if (PLATFORM !== "darwin" || !(STOCK_FIREFOX || Deno.build.arch === "aarch64")) {
     return;
   }
   logger.info(`Ad-hoc re-signing ${APP_DIR} ...`);
