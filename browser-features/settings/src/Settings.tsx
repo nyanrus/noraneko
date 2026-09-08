@@ -121,8 +121,68 @@ const dropsApi = (() => {
   }
 })();
 
+// 連絡先の書きかた → リンク。gh/<user>、mail/<addr>、social/<@user@host か URL>、URL そのまま
+function contactHref(c: string): string | null {
+  if (c.startsWith("gh/")) return `https://github.com/${c.slice(3)}`;
+  if (c.startsWith("mail/")) return `mailto:${c.slice(5)}`;
+  if (c.startsWith("social/")) {
+    const v = c.slice(7);
+    if (/^https?:\/\//.test(v)) return v;
+    const m = v.match(/^@?([^@]+)@([^@]+)$/);
+    return m ? `https://${m[2]}/@${m[1]}` : null;
+  }
+  return /^https?:\/\//.test(c) ? c : null;
+}
+
+function Registries({ onChange }: { onChange: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [base, setBase] = useState("");
+  const [identity, setIdentity] = useState("");
+  const [err, setErr] = useState("");
+  const list: any[] = dropsApi ? dropsApi.listRegistries() : [];
+  return (
+    <details open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)} style={{ marginBottom: "0.8rem" }}>
+      <summary style={s.desc}>レジストリ({list.length})。既定は f3liz。自分のや友だちのを足せる(iOS の代替ストアと同じ絵)</summary>
+      {list.map((r) => (
+        <div key={r.name} style={{ ...s.row, cursor: "default" }}>
+          <span style={s.rowText}>
+            <span style={s.label}>{r.name}</span>
+            <code style={s.code}>{r.base}</code>
+            <code style={s.code}>判: {r.identity}</code>
+          </span>
+          {r.name !== "f3liz" && (
+            <button onClick={() => { dropsApi.removeRegistry(r.name); onChange(); }}>外す</button>
+          )}
+        </div>
+      ))}
+      <div style={{ display: "grid", gap: "0.4rem", marginTop: "0.6rem" }}>
+        <input placeholder="name(小文字と数字)" value={name} onInput={(e) => setName((e.currentTarget as HTMLInputElement).value.trim())} />
+        <input placeholder="base URL(https://…/drop)" value={base} onInput={(e) => setBase((e.currentTarget as HTMLInputElement).value.trim())} />
+        <input placeholder="identity(判を押す workflow の URL)" value={identity} onInput={(e) => setIdentity((e.currentTarget as HTMLInputElement).value.trim())} />
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <button
+            disabled={!dropsApi || !name || !base || !identity}
+            onClick={() => {
+              try {
+                dropsApi.addRegistry({ name, base, identity, issuer: "https://token.actions.githubusercontent.com" });
+                setName(""); setBase(""); setIdentity(""); setErr(""); onChange();
+              } catch (e: any) { setErr(String(e?.message ?? e)); }
+            }}
+          >
+            レジストリを足す
+          </button>
+          {err && <span style={s.desc}>{err}</span>}
+        </div>
+      </div>
+    </details>
+  );
+}
+
 function Drops() {
   const [code, setCode] = useState("");
+  const [registry, setRegistry] = useState<string>(dropsApi ? dropsApi.listRegistries()[0]?.name ?? "" : "");
+  const [tick, setTick] = useState(0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [seen, setSeen] = useState<any>(null); // inspectDrop の結果(まだ何も実行していない)
@@ -148,6 +208,7 @@ function Drops() {
       .map((e: any) =>
         [
           `# ${e.name}  ${e.id}  ${e.version}`,
+          `registry: ${d.registry.name}  判: ${d.attestations.map((a: any) => `${a.who}=${a.ok ? "ok" : "NG"}`).join(", ")}  連絡先: ${(Array.isArray(d.manifest.contact) ? d.manifest.contact : [d.manifest.contact ?? "-"]).join(" ")}`,
           `sha256: ${e.sha256}`,
           `注入するページ: ${e.matches.join(", ") || "(なし)"}`,
           `権限: ${e.permissions.join(", ") || "(なし)"}`,
@@ -163,7 +224,11 @@ function Drops() {
       <p style={s.hint}>
         コードを入れると、まず中身を見る(何も実行しない)。それから「入れる」で built-in を置き換える。戻すと built-in に戻る。再起動は要らない。
       </p>
+      <Registries onChange={() => setTick(tick + 1)} />
       <div style={{ display: "flex", gap: "0.5rem" }}>
+        <select value={registry} onChange={(e) => setRegistry((e.currentTarget as HTMLSelectElement).value)} disabled={!dropsApi || busy}>
+          {(dropsApi ? dropsApi.listRegistries() : []).map((r: any) => <option key={r.name + tick} value={r.name}>{r.name}</option>)}
+        </select>
         <input
           value={code}
           placeholder="code"
@@ -173,7 +238,7 @@ function Drops() {
         />
         <button
           disabled={!dropsApi || busy || !code}
-          onClick={() => run(async () => setSeen(await dropsApi.inspectDrop(code)), `見た: ${code}(まだ入れていない)`)}
+          onClick={() => run(async () => setSeen(await dropsApi.inspectDrop(code, registry)), `見た: ${code}(まだ入れていない)`)}
         >
           見る
         </button>
@@ -182,6 +247,21 @@ function Drops() {
       {seen && (
         <div style={{ marginTop: "0.8rem" }}>
           {seen.manifest.note && <p style={s.hint}>{seen.manifest.note}</p>}
+          {seen.attestations.map((a: any) => (
+            <p key={a.who} style={{ ...s.hint, color: a.ok ? "#1c7a43" : "#b3261e" }}>
+              {a.ok ? "判あり" : "判なし/合わない"}: {a.who}({seen.registry.name})— {a.identity}
+              {a.rekorUrl && <> · <a href={a.rekorUrl} target="_blank">Rekor</a></>}
+              {!a.ok && a.reason && <> · {a.reason}</>}
+            </p>
+          ))}
+          {seen.manifest.contact && (
+            <p style={s.hint}>
+              連絡先: {(Array.isArray(seen.manifest.contact) ? seen.manifest.contact : [seen.manifest.contact]).map((c: string, i: number) => {
+                const href = contactHref(c);
+                return <span key={c}>{i > 0 && " · "}{href ? <a href={href} target="_blank">{c}</a> : c}</span>;
+              })}
+            </p>
+          )}
           {seen.manifest.source?.repo && (
             <p style={s.hint}>
               source: <a href={`${seen.manifest.source.repo}/tree/${seen.manifest.source.commit ?? ""}`} target="_blank">
@@ -227,7 +307,7 @@ function Drops() {
           <span style={s.rowText}>
             <span style={s.label}>{c}</span>
             <span style={s.desc}>{(d as any).note ?? ""}</span>
-            <code style={s.code}>{(d as any).ids.join(", ")} @ {((d as any).versions ?? []).join(", ")}</code>
+            <code style={s.code}>{(d as any).ids.join(", ")} @ {((d as any).versions ?? []).join(", ")} · {(d as any).registry ?? "?"}</code>
           </span>
           <button disabled={busy} onClick={() => run(() => dropsApi.removeDrop(c), `戻した: ${c}`)}>
             戻す

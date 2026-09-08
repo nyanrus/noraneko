@@ -21,8 +21,8 @@
  * 作る側: tools/scripts/build-drop.rb(actor を xpi にして manifest.json を書く。source も同梱)。
  */
 
-const DROP_BASE = "https://dl.f3liz.casa/drop";
-const PREF_INSTALLED = "noraneko.drops.installed"; // JSON: { [code]: { ids, files, versions, at, note } }
+const PREF_REGISTRIES = "noraneko.drops.registries"; // JSON: Registry[]。空なら既定の一つ
+const PREF_INSTALLED = "noraneko.drops.installed"; // JSON: { [code]: { ids, files, versions, at, note, registry } }
 const ENV_CODE = "NORANEKO_DROP_CODE"; // dev build だけ: 起動時にこの env があれば見ずに入れる(試験用)
 const DIR_NAME = "noraneko-drops";
 // tsdown の --env.MODE は import.meta.env.MODE の式をそのまま置き換えるので、cast や ?. を挟むと効かない
@@ -38,6 +38,44 @@ const { NetUtil } = ChromeUtils.importESModule(
   "resource://gre/modules/NetUtil.sys.mjs",
 );
 
+/** drop を配る registry(iOS の代替ストアと同じ絵: 既定の一つ + 本人が足したもの) */
+export interface Registry {
+  name: string;
+  base: string; // 例: https://dl.f3liz.casa/drop  → <base>/<code>/manifest.json
+  identity: string; // 判を押す workflow(Fulcio の cert の SAN)
+  issuer: string;
+}
+export const DEFAULT_REGISTRY: Registry = {
+  name: "f3liz",
+  base: "https://dl.f3liz.casa/drop",
+  identity: "https://github.com/f3liz-casa/noraneko-registry/.github/workflows/verify-and-sign.yml@refs/heads/main",
+  issuer: "https://token.actions.githubusercontent.com",
+};
+export function listRegistries(): Registry[] {
+  try {
+    const v = JSON.parse(Services.prefs.getStringPref(PREF_REGISTRIES, "[]")) as Registry[];
+    return v.length ? v : [DEFAULT_REGISTRY];
+  } catch {
+    return [DEFAULT_REGISTRY];
+  }
+}
+export function addRegistry(r: Registry): void {
+  if (!/^[a-z0-9][a-z0-9._-]{0,31}$/.test(r.name)) throw new Error(`bad registry name: ${r.name}`);
+  if (!/^https:\/\/[^\s/]+(\/[^\s]*)?$/.test(r.base)) throw new Error(`base は https の URL で: ${r.base}`);
+  if (!/^https:\/\//.test(r.identity)) throw new Error(`identity は workflow の URL で: ${r.identity}`);
+  const all = listRegistries().filter((x) => x.name !== r.name);
+  all.push({ ...r, base: r.base.replace(/\/$/, ""), issuer: r.issuer || DEFAULT_REGISTRY.issuer });
+  Services.prefs.setStringPref(PREF_REGISTRIES, JSON.stringify(all));
+}
+export function removeRegistry(name: string): void {
+  const all = listRegistries().filter((x) => x.name !== name);
+  Services.prefs.setStringPref(PREF_REGISTRIES, JSON.stringify(all));
+}
+function registryByName(name?: string): Registry {
+  const all = listRegistries();
+  return (name ? all.find((r) => r.name === name) : all[0]) ?? all[0];
+}
+
 export interface DropEntry {
   id: string;
   name: string;
@@ -49,8 +87,8 @@ export interface DropEntry {
 export interface DropManifest {
   code: string;
   note?: string;
-  built_at?: string;
-  source?: { repo?: string; commit?: string; path?: string };
+  contact?: string[]; // 作者の連絡先。"gh/<user>" "mail/<addr>" "social/<@user@host か URL>" か URL(drop.toml から CI が写す)
+  source?: { repo?: string; commit?: string; commit_time?: string; path?: string };
   entries: DropEntry[];
 }
 export interface InstalledDrop {
@@ -59,10 +97,13 @@ export interface InstalledDrop {
   versions: string[];
   at: number;
   note?: string;
+  registry?: string;
 }
 /** 見るための情報。manifest / schema / source を読んだだけで、何も実行していない */
 export interface DropInspection {
   code: string;
+  registry: Registry;
+  attestations: import("./sigstore/Sigstore.sys.mjs").AttestationCheck[]; // registry の判
   manifest: DropManifest;
   entries: {
     id: string;
@@ -100,17 +141,17 @@ export function isValidCode(code: string): boolean {
   return /^[a-z0-9][a-z0-9._-]{0,63}$/.test(code);
 }
 
-export async function fetchDropManifest(code: string): Promise<DropManifest> {
+/** manifest.json は bytes のまま持つ(判はその bytes に対して押されている) */
+async function fetchDropManifest(reg: Registry, code: string): Promise<{ manifest: DropManifest; bytes: Uint8Array }> {
   if (!isValidCode(code)) throw new Error(`bad code: ${code}`);
-  const resp = await fetch(`${DROP_BASE}/${code}/manifest.json`, {
-    cache: "no-store",
-  });
-  if (!resp.ok) throw new Error(`no drop for "${code}" (${resp.status})`);
-  const m = (await resp.json()) as DropManifest;
+  const resp = await fetch(`${reg.base}/${code}/manifest.json`, { cache: "no-store" });
+  if (!resp.ok) throw new Error(`no drop "${code}" in ${reg.name} (${resp.status})`);
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  const m = JSON.parse(new TextDecoder().decode(bytes)) as DropManifest;
   if (!Array.isArray(m.entries) || m.entries.length === 0) {
     throw new Error(`drop "${code}" has no entries`);
   }
-  return m;
+  return { manifest: m, bytes };
 }
 
 /** xpi(zip)の中を文字列で読む。実行はしない */
@@ -132,16 +173,28 @@ function readZipEntries(path: string): Map<string, string> {
   return out;
 }
 
-/** 1. 見る: 落として sha256 を確かめ、中身を読む。実行はしない。 */
-export async function inspectDrop(code: string): Promise<DropInspection> {
-  console.log(`[noraneko-drops] inspect ${code}: manifest`);
-  const m = await fetchDropManifest(code);
+/** registry の判を確かめる。無ければ ok=false で理由を書く。止めはしない */
+async function checkAttestations(reg: Registry, code: string, manifestBytes: Uint8Array) {
+  const { verifyKeylessBundle } = ChromeUtils.importESModule("resource://noraneko/modules/sigstore/Sigstore.sys.mjs");
+  const r = await fetch(`${reg.base}/${code}/manifest.json.sigstore.json`, { cache: "no-store" });
+  if (!r.ok) {
+    return [{ who: "registry", identity: reg.identity, issuer: reg.issuer, ok: false, reason: "registry の判(manifest.json.sigstore.json)が無い" }];
+  }
+  return [await verifyKeylessBundle("registry", await r.json(), manifestBytes, reg.identity, reg.issuer)];
+}
+
+/** 1. 見る: 落として sha256 を確かめ、判を確かめ、中身を読む。実行はしない。 */
+export async function inspectDrop(code: string, registryName?: string): Promise<DropInspection> {
+  const reg = registryByName(registryName);
+  console.log(`[noraneko-drops] inspect ${code} @ ${reg.name}: manifest`);
+  const { manifest: m, bytes: manifestBytes } = await fetchDropManifest(reg, code);
+  const attestations = await checkAttestations(reg, code, manifestBytes);
   const dir = dropDir(code);
   await IOUtils.makeDirectory(dir, { createAncestors: true, ignoreExisting: true });
   const entries: DropInspection["entries"] = [];
   for (const e of m.entries) {
     if (!/^[A-Za-z0-9._-]+$/.test(e.file)) throw new Error(`bad file name: ${e.file}`);
-    const url = `${DROP_BASE}/${code}/${e.file}`;
+    const url = `${reg.base}/${code}/${e.file}`;
     const resp = await fetch(url, { cache: "no-store" });
     if (!resp.ok) throw new Error(`download failed: ${url} (${resp.status})`);
     const bytes = new Uint8Array(await resp.arrayBuffer());
@@ -183,7 +236,7 @@ export async function inspectDrop(code: string): Promise<DropInspection> {
         .map(([n, text]) => ({ path: n, text })),
     });
   }
-  return { code, manifest: m, entries };
+  return { code, registry: reg, attestations, manifest: m, entries };
 }
 
 async function installFile(code: string, version: string, path: string): Promise<string> {
@@ -229,7 +282,7 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
     console.log(`[noraneko-drops] installed ${e.id} ${e.version} from ${code}`);
   }
   const all = readInstalled();
-  all[code] = { ids, files, versions, at: Date.now(), note: m.note };
+  all[code] = { ids, files, versions, at: Date.now(), note: m.note, registry: inspected.registry.name };
   writeInstalled(all);
   return ids;
 }
@@ -275,7 +328,7 @@ export async function restoreDropsAtStartup(): Promise<void> {
   console.log(`[noraneko-drops] startup: dev=${IS_DEV} env=${code || "-"} restored=${Object.keys(all).length}`);
   if (code && !all[code]) {
     try {
-      await installDrop(await inspectDrop(code));
+      await installDrop(await inspectDrop(code, Services.env.get("NORANEKO_DROP_REGISTRY") || undefined));
     } catch (e) {
       console.error(`[noraneko-drops] ${ENV_CODE}=${code} failed:`, e);
     }
