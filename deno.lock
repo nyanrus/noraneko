@@ -3616,7 +3616,10 @@
         "dependencies": [
           "jsr:@std/path@^1.1.4",
           "jsr:@types/gecko@*",
+          "npm:@preact/signals-core@^1.13.0",
+          "npm:@preact/signals@^2.8.1",
           "npm:birpc@4",
+          "npm:preact@^10.28.4",
           "npm:tsdown@0.21"
         ]
       },

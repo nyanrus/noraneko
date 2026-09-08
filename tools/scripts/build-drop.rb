@@ -75,7 +75,7 @@ entries = actors.map do |actor|
     # source を同梱する(入れる本人が読めるように。build された bytes が自分の source を持ち歩く)
     src_dir = actors_root
     FileUtils.mkdir_p(File.join(work, "source"))
-    ([File.join(src_dir, actor, "actor.ts")] + Dir.glob(File.join(src_dir, "_shared", "*.ts"))).each do |f|
+    (Dir.glob(File.join(src_dir, actor, "**", "*")).select { |f| File.file?(f) } + Dir.glob(File.join(src_dir, "_shared", "*.ts"))).each do |f|
       rel = f.sub("#{src_dir}/", "")
       FileUtils.mkdir_p(File.join(work, "source", File.dirname(rel)))
       FileUtils.cp(f, File.join(work, "source", rel))
@@ -104,9 +104,10 @@ entries = actors.map do |actor|
       js = files.select { |f| f.end_with?(".js", ".mjs") }
 
       # syntax check: 固める前に読めるか。壊れた印を入れて一日溶かした
-      #   deno check --quiet <js...> → 型は見ない(.js なので)、parse だけ。読めない JS があれば exit 1
+      #   node --check <js> → parse だけ(deno check は .js でも JSDoc の import('./x') を型として追い、
+      #   同梱した preact の source で転ぶ)。読めない JS があれば exit 1
       #   .json は JSON.parse
-      system("deno", "check", "--quiet", *js) or abort "#{actor}: syntax check failed (deno check)"
+      js.each { |f| system("node", "--check", f) or abort "#{actor}: syntax check failed (node --check #{f})" }
 
       # minify 禁止: 人が読めない JS は drop にしない(一行が長すぎるものは minify と見なす)
       js.each do |f|
