@@ -9,7 +9,7 @@
 # (dl.f3liz.casa/drop/<code>/… で配られ、about:nora:settings のコード欄で入る。modules/Drops.sys.mts)。
 #
 # built-in と同じ id で profile に入るので:
-# - version は built-in より大きく(<version>.<yyyymmddHHMM>)。
+# - version は built-in より大きく(<version>.<commit の yyyymmddHHMM>)。同じ commit なら同じ版。
 # - api.js は resource://noraneko-builtin/(= built-in の中身)ではなく、自分の xpi の actor.mjs を読む。
 require "json"
 require "digest"
@@ -37,7 +37,14 @@ end
 root = File.expand_path("../..", __dir__)
 dist = File.join(root, "browser-features/webext-actors/_dist")
 out = File.join(root, "_dist/drops", code)
-stamp = Time.now.utc.strftime("%Y%m%d%H%M")
+
+# reproducible: 同じ commit から同じ bytes が出るように。日時は「今」でなく commit の時刻。
+# zip の中の mtime も全部これに揃え、zip は TZ=UTC・ファイル一覧を sort して渡す(順も固定)。
+commit = `git -C #{root} rev-parse HEAD 2>/dev/null`.strip
+commit_time = `git -C #{root} log -1 --format=%ct 2>/dev/null`.strip.to_i
+abort "git の commit が読めない(reproducible にできない)" if commit.empty? || commit_time.zero?
+stamp = Time.at(commit_time).utc.strftime("%Y%m%d%H%M")
+ENV["TZ"] = "UTC"
 
 FileUtils.rm_rf(out)
 FileUtils.mkdir_p(out)
@@ -75,7 +82,22 @@ entries = actors.map do |actor|
     end
     abort "#{actor}: api.js の importESModule が見つからない" if patched == api
     File.write(File.join(work, "api.js"), patched)
-    system("zip", "-q", "-r", "-X", xpi, ".", chdir: work) or abort "zip failed: #{actor}"
+    # syntax check: 固める前に読めるか(.js/.mjs は deno check で parse、.json は JSON.parse)。壊れた印を入れて一日溶かした
+    Dir.chdir(work) do
+      files = Dir.glob("**/*", File::FNM_DOTMATCH).select { |f| File.file?(f) }.sort
+      js = files.select { |f| f.end_with?(".js", ".mjs") }
+      system("deno", "check", "--quiet", *js) or abort "#{actor}: syntax check failed (deno check)"
+      files.select { |f| f.end_with?(".json") }.each do |f|
+        JSON.parse(File.read(f)) rescue abort("#{actor}: #{f} is not valid JSON")
+      end
+      # 権限と mtime を揃える(umask や今の時刻が bytes に混ざらないように)
+      Dir.glob("**/*", File::FNM_DOTMATCH).each do |f|
+        next if f.end_with?("/.", "/..") || f == "." || f == ".."
+        File.chmod(File.directory?(f) ? 0o755 : 0o644, f)
+        File.utime(commit_time, commit_time, f)
+      end
+      system("zip", "-q", "-X", "-D", xpi, *files) or abort "zip failed: #{actor}"
+    end
   end
   size = File.size(xpi)
   sha256 = Digest::SHA256.file(xpi).hexdigest
@@ -85,9 +107,10 @@ end
 
 source = {
   repo: `git -C #{root} remote get-url origin 2>/dev/null`.strip.sub(/\.git\z/, ""),
-  commit: `git -C #{root} rev-parse HEAD 2>/dev/null`.strip,
+  commit: commit,
+  commit_time: Time.at(commit_time).utc.iso8601,
   path: "browser-features/webext-actors",
 }
 File.write(File.join(out, "manifest.json"),
-           JSON.pretty_generate({ code: code, note: note, built_at: Time.now.utc.iso8601, source: source, entries: entries }.compact) + "\n")
+           JSON.pretty_generate({ code: code, note: note, source: source, entries: entries }.compact) + "\n")
 puts "→ #{out}/manifest.json"
