@@ -40,6 +40,12 @@ export function onFinalUIStartup(): void {
     .catch((error: unknown) => {
       console.error("[noraneko-drops] startup install failed:", error);
     });
+  // registry の xpi へのリンクは、add-on のインストールでなく drops の「見る」へ(DropLinks.sys.mts)
+  try {
+    ChromeUtils.importESModule("resource://noraneko/modules/DropLinks.sys.mjs").registerDropLinks();
+  } catch (error) {
+    console.error("[noraneko-drops] link handler failed:", error);
+  }
   // sigstore の verifier(library)がブラウザの中で動くかの自己確認。ログ一行だけ
   ChromeUtils.importESModule("resource://noraneko/modules/sigstore/Sigstore.sys.mjs")
     .selfCheck()

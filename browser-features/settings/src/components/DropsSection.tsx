@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Drops: コードを入れる → 見る(何も実行しない) → 入れる → 戻す。中身は modules/Drops.sys.mts
 
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { dropsApi } from "../lib/privileged.ts";
 import type { DropInspection, InstalledDrop } from "../lib/privileged.ts";
 import { useTask } from "../lib/useTask.ts";
@@ -30,7 +30,14 @@ export function DropsSection() {
   const { busy, msg, run } = useTask(() => setInstalled(dropsApi ? dropsApi.listDrops() : {}));
   const entries = Object.entries(installed);
 
-  const inspect = () => run(async () => { setSeen(null); setSeen(await dropsApi!.inspectDrop(ref)); }, `見た: ${ref}(まだ入れていない)`);
+  const inspect = (u = ref, registry?: string) =>
+    run(async () => { setSeen(null); setSeen(await dropsApi!.inspectDrop(u, registry)); }, `見た: ${u}(まだ入れていない)`);
+  // registry の xpi へのリンクから(DropLinks.sys.mts): about:nora:settings#drop=<uuid>&registry=<name> で開いて、まず見る
+  useEffect(() => {
+    const q = new URLSearchParams(location.hash.slice(1));
+    const u = q.get("drop")?.trim().toLowerCase();
+    if (u && dropsApi) { setRef(u); inspect(u, q.get("registry") || undefined); }
+  }, []);
   const install = (d: DropInspection) => run(async () => { await dropsApi!.installDrop(d); setSeen(null); }, `入った: ${d.name}`);
   const remove = (c: string) => run(() => dropsApi!.removeDrop(c), `戻した: ${c}`);
 
@@ -48,7 +55,7 @@ export function DropsSection() {
           onInput={(e) => setRef((e.currentTarget as HTMLInputElement).value.trim())}
           onKeyDown={(e) => { if (e.key === "Enter" && ref && !busy) inspect(); }}
         />
-        <button class="primary" disabled={!dropsApi || busy || !ref} onClick={inspect}>見る</button>
+        <button class="primary" disabled={!dropsApi || busy || !ref} onClick={() => inspect()}>見る</button>
       </div>
       {msg && <p class="msg">{msg}</p>}
       {seen && <DropSheet seen={seen} busy={busy} onInstall={() => install(seen)} />}
