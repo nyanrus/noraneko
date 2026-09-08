@@ -40,6 +40,13 @@ export function onFinalUIStartup(): void {
     .catch((error: unknown) => {
       console.error("[noraneko-drops] startup install failed:", error);
     });
+  // sigstore の verifier(library)がブラウザの中で動くかの自己確認。ログ一行だけ
+  ChromeUtils.importESModule("resource://noraneko/modules/sigstore/Sigstore.sys.mjs")
+    .selfCheck()
+    .then((msg: string) => console.log(`[noraneko-sigstore] ${msg}`))
+    .catch((error: unknown) => {
+      console.error("[noraneko-sigstore] self check failed:", error);
+    });
 }
 
 /**
