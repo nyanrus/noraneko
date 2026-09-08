@@ -37,6 +37,17 @@ if (!actor) {
   throw new Error("WEBEXT_ACTOR env var is required");
 }
 
+// deps (drop.json, written by the registry's build.rb) stay outside the bundle:
+// their lib.js is loaded into the same scope first and binds nora_dep_<name>
+let deps: { name: string }[] = [];
+try {
+  deps = JSON.parse(Deno.readTextFileSync(new URL("./drop.json", import.meta.url))).deps ?? [];
+} catch {
+  // built-ins have no deps
+}
+const depGlobal = (name: string) => "nora_dep_" + name.replace(/[^a-z0-9]/gi, "_");
+const globals = Object.fromEntries(deps.flatMap((d) => [[d.name, depGlobal(d.name)], [`${d.name}/jsx-runtime`, depGlobal(d.name)]]));
+
 export default defineConfig({
   entry: { [`${actor}/content`]: `_gen/${actor}/content.entry.ts` },
   outDir: "_dist",
@@ -47,6 +58,8 @@ export default defineConfig({
   // minify しない: xpi の中の JS を人が読めるままにする(drop は入れる本人が読む)
   minify: false,
   alias,
+  // a dep and its jsx-runtime (jsxImportSource) both live in the dep's scope name
+  external: deps.flatMap((d) => [d.name, `${d.name}/jsx-runtime`]),
   treeshake: { manualPureFunctions: ["defineParent", "defineContent"] },
-  outputOptions: { entryFileNames: "[name].js", codeSplitting: false },
+  outputOptions: { entryFileNames: "[name].js", codeSplitting: false, globals },
 });

@@ -2,7 +2,7 @@
 // 見た drop の一枚: 判、連絡先、source、それぞれの actor の中身、注意、入れるボタン。
 // ここに出ているものは全部「読んだだけ」で、まだ何も実行していない
 
-import type { AttestationCheck, DropInspection, InspectedEntry } from "../lib/privileged.ts";
+import type { AttestationCheck, DropInspection, InspectedDep, InspectedEntry } from "../lib/privileged.ts";
 import { allAttested } from "../lib/privileged.ts";
 import { contactHref, contactList } from "../lib/contact.ts";
 import { sheetText } from "../lib/sheet.ts";
@@ -64,6 +64,22 @@ function Entry({ e }: { e: InspectedEntry }) {
   );
 }
 
+/** 使う library drop(std など)。版は manifest に固定されたもの。判と中身はこの drop と同じように読める */
+function Dep({ d, registry }: { d: InspectedDep; registry: string }) {
+  return (
+    <div class="entry">
+      <span class="name">
+        使う: {d.name} <code class="code">{d.version}</code>
+        {d.lib && " · lib.js を同じ scope に読む"}
+        {d.wasm && " · wasm(Tsubaki の runtime)を sandbox で起こす"}
+      </span>
+      {d.attestations.map((a, i) => <Stamp key={i} a={a} registry={registry} />)}
+      {d.manifest.note && <span class="fact">{d.manifest.note}</span>}
+      {d.entries.flatMap((e) => e.files.map((f) => <FileView key={`${e.file}/${f.path}`} title={e.file} path={f.path} text={f.text} />))}
+    </div>
+  );
+}
+
 function Caution() {
   return (
     <div class="caution">
@@ -85,6 +101,7 @@ export function DropSheet({ seen, busy, onInstall }: { seen: DropInspection; bus
       <Contacts contact={seen.manifest.contact} />
       <Source source={seen.manifest.source} />
       {seen.entries.map((e) => <Entry key={e.id} e={e} />)}
+      {(seen.deps ?? []).map((d) => <Dep key={d.uuid} d={d} registry={seen.registry.name} />)}
       {!ok && <Caution />}
       <div class="actions">
         <button class={ok ? "primary" : "danger"} disabled={busy} onClick={onInstall}>

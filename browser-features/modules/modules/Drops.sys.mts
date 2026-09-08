@@ -103,6 +103,22 @@ export interface DropManifest {
   contact?: string[]; // 作者の連絡先。"gh/<user>" "mail/<addr>" "social/<@user@host か URL>" か URL(drop.toml から CI が写す)
   source?: { repo?: string; commit?: string; commit_time?: string; path?: string };
   entries: DropEntry[];
+  lib?: boolean; // library drop(actor を持たない。使う drop の scope に読まれる)
+  deps?: DepRef[];
+}
+/** 見た library drop。使う drop の一枚に一緒に出す */
+export interface InspectedDep extends DepRef {
+  attestations: import("./sigstore/Sigstore.sys.mjs").AttestationCheck[];
+  manifest: DropManifest;
+  entries: { file: string; version: string; sha256: string; files: { path: string; text: string }[] }[];
+}
+/** 使う library drop。registry の build が版を固定して manifest に写す(組み直さない限り古いまま) */
+export interface DepRef {
+  name: string;
+  uuid: string;
+  version: string; // semver(1.0.0)。dl の /drop/<uuid>/v/<semver>/ から落とす
+  lib: boolean; // lib.js を持つ(content の scope に先に読む)
+  wasm: boolean; // wasm/ を持つ(Tsubaki の runtime)
 }
 export interface InstalledDrop {
   name?: string; // 札(manifest の name)
@@ -110,6 +126,7 @@ export interface InstalledDrop {
   files: string[];
   versions: string[];
   actors?: string[]; // 登録した JSWindowActor の名前(外すときに使う)
+  deps?: (DepRef & { file: string })[]; // 一緒に入れた library(profile の deps/<name>/<file>)
   at: number;
   note?: string;
   registry?: string;
@@ -121,6 +138,7 @@ export interface DropInspection {
   registry: Registry;
   attestations: import("./sigstore/Sigstore.sys.mjs").AttestationCheck[]; // registry の判
   manifest: DropManifest;
+  deps: InspectedDep[];
   entries: {
     id: string;
     name: string;
@@ -150,14 +168,23 @@ function writeInstalled(v: Record<string, InstalledDrop>): void {
 function dropDir(uuid: string): string {
   return PathUtils.join(PathUtils.profileDir, DIR_NAME, uuid);
 }
+/** build.ts(child.sys.mjs)と同じ規則: "noraneko-dep-" + uuid + "-" + semver、[a-z0-9] 以外は "-"、小文字 */
+function depAlias(d: DepRef): string {
+  return `noraneko-dep-${d.uuid}-${d.version}`.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+}
+/** dl の path: <uuid>(最新)か <uuid>/v/<semver>(その版のまま) */
+function dropPath(uuid: string, semver?: string): string {
+  if (semver && !/^\d+\.\d+\.\d+$/.test(semver)) throw new Error(`bad version: ${semver}`);
+  return semver ? `${uuid}/v/${semver}` : uuid;
+}
 /** build-drop.rb と同じ規則: "noraneko-drop-" + uuid + "-" + 版、[a-z0-9] 以外は "-"、小文字 */
 function resAlias(uuid: string, version: string): string {
   return `noraneko-drop-${uuid}-${version}`.replace(/[^a-z0-9]/gi, "-").toLowerCase();
 }
 
 /** manifest.json は bytes のまま持つ(判はその bytes に対して押されている) */
-async function fetchDropManifest(reg: Registry, uuid: string): Promise<{ manifest: DropManifest; bytes: Uint8Array }> {
-  const resp = await fetch(`${reg.base}/${uuid}/manifest.json`, { cache: "no-store" });
+async function fetchDropManifest(reg: Registry, uuid: string, semver?: string): Promise<{ manifest: DropManifest; bytes: Uint8Array }> {
+  const resp = await fetch(`${reg.base}/${dropPath(uuid, semver)}/manifest.json`, { cache: "no-store" });
   if (!resp.ok) throw new Error(`no drop ${uuid} in ${reg.name} (${resp.status})`);
   const bytes = new Uint8Array(await resp.arrayBuffer());
   const m = JSON.parse(new TextDecoder().decode(bytes)) as DropManifest;
@@ -212,9 +239,9 @@ function readZipEntries(path: string): Map<string, string> {
 }
 
 /** registry の判を確かめる。無ければ ok=false で理由を書く。止めはしない */
-async function checkAttestations(reg: Registry, uuid: string, manifestBytes: Uint8Array) {
+async function checkAttestations(reg: Registry, uuid: string, manifestBytes: Uint8Array, semver?: string) {
   const { verifyKeylessBundle } = ChromeUtils.importESModule("resource://noraneko/modules/sigstore/Sigstore.sys.mjs");
-  const r = await fetch(`${reg.base}/${uuid}/manifest.json.sigstore.json`, { cache: "no-store" });
+  const r = await fetch(`${reg.base}/${dropPath(uuid, semver)}/manifest.json.sigstore.json`, { cache: "no-store" });
   if (!r.ok) {
     return [{ who: "registry", identity: reg.identity, issuer: reg.issuer, ok: false, reason: "registry の判(manifest.json.sigstore.json)が無い" }];
   }
@@ -275,7 +302,45 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
         .map(([n, text]) => ({ path: n, text })),
     });
   }
-  return { uuid, name: m.name, registry: reg, attestations, manifest: m, entries };
+  // 使う library も、同じように落として、sha と判を見て、中を読む(版は manifest に固定されたもの)
+  const deps: InspectedDep[] = [];
+  for (const d of m.deps ?? []) {
+    const du = parseUuid(d.uuid);
+    const { manifest: dm, bytes: dbytes } = await fetchDropManifest(reg, du, d.version);
+    const dattest = await checkAttestations(reg, du, dbytes, d.version);
+    const ddir = PathUtils.join(dir, "deps", d.name);
+    await IOUtils.makeDirectory(ddir, { createAncestors: true, ignoreExisting: true });
+    const dentries: InspectedDep["entries"] = [];
+    for (const e of dm.entries) {
+      if (!/^[A-Za-z0-9._-]+$/.test(e.file)) throw new Error(`bad file name: ${e.file}`);
+      const url = `${reg.base}/${dropPath(du, d.version)}/${e.file}`;
+      const resp = await fetch(url, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`download failed: ${url} (${resp.status})`);
+      const path = PathUtils.join(ddir, e.file);
+      await IOUtils.write(path, new Uint8Array(await resp.arrayBuffer()), { tmpPath: `${path}.tmp` });
+      if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
+        await IOUtils.remove(path);
+        throw new Error(`sha256 mismatch: ${d.name}/${e.file}`);
+      }
+      const files = readZipEntries(path);
+      dentries.push({ file: e.file, version: e.version, sha256: e.sha256, files: [...files.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => ({ path: p, text })) });
+    }
+    console.log(`[noraneko-drops] inspect ${m.name}: dep ${d.name} ${d.version} ok`);
+    deps.push({ ...d, attestations: dattest, manifest: dm, entries: dentries });
+  }
+  return { uuid, name: m.name, registry: reg, attestations, manifest: m, deps, entries };
+}
+
+/** library の xpi に別名を張る(addon にはしない。使う drop の child が resource://<alias>/lib.js を scope に読む) */
+function mountDep(d: DepRef, path: string): void {
+  const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
+  const alias = depAlias(d);
+  if (res.hasSubstitution(alias)) res.setSubstitution(alias, null);
+  res.setSubstitutionWithFlags(
+    alias,
+    Services.io.newURI(`jar:${Services.io.newFileURI(new FileUtils.File(path)).spec}!/`),
+    Ci.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
+  );
 }
 
 async function installFile(uuid: string, version: string, path: string): Promise<{ id: string; actor: string }> {
@@ -316,6 +381,16 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
   const files: string[] = [];
   const versions: string[] = [];
   const actors: string[] = [];
+  const deps: InstalledDrop["deps"] = [];
+  for (const d of inspected.deps ?? []) {
+    for (const e of d.entries) {
+      const path = PathUtils.join(dir, "deps", d.name, e.file);
+      if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) throw new Error(`sha256 mismatch at install: ${d.name}/${e.file}`);
+      mountDep(d, path);
+      deps.push({ name: d.name, uuid: d.uuid, version: d.version, lib: d.lib, wasm: d.wasm, file: e.file });
+      console.log(`[noraneko-drops] dep ${d.name} ${d.version} ← ${path}`);
+    }
+  }
   for (const e of m.entries) {
     const path = PathUtils.join(dir, e.file);
     if (!(await IOUtils.exists(path))) throw new Error(`見てから入れて: ${e.file} が無い`);
@@ -330,7 +405,7 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
     console.log(`[noraneko-drops] installed ${e.id} ${e.version} from ${m.name} (${uuid})`);
   }
   const all = readInstalled();
-  all[uuid] = { name: m.name, ids, files, versions, actors, at: Date.now(), note: m.note, registry: inspected.registry.name };
+  all[uuid] = { name: m.name, ids, files, versions, actors, deps, at: Date.now(), note: m.note, registry: inspected.registry.name };
   writeInstalled(all);
   return ids;
 }
@@ -356,6 +431,11 @@ export async function removeDrop(ref: string): Promise<void> {
     const alias = resAlias(uuid, v);
     if (res.hasSubstitution(alias)) res.setSubstitution(alias, null);
   }
+  for (const dep of d.deps ?? []) {
+    const stillUsed = Object.entries(all).some(([u, o]) => u !== uuid && (o.deps ?? []).some((x) => x.uuid === dep.uuid && x.version === dep.version));
+    const alias = depAlias(dep);
+    if (!stillUsed && res.hasSubstitution(alias)) res.setSubstitution(alias, null);
+  }
   await IOUtils.remove(dropDir(uuid), { recursive: true, ignoreAbsent: true });
   delete all[uuid];
   writeInstalled(all);
@@ -380,6 +460,13 @@ export async function restoreDropsAtStartup(): Promise<void> {
       delete all[uuid];
       writeInstalled(all);
       continue;
+    }
+    for (const dep of d.deps ?? []) {
+      try {
+        mountDep(dep, PathUtils.join(dropDir(uuid), "deps", dep.name, dep.file));
+      } catch (e) {
+        console.error(`[noraneko-drops] restore ${d.name ?? uuid} dep ${dep.name} failed:`, e);
+      }
     }
     for (const [i, f] of (d.files ?? []).entries()) {
       try {

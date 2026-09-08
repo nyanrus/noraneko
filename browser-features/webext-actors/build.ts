@@ -52,6 +52,35 @@ function runAtEvent(a: Actor): string {
   }
 }
 
+/** One dependency, resolved by the registry's build.rb (drop.toml [deps] → uuid + the version in the registry tree) */
+interface Dep {
+  name: string;
+  uuid: string;
+  version: string; // semver, e.g. 1.0.0 — the dl keeps /drop/<uuid>/v/<semver>/
+  lib: boolean; // has lib.js (loaded into the content scope before content.js)
+  wasm: boolean; // has wasm/ (the Tsubaki runtime: ctx.ops)
+}
+/** _stage/<name>/drop.json: what the registry knows about this drop. Absent for the built-ins. */
+interface DropInfo {
+  name: string;
+  uuid: string;
+  version?: string; // lib drops: their own semver
+  lib?: boolean;
+  deps: Dep[];
+}
+const DROP: DropInfo | null = (() => {
+  try {
+    return JSON.parse(Deno.readTextFileSync(path.join(ROOT, "drop.json")));
+  } catch {
+    return null;
+  }
+})();
+const DEPS: Dep[] = DROP?.deps ?? [];
+/** The name a dep's lib.js binds in the scope (and the name the bundler maps the import to) */
+export const depGlobal = (name: string) => "nora_dep_" + name.replace(/[^a-z0-9]/gi, "_");
+/** resource alias of a dep: noraneko-dep-<uuid>-<semver> (Drops.sys.mts sets it; the same rule) */
+const depAlias = (d: Dep) => `noraneko-dep-${d.uuid}-${d.version}`.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+
 interface Actor {
   dir: string;
   meta: ActorMeta;
@@ -151,6 +180,7 @@ function genActorJson(a: Actor): string {
     // pages in the parent process (chrome://, about:preferences) and in every content process
     // (about:newtab lives in "privilegedabout"). Web pages only when a match says so (dev localhost).
     includeParent: true,
+    ...(DEPS.length ? { deps: DEPS } : {}),
     includeChrome: chrome,
     safeForUntrustedWebProcess: web,
   };
@@ -194,7 +224,7 @@ function genChildModule(a: Actor): string {
 export class ${name}Child extends JSWindowActorChild {
   #ran = false;
   #onDestroy = [];
-${a.wasm ? tsubakiSandbox(a) : ""}
+${a.wasm || DEPS.some((d) => d.wasm) ? tsubakiSandbox(a) : ""}
   handleEvent(event) {
     if (event.type !== "${runAtEvent(a)}" || this.#ran) return;
     this.#ran = true;
@@ -221,10 +251,12 @@ ${a.wasm ? tsubakiSandbox(a) : ""}
         },
         onDestroy: (fn) => actor.#onDestroy.push(fn),
         base: "resource://noraneko-builtin/${a.dir}/",
-        ${a.wasm ? "tsubaki: actor.#tsubaki()," : "tsubaki: undefined,"}
+        ${a.wasm || DEPS.some((d) => d.wasm) ? "tsubaki: actor.#tsubaki()," : "tsubaki: undefined,"}
       },
     };
     try {
+${DEPS.filter((d) => d.lib).map((d) => `      // dep ${d.name} ${d.version}: binds ${depGlobal(d.name)} in the scope
+      Services.scriptloader.loadSubScriptWithOptions("resource://${depAlias(d)}/lib.js", { target: scope, ignoreCache: true });`).join("\n")}
       Services.scriptloader.loadSubScript(
         "resource://noraneko-builtin/${a.dir}/content.js",
         scope,
@@ -252,26 +284,48 @@ ${a.wasm ? tsubakiSandbox(a) : ""}
 
 // The actor keeps its logic in Tsubaki (wasm/): a Cu.Sandbox of its own per
 // window, so the wasm's globals (tsubakiEval, tsubakiCall) are this window's
-// and this actor's, not the shared system global's. The glue finds its .wasm
-// next to itself through document.currentScript.src, so the sandbox gets a
-// document with just that.
+// and this actor's, not the shared system global's.
+//
+// The sandbox's principal is the drop's own resource:// origin, not the
+// system principal: Firefox treats WebAssembly compilation like eval, and
+// eval is not allowed in system contexts (nor in the parent process at all,
+// without security.allow_eval_in_parent_process). So this works where the
+// actor runs in a content process (about:newtab); a browser-window actor is
+// the parent process, and there it does not.
+//
+// The glue finds its .wasm next to itself through document.currentScript.src,
+// so the sandbox gets a document with just that. Chrome-side things handed in
+// (document, console, the ready callback, call arguments) are cloned or
+// exported, since a content sandbox may not touch chrome objects.
 function tsubakiSandbox(a: Actor): string {
   return `
   #tsubaki() {
-    const base = "resource://noraneko-builtin/${a.dir}/wasm/";
-    const sb = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal(), {
+    const base = "${(() => { const d = DEPS.find((d) => d.wasm); return d ? `resource://${depAlias(d)}/wasm/` : `resource://noraneko-builtin/${a.dir}/wasm/`; })()}";
+    const principal = Services.scriptSecurityManager.createContentPrincipal(Services.io.newURI(base), {});
+    const sb = Cu.Sandbox(principal, {
       sandboxName: "${actorName(a)} tsubaki",
       wantGlobalProperties: ["fetch", "TextDecoder", "TextEncoder", "URL"],
     });
-    sb.console = console;
-    sb.document = { currentScript: { src: base + "main.bc.wasm.js" } };
+    const tag = "[${actorName(a)} tsubaki]";
+    sb.console = Cu.cloneInto(
+      { log: (...x) => console.log(tag, ...x), warn: (...x) => console.warn(tag, ...x), error: (...x) => console.error(tag, ...x) },
+      sb,
+      { cloneFunctions: true },
+    );
+    sb.document = Cu.cloneInto({ currentScript: { src: base + "main.bc.wasm.js" } }, sb);
     sb.tsubakiEmbedded = true;
-    const ready = new Promise((resolve) => { sb.tsubakiOnReady = resolve; });
+    const ready = new Promise((resolve) => { sb.tsubakiOnReady = Cu.exportFunction(resolve, sb); });
+    // the jar channel says "application/wasm;charset=utf-8" and instantiateStreaming
+    // wants exactly "application/wasm": read the bytes and instantiate those
+    Cu.evalInSandbox(
+      "WebAssembly.instantiateStreaming = async (r, i, o) => WebAssembly.instantiate(await (await r).arrayBuffer(), i, o);",
+      sb,
+    );
     Services.scriptloader.loadSubScript(base + "main.bc.wasm.js", sb);
     const ops = {
       ready,
       eval: (src) => sb.tsubakiEval(src),
-      call: (name, ...args) => sb.tsubakiCall(name, args),
+      call: (name, ...args) => sb.tsubakiCall(name, Cu.cloneInto(args, sb)),
       // a .tsubaki file of this actor (ops/<file>), run at top level
       async load(rel) {
         await ready;
@@ -345,7 +399,54 @@ async function runTsdown(config: string, actorDir: string): Promise<void> {
   }
 }
 
+// A lib drop (drop.json lib: true): no actor. lib/index.ts is bundled to
+// _dist/lib/lib.js, an IIFE that binds nora_dep_<name> in whatever scope it is
+// loaded into; wasm/ is copied beside it. build-drop.rb packs _dist/lib as lib.xpi.
+async function buildLib(): Promise<void> {
+  const out = path.join(DIST, "lib");
+  Deno.mkdirSync(out, { recursive: true });
+  let hasLib = false;
+  try {
+    Deno.statSync(path.join(ROOT, "lib", "index.ts"));
+    hasLib = true;
+  } catch {
+    // wasm only
+  }
+  if (hasLib) {
+    await runTsdown("tsdown.lib.config.ts", "lib");
+    await assertReadable(path.join(out, "lib.js"));
+  }
+  let hasWasm = false;
+  try {
+    Deno.statSync(path.join(ROOT, "wasm"));
+    copyTree(path.join(ROOT, "wasm"), path.join(out, "wasm"));
+    hasWasm = true;
+  } catch {
+    // no wasm
+  }
+  const manifest = {
+    manifest_version: 2,
+    name: DROP!.name,
+    version: DROP!.version ?? "0.0.0",
+    browser_specific_settings: { gecko: { id: `${DROP!.name}@noraneko.app` } },
+    hidden: true,
+  };
+  Deno.writeTextFileSync(path.join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  Deno.writeTextFileSync(
+    path.join(out, "lib.json"),
+    JSON.stringify({ name: DROP!.name, uuid: DROP!.uuid, version: DROP!.version, global: hasLib ? depGlobal(DROP!.name) : null, wasm: hasWasm, deps: DEPS }, null, 2) + "\n",
+  );
+  console.log(`[webext-actors] lib ${DROP!.name}: ${[hasLib ? "lib.js" : "", hasWasm ? "wasm/" : ""].filter(Boolean).join(" ")}`);
+}
+
 // --- main ---
+
+if (DROP?.lib) {
+  await buildLib();
+  console.log("[webext-actors] build complete.");
+  Deno.exit(0);
+}
+
 
 const actorDirs = discoverActorDirs();
 const actors = await Promise.all(actorDirs.map(loadActor));

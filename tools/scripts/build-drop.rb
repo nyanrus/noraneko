@@ -97,7 +97,8 @@ entries = actors.map do |actor|
     # alias の規則は Drops.sys.mts と同じ: ("noraneko-drop-" + uuid + "-" + version) を [a-z0-9] 以外 "-" に、小文字。
     # 版を含めるのは、module cache が URL 単位で、同じ session で版を替えたとき古いのが残らないように
     res_alias = "noraneko-drop-#{uuid}-#{version}".gsub(/[^a-z0-9]/i, "-").downcase
-    %w[parent.sys.mjs child.sys.mjs].each do |f|
+    # lib(lib.js / wasm/ だけ。actor は無い)には親も子も無い
+    %w[parent.sys.mjs child.sys.mjs].select { |f| File.file?(File.join(work, f)) }.each do |f|
       src_text = File.read(File.join(work, f))
       patched = src_text.gsub(%r{resource://noraneko-builtin/[^/"]+/}, "resource://#{res_alias}/")
       abort "#{actor}: #{f} に resource://noraneko-builtin/ が無い" if patched == src_text
@@ -141,8 +142,14 @@ entries = actors.map do |actor|
   size = File.size(xpi)
   sha256 = Digest::SHA256.file(xpi).hexdigest
   puts "#{actor}: #{id} #{version} #{file} #{size}B"
-  { id: id, name: actor, version: version, file: file, sha256: sha256, size: size }
+  entry = { id: id, name: actor, version: version, file: file, sha256: sha256, size: size }
+  entry[:kind] = "lib" if actor == "lib"
+  entry
 end
+
+# drop.json(registry の build.rb が stage に置く): lib かどうかと、解決した deps
+drop_json = File.join(actors_root, "drop.json")
+drop_info = File.file?(drop_json) ? JSON.parse(File.read(drop_json)) : {}
 
 # manifest.json: どの repo の、どの commit の、どの path から build したか(git remote get-url origin が repo)
 source = {
@@ -152,5 +159,9 @@ source = {
   path: ENV.fetch("BUILD_SOURCE_PATH", "browser-features/webext-actors"),
 }
 File.write(File.join(out, "manifest.json"),
-           JSON.pretty_generate({ uuid: uuid, name: name, note: note, source: source, entries: entries }.compact) + "\n")
+           JSON.pretty_generate({
+             uuid: uuid, name: name, note: note, source: source, entries: entries,
+             lib: drop_info["lib"] ? true : nil,
+             deps: (drop_info["deps"] || []).empty? ? nil : drop_info["deps"],
+           }.compact) + "\n")
 puts "→ #{out}/manifest.json"

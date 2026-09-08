@@ -37,6 +37,8 @@ export interface DropManifest {
   note?: string;
   contact?: string | string[];
   source?: { repo?: string; commit?: string; commit_time?: string; path?: string };
+  lib?: boolean;
+  deps?: DepRef[];
 }
 export interface InspectedEntry {
   id: string;
@@ -51,12 +53,25 @@ export interface InspectedEntry {
   sources: { path: string; text: string }[];
   files: { path: string; text: string }[];
 }
+export interface DepRef {
+  name: string;
+  uuid: string;
+  version: string;
+  lib: boolean;
+  wasm: boolean;
+}
+export interface InspectedDep extends DepRef {
+  attestations: AttestationCheck[];
+  manifest: DropManifest;
+  entries: { file: string; version: string; sha256: string; files: { path: string; text: string }[] }[];
+}
 export interface DropInspection {
   uuid: string;
   name: string; // 札
   registry: Registry;
   attestations: AttestationCheck[];
   manifest: DropManifest;
+  deps: InspectedDep[];
   entries: InspectedEntry[];
 }
 export interface InstalledDrop {
