@@ -5,19 +5,18 @@ import { useState } from "preact/hooks";
 import { dropsApi } from "../lib/privileged.ts";
 import type { DropInspection, InstalledDrop } from "../lib/privileged.ts";
 import { useTask } from "../lib/useTask.ts";
-import { s } from "../styles.ts";
 import { Registries } from "./Registries.tsx";
 import { DropSheet } from "./DropSheet.tsx";
 
 function Installed({ code, d, busy, onRemove }: { code: string; d: InstalledDrop; busy: boolean; onRemove: () => void }) {
   return (
-    <div style={s.row}>
-      <span style={s.rowText}>
-        <span style={s.label}>{code}</span>
-        <span style={s.desc}>{d.note ?? ""}</span>
-        <code style={s.code}>{d.ids.join(", ")} @ {(d.versions ?? []).join(", ")} · {d.registry ?? "?"}</code>
+    <div class="row">
+      <span class="text">
+        <span class="label">{code}</span>
+        <span class="desc">{d.note ?? ""}</span>
+        <code class="code">{d.ids.join(", ")} @ {(d.versions ?? []).join(", ")} · {d.registry ?? "?"}</code>
       </span>
-      <button disabled={busy} onClick={onRemove}>戻す</button>
+      <button class="quiet" disabled={busy} onClick={onRemove}>戻す</button>
     </div>
   );
 }
@@ -30,19 +29,18 @@ export function DropsSection() {
   const [installed, setInstalled] = useState<Record<string, InstalledDrop>>(dropsApi ? dropsApi.listDrops() : {});
   const { busy, msg, run } = useTask(() => setInstalled(dropsApi ? dropsApi.listDrops() : {}));
   const registries = dropsApi ? dropsApi.listRegistries() : [];
+  const entries = Object.entries(installed);
 
   const inspect = () => run(async () => setSeen(await dropsApi!.inspectDrop(code, registry)), `見た: ${code}(まだ入れていない)`);
   const install = (d: DropInspection) => run(async () => { await dropsApi!.installDrop(d); setSeen(null); }, `入った: ${d.code}`);
   const remove = (c: string) => run(() => dropsApi!.removeDrop(c), `戻した: ${c}`);
 
   return (
-    <section style={s.section}>
-      <h2 style={s.h2}>Drops</h2>
-      <p style={s.hint}>
-        コードを入れると、まず中身を見る(何も実行しない)。それから「入れる」で built-in を置き換える。戻すと built-in に戻る。再起動は要らない。
-      </p>
+    <section class="card">
+      <h2>Drops</h2>
+      <p class="hint">コード一つで機能が降ってくる。入れると、まず中身を見る(何も実行しない)。それから「入れる」で built-in と入れ替わる。戻せば built-in に戻る。再起動は要らない。</p>
       <Registries onChange={() => setTick(tick + 1)} />
-      <div style={{ display: "flex", gap: "0.5rem" }}>
+      <div class="drop-input">
         <select value={registry} onChange={(e) => setRegistry((e.currentTarget as HTMLSelectElement).value)} disabled={!dropsApi || busy}>
           {registries.map((r) => <option key={r.name + tick} value={r.name}>{r.name}</option>)}
         </select>
@@ -51,15 +49,18 @@ export function DropsSection() {
           placeholder="code"
           disabled={!dropsApi || busy}
           onInput={(e) => setCode((e.currentTarget as HTMLInputElement).value.trim())}
-          style={s.input}
+          onKeyDown={(e) => { if (e.key === "Enter" && code && !busy) inspect(); }}
         />
-        <button disabled={!dropsApi || busy || !code} onClick={inspect}>見る</button>
+        <button class="primary" disabled={!dropsApi || busy || !code} onClick={inspect}>見る</button>
       </div>
-      {msg && <p style={{ ...s.hint, marginTop: "0.6rem" }}>{msg}</p>}
+      {msg && <p class="msg">{msg}</p>}
       {seen && <DropSheet seen={seen} busy={busy} onInstall={() => install(seen)} />}
-      {Object.entries(installed).map(([c, d]) => (
-        <Installed key={c} code={c} d={d} busy={busy} onRemove={() => remove(c)} />
-      ))}
+      {entries.length > 0 && (
+        <div class="installed">
+          <div class="k">入っているもの</div>
+          {entries.map(([c, d]) => <Installed key={c} code={c} d={d} busy={busy} onRemove={() => remove(c)} />)}
+        </div>
+      )}
     </section>
   );
 }

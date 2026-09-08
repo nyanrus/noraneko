@@ -3,7 +3,6 @@
 
 import { useState } from "preact/hooks";
 import { prefsApi, readBool } from "../lib/privileged.ts";
-import { color, s } from "../styles.ts";
 
 type Row = { key: string; label: string; desc: string };
 
@@ -11,17 +10,17 @@ const ROWS: Row[] = [
   {
     key: "noraneko.webext-actors.settings-bridge.enabled",
     label: "Settings bridge",
-    desc: "Pref access for settings pages via the built-in actor.",
+    desc: "設定ページが pref を読み書きする橋。",
   },
   {
     key: "noraneko.webext-actors.about-preferences.enabled",
-    label: "about:preferences integration",
-    desc: "Add the Noraneko entry to about:preferences via the built-in actor.",
+    label: "about:preferences の項目",
+    desc: "about:preferences の左の一覧に Noraneko を足す。",
   },
   {
     key: "noraneko.webext-actors.newtab.enabled",
-    label: "New tab data feed",
-    desc: "Feed Activity Stream data to the new tab page via the built-in actor.",
+    label: "新しいタブのデータ",
+    desc: "よく見るサイトなど(Activity Stream)を新しいタブに渡す。",
   },
 ];
 
@@ -33,18 +32,12 @@ function Toggle({ row }: { row: Row }) {
     setValue(prefsApi ? readBool(row.key) : next);
   };
   return (
-    <label style={{ ...s.row, cursor: "pointer" }}>
-      <input
-        type="checkbox"
-        checked={value}
-        disabled={!prefsApi}
-        onChange={onChange}
-        style={{ marginTop: "0.2rem", accentColor: color.accent }}
-      />
-      <span style={s.rowText}>
-        <span style={s.label}>{row.label}</span>
-        <span style={s.desc}>{row.desc}</span>
-        <code style={s.code}>{row.key} = {String(value)}</code>
+    <label class="row click">
+      <input type="checkbox" checked={value} disabled={!prefsApi} onChange={onChange} />
+      <span class="text">
+        <span class="label">{row.label}</span>
+        <span class="desc">{row.desc}</span>
+        <code class="code">{row.key} = {String(value)}</code>
       </span>
     </label>
   );
@@ -52,11 +45,9 @@ function Toggle({ row }: { row: Row }) {
 
 export function ActorsSection() {
   return (
-    <section style={s.section}>
-      <h2 style={s.h2}>Actors</h2>
-      <p style={s.hint}>
-        Built-in actors (xpi + JSWindowActor, the same shape as Firefox's own about:newtab). Each replaces a legacy JSActor. Changes apply after a restart.
-      </p>
+    <section class="card">
+      <h2>Actors</h2>
+      <p class="hint">built-in の機能(xpi + JSWindowActor。Firefox の about:newtab と同じ形)。それぞれ古い JSActor と入れ替わる。再起動で効く。</p>
       {ROWS.map((row) => <Toggle key={row.key} row={row} />)}
     </section>
   );

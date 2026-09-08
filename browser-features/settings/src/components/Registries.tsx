@@ -3,7 +3,6 @@
 
 import { useState } from "preact/hooks";
 import { dropsApi } from "../lib/privileged.ts";
-import { s } from "../styles.ts";
 
 const DEFAULT_ISSUER = "https://token.actions.githubusercontent.com";
 const DEFAULT_NAME = "f3liz";
@@ -33,27 +32,27 @@ export function Registries({ onChange }: { onChange: () => void }) {
   };
 
   return (
-    <details open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)} style={{ marginBottom: "0.8rem" }}>
-      <summary style={s.desc}>レジストリ({list.length})。既定は {DEFAULT_NAME}。自分のや友だちのを足せる(iOS の代替ストアと同じ絵)</summary>
+    <details class="fold" open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary>レジストリ({list.length})。既定は {DEFAULT_NAME}。自分のや友だちのを足せる</summary>
       {list.map((r) => (
-        <div key={r.name} style={s.row}>
-          <span style={s.rowText}>
-            <span style={s.label}>{r.name}</span>
-            <code style={s.code}>{r.base}</code>
-            <code style={s.code}>判: {r.identity}</code>
+        <div key={r.name} class="row">
+          <span class="text">
+            <span class="label">{r.name}</span>
+            <code class="code">{r.base}</code>
+            <code class="code">判: {r.identity}</code>
           </span>
           {r.name !== DEFAULT_NAME && (
-            <button onClick={() => { dropsApi?.removeRegistry(r.name); onChange(); }}>外す</button>
+            <button class="quiet" onClick={() => { dropsApi?.removeRegistry(r.name); onChange(); }}>外す</button>
           )}
         </div>
       ))}
-      <div style={{ display: "grid", gap: "0.4rem", marginTop: "0.6rem" }}>
+      <div class="form">
         <input placeholder="name(小文字と数字)" value={name} onInput={(e) => setName(value(e))} />
         <input placeholder="base URL(https://…/drop)" value={base} onInput={(e) => setBase(value(e))} />
         <input placeholder="identity(判を押す workflow の URL)" value={identity} onInput={(e) => setIdentity(value(e))} />
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <div class="actions">
           <button disabled={!dropsApi || !name || !base || !identity} onClick={add}>レジストリを足す</button>
-          {err && <span style={s.desc}>{err}</span>}
+          {err && <span class="msg">{err}</span>}
         </div>
       </div>
     </details>
