@@ -1,0 +1,5 @@
+The messageDigest in the bundle does not match the artifact hash.
+Verification should fail because the digest is inconsistent with the artifact.
+
+The digest field in the bundle is documented as an unauthenticated hint: this
+test exists as a consistency check, not as a security feature.

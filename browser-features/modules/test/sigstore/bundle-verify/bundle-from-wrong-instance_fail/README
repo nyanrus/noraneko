@@ -1,0 +1,2 @@
+This is a valid bundle from public good _staging_ instance: should not
+be considered valid for production because the trust roots are different.

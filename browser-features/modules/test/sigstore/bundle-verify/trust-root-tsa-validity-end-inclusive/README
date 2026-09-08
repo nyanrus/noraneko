@@ -1,0 +1,8 @@
+The timestamp is exactly equal to the end of its TSA trust-root validity
+period. TimeRange is a closed interval, so verification should succeed.
+
+Creation: copy the bundle and trusted root from `rekor2-happy-path`, inspect the
+RFC 3161 timestamp's generation time with
+`openssl ts -reply -in timestamp.tsr -text`, and set
+`timestampAuthorities[0].validFor.end` to that value:
+`2025-06-12T12:02:20Z`.

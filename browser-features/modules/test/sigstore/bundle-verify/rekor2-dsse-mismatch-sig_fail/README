@@ -1,0 +1,21 @@
+Invalid bundle for an in-toto DSSE envelope logged to Rekor v2 with the
+new hashedrekord-over-DSSE encoding (kind=hashedrekord/0.0.2). The DSSE
+envelope is valid in isolation and the payload is the same as what was
+logged to Rekor, but the envelope signature does not match the signature
+recorded in the tlog entry. The TSA timestamp matches the envelope
+signature (not the log entry's signature), so it should not produce a
+timestamp failure. Exploits the fact that ECDSA produces different
+signatures for the exact same input.
+
+Construction:
+  1. Sign in-toto statement A as DSSE → bundle1 (happy-path source)
+  2. Sign the same statement A as DSSE again with the same ECDSA key and
+     same Fulcio-issued certificate → bundle2
+  3. In bundle1, replace the envelope signature and the RFC3161 timestamps
+     with those from bundle2.
+
+Signed against staging Sigstore using the
+sigstore-conformance/extremely-dangerous-public-oidc-beacon workflow
+identity. The bundle ships its own trusted_root.json (the staging trust
+root); once production has a Rekor v2 instance the custom trust root can
+be removed.

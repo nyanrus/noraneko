@@ -1,0 +1,9 @@
+The Rekor integrated time is exactly equal to the end of the transparency log
+key's trust-root validity period. TimeRange is a closed interval, so
+verification should succeed.
+
+Creation: copy the bundle from `happy-path-v0.1`, export the production trusted
+root, find the tlog matching the bundle's log ID
+`wNI9atQGlz+VWfO6LRygH4QUfY/8W4RFwiT5i5WRgB0=`, and set
+`publicKey.validFor.end` to the bundle's integrated time (`1689177396`) in RFC
+3339 form: `2023-07-12T15:56:36Z`.

@@ -1,0 +1,8 @@
+The transparency log key's validFor interval is missing its required start.
+Verification must reject the malformed trust root rather than treating the
+missing bound as unbounded.
+
+Creation: copy the bundle and trusted root from `rekor2-happy-path`, find the
+tlog matching the bundle's log ID
+`8w1amZ2S5mJIQkQmPxdMuOrL/oJkvFg9MnQXmeOCXck=`, and delete
+`publicKey.validFor.start`.
