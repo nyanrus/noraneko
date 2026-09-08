@@ -191,9 +191,10 @@ export class ${name}Child extends JSWindowActorChild {
   }
 
   // The actor was unregistered (drop removed or replaced) or the window is going
-  // away: give the content hook its chance to put things back.
+  // away: give the content hook its chance to put things back. Last placed,
+  // first taken out (a view is unmounted before the box it was mounted in goes).
   didDestroy() {
-    for (const fn of this.#onDestroy.splice(0)) {
+    for (const fn of this.#onDestroy.splice(0).reverse()) {
       try {
         fn();
       } catch (e) {

@@ -343,6 +343,12 @@ export async function removeDrop(ref: string): Promise<void> {
       console.log(`[noraneko-drops] removed ${id} (${d.name ?? uuid})`);
     }
   }
+  // installFile が張った別名を外す(版ごとに一つ。残すと次の版まで jar: を指したままになる)
+  const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
+  for (const v of d.versions ?? []) {
+    const alias = resAlias(uuid, v);
+    if (res.hasSubstitution(alias)) res.setSubstitution(alias, null);
+  }
   await IOUtils.remove(dropDir(uuid), { recursive: true, ignoreAbsent: true });
   delete all[uuid];
   writeInstalled(all);

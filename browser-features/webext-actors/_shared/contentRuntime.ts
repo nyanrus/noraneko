@@ -11,6 +11,7 @@
 // (sendQuery) and to the page (exportFunction).
 
 import type { ActorMeta, ContentCtx, ContentHook } from "./defineActor.ts";
+import { makeIo } from "./io.ts";
 
 // Provided on the scope chain by child.sys.mjs.
 declare const __nora: {
@@ -37,6 +38,7 @@ export function runContent(_meta: ActorMeta, hook: ContentHook): void {
     onDestroy(fn) {
       __nora.onDestroy(fn);
     },
+    io: makeIo((fn) => __nora.onDestroy(fn)),
   };
 
   hook(parent, ctx);

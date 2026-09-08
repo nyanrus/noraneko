@@ -48,6 +48,8 @@ export interface ActorMeta {
   replaces?: string;
 }
 
+import type { Io } from "./io.ts";
+
 type ParentMethods = Record<string, (...args: any[]) => unknown>;
 
 export interface ContentCtx {
@@ -60,6 +62,12 @@ export interface ContentCtx {
    * replaced). Put back what the hook changed: DOM, observers, listeners.
    */
   onDestroy(fn: () => void): void;
+  /**
+   * Place things through these (DOM, styles, listeners, pref observers) and
+   * they are taken out again by themselves: each verb puts its way back on
+   * the same ledger as onDestroy.
+   */
+  io: Io;
 }
 
 /** Proxy to the parent methods; each call is forwarded to the main process. */
