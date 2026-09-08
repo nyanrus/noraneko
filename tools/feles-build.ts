@@ -35,12 +35,15 @@ class ReadyPipe {
  * Common setup for dev and stage modes: graceful shutdown, dev server, and browser launch
  */
 function setupDevServerAndBrowser(): void {
-  // Graceful shutdown
-  Deno.addSignalListener("SIGINT", () => {
-    logger.info("Shutting down...");
+  // Graceful shutdown(Ctrl-C も、kill も、端末が閉じたときも。vite を残さない)
+  const stop = (sig: string, code: number) => () => {
+    logger.info(`Shutting down (${sig})...`);
     DevServer.shutdown();
-    Deno.exit(130);
-  });
+    Deno.exit(code);
+  };
+  Deno.addSignalListener("SIGINT", stop("SIGINT", 130));
+  Deno.addSignalListener("SIGTERM", stop("SIGTERM", 143));
+  Deno.addSignalListener("SIGHUP", stop("SIGHUP", 129));
 
   const pipe = new ReadyPipe();
 
@@ -51,10 +54,16 @@ function setupDevServerAndBrowser(): void {
       s.includes("nora-")
     ) {
       logger.success("Dev servers are ready.");
-      // Launch browser
-      BrowserLauncher.run().catch((e: any) => {
-        logger.error(`Browser launcher failed: ${e?.message ?? e}`);
-      });
+      // Launch browser。閉じたら vite も止めて、この process も終わる(vite だけ残さない)
+      BrowserLauncher.run()
+        .catch((e: any) => {
+          logger.error(`Browser launcher failed: ${e?.message ?? e}`);
+        })
+        .finally(() => {
+          logger.info("Browser closed; stopping dev servers.");
+          DevServer.shutdown();
+          Deno.exit(0);
+        });
     }
   });
 

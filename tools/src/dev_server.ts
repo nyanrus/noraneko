@@ -23,6 +23,9 @@ export async function run(writer: any): Promise<void> {
     logger.warn(`Failed to create logs dir ${logsDir}: ${e?.message ?? e}`);
   }
 
+  // 前の回の vite が残っていたら(親が落ちて孤児になったもの)、先に片づける
+  await killStaleVite(PROJECT_ROOT);
+
   for (const server of servers) {
     const port = getPortFor(server.name).toString();
     // Run Vite via Deno's npm compatibility (Deno-only)
@@ -101,6 +104,36 @@ export async function run(writer: any): Promise<void> {
   } catch (e: any) {
     logger.warn(`Failed to write ready string to writer: ${e?.message ?? e}`);
   }
+}
+
+/**
+ * 前の回の vite(親が SIGKILL などで落ちて孤児になったもの)を止める。
+ * macOS には親と一緒に子が死ぬ仕組みが無いので、次の起動のここで片づける。
+ * 見分けかた: コマンドラインが `npm:vite` で、cwd がこの repo の中。
+ * (port で見ない: 取られていた port を避けて別の port に逃げた vite が、あとで browser の 5180 を塞いだことがある)
+ */
+export async function killStaleVite(projectRoot: string): Promise<void> {
+  const text = (c: Deno.CommandOutput) => new TextDecoder().decode(c.stdout);
+  let pids: number[] = [];
+  try {
+    pids = text(new Deno.Command("pgrep", { args: ["-f", "npm:vite"], stdout: "piped", stderr: "null" }).outputSync())
+      .split(/\s+/).filter(Boolean).map(Number).filter((p) => p !== Deno.pid);
+  } catch {
+    return; // pgrep が無ければ何もしない
+  }
+  let killed = 0;
+  for (const pid of pids) {
+    let cwd = "";
+    try {
+      // lsof -Fn で cwd の行は "n/path"
+      const out = text(new Deno.Command("lsof", { args: ["-a", "-d", "cwd", "-p", String(pid), "-Fn"], stdout: "piped", stderr: "null" }).outputSync());
+      cwd = (out.split("\n").find((l) => l.startsWith("n")) ?? "").slice(1);
+    } catch { /* ignore */ }
+    if (!cwd.startsWith(projectRoot)) continue;
+    logger.warn(`killing stale vite (pid ${pid}, cwd ${cwd}) left from a previous run`);
+    try { Deno.kill(pid, "SIGTERM"); killed++; } catch { /* ignore */ }
+  }
+  if (killed) await new Promise((r) => setTimeout(r, 800));
 }
 
 export function shutdown(): void {
