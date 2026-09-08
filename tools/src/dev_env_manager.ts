@@ -21,6 +21,8 @@ user_pref("security.allow_parent_unrestricted_js_loads", true);
 user_pref("remote.active-protocols", 1);
 user_pref("browser.newtabpage.enabled", true);
 user_pref("devtools.console.stdout.chrome", true);
+// drops(modules/Drops.sys.mts)の無署名 xpi を入れて次の起動でも生かすため。firefox.js の既定は true
+user_pref("xpinstall.signatures.required", false);
 `;
 
 export function savePrefs(profileDir: string): void {

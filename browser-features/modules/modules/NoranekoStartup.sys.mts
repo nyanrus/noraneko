@@ -34,6 +34,12 @@ export function onFinalUIStartup(): void {
   registerBuiltinWebExtActors().catch((error) => {
     console.error("Failed to register builtin WebExtension actors:", error);
   });
+  // NORANEKO_DROP_CODE=<code> で起動すると、その drop を入れる(dev と試験のため。Drops.sys.mts)
+  ChromeUtils.importESModule("resource://noraneko/modules/Drops.sys.mjs")
+    .maybeInstallDropFromEnv()
+    .catch((error: unknown) => {
+      console.error("[noraneko-drops] startup install failed:", error);
+    });
 }
 
 /**

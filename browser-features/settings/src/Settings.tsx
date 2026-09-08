@@ -109,6 +109,77 @@ function Toggle({ row }: { row: Row }) {
   );
 }
 
+// ドロップ: コード一つで機能(webext-actor の xpi)が降ってくる。中身は modules/Drops.sys.mts
+declare const ChromeUtils: any;
+const dropsApi = (() => {
+  try {
+    return typeof ChromeUtils !== "undefined"
+      ? ChromeUtils.importESModule("resource://noraneko/modules/Drops.sys.mjs")
+      : null;
+  } catch {
+    return null;
+  }
+})();
+
+function Drops() {
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [installed, setInstalled] = useState<Record<string, any>>(
+    dropsApi ? dropsApi.listDrops() : {},
+  );
+  const refresh = () => setInstalled(dropsApi ? dropsApi.listDrops() : {});
+  const run = async (fn: () => Promise<unknown>, ok: string) => {
+    setBusy(true);
+    setMsg("");
+    try {
+      await fn();
+      setMsg(ok);
+    } catch (e: any) {
+      setMsg(String(e?.message ?? e));
+    } finally {
+      setBusy(false);
+      refresh();
+    }
+  };
+  return (
+    <section style={s.section}>
+      <h2 style={s.h2}>Drops</h2>
+      <p style={s.hint}>
+        コードを入れると、その機能の束が降ってきて built-in を置き換える。戻すと built-in に戻る。再起動は要らない。
+      </p>
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <input
+          value={code}
+          placeholder="code"
+          disabled={!dropsApi || busy}
+          onInput={(e) => setCode((e.currentTarget as HTMLInputElement).value.trim())}
+          style={{ flex: 1, padding: "0.4rem 0.6rem", border: "1px solid #e6e9f0", borderRadius: "0.4rem" }}
+        />
+        <button
+          disabled={!dropsApi || busy || !code}
+          onClick={() => run(() => dropsApi.installDrop(code), `入った: ${code}`)}
+        >
+          入れる
+        </button>
+      </div>
+      {msg && <p style={{ ...s.hint, marginTop: "0.6rem" }}>{msg}</p>}
+      {Object.entries(installed).map(([c, d]) => (
+        <div key={c} style={s.row}>
+          <span style={s.rowText}>
+            <span style={s.label}>{c}</span>
+            <span style={s.desc}>{(d as any).note ?? ""}</span>
+            <code style={s.code}>{(d as any).ids.join(", ")} @ {(d as any).version}</code>
+          </span>
+          <button disabled={busy} onClick={() => run(() => dropsApi.removeDrop(c), `戻した: ${c}`)}>
+            戻す
+          </button>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function Settings() {
   const newtabPageEnabled = prefsApi
     ? String(prefsApi.getBoolPref("browser.newtabpage.enabled", false))
@@ -130,6 +201,8 @@ export function Settings() {
         </p>
         {ROWS.map((row) => <Toggle key={row.key} row={row} />)}
       </section>
+
+      <Drops />
 
       <section style={s.section}>
         <h2 style={s.h2}>Read check</h2>
