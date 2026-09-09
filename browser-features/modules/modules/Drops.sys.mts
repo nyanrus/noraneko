@@ -168,6 +168,28 @@ function writeInstalled(v: Record<string, InstalledDrop>): void {
 function dropDir(uuid: string): string {
   return PathUtils.join(PathUtils.profileDir, DIR_NAME, uuid);
 }
+/**
+ * profile/noraneko-drops/<uuid>/<version>/ — drop 自身の xpi の置き場。
+ * 版が path に入る理由は depDir と同じ(別名には版が入っているのに file は
+ * 上書きだったので、入れ替えた版の別名が、前の版の bytes を指していた)。
+ */
+function entryDir(uuid: string, version: string): string {
+  if (!/^\d+(\.\d+){1,3}$/.test(version)) throw new Error(`bad version: ${version}`);
+  return PathUtils.join(dropDir(uuid), version);
+}
+/**
+ * profile/noraneko-drops/<uuid>/deps/<name>/<version>/
+ *
+ * 版が path に入る。入っていないと、版を上げても書き先が同じ file なので、
+ * その session は前の版の jar handle が生きたまま = 中身は古いまま になる
+ * (registry の docs/TRAPS.md「入れ替えた dep は、その session ではまだ古い bytes」。
+ * std 1.1.0 の bytes が 1.2.0 として動いて半時間溶かした)。
+ */
+function depDir(uuid: string, name: string, version: string): string {
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(name)) throw new Error(`bad dep name: ${name}`);
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`bad dep version: ${version}`);
+  return PathUtils.join(dropDir(uuid), "deps", name, version);
+}
 /** build.ts(child.sys.mjs)と同じ規則: "noraneko-dep-" + uuid + "-" + semver、[a-z0-9] 以外は "-"、小文字 */
 function depAlias(d: DepRef): string {
   return `noraneko-dep-${d.uuid}-${d.version}`.replace(/[^a-z0-9]/gi, "-").toLowerCase();
@@ -266,7 +288,9 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     const resp = await fetch(url, { cache: "no-store" });
     if (!resp.ok) throw new Error(`download failed: ${url} (${resp.status})`);
     const bytes = new Uint8Array(await resp.arrayBuffer());
-    const path = PathUtils.join(dir, e.file);
+    const edir = entryDir(uuid, e.version);
+    await IOUtils.makeDirectory(edir, { createAncestors: true, ignoreExisting: true });
+    const path = PathUtils.join(edir, e.file);
     await IOUtils.write(path, bytes, { tmpPath: `${path}.tmp` });
     const digest = await IOUtils.computeHexDigest(path, "sha256");
     if (digest !== e.sha256) {
@@ -308,7 +332,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     const du = parseUuid(d.uuid);
     const { manifest: dm, bytes: dbytes } = await fetchDropManifest(reg, du, d.version);
     const dattest = await checkAttestations(reg, du, dbytes, d.version);
-    const ddir = PathUtils.join(dir, "deps", d.name);
+    const ddir = depDir(uuid, d.name, d.version);
     await IOUtils.makeDirectory(ddir, { createAncestors: true, ignoreExisting: true });
     const dentries: InspectedDep["entries"] = [];
     for (const e of dm.entries) {
@@ -331,32 +355,32 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
   return { uuid, name: m.name, registry: reg, attestations, manifest: m, deps, entries };
 }
 
-/** library の xpi に別名を張る(addon にはしない。使う drop の child が resource://<alias>/lib.js を scope に読む) */
-function mountDep(d: DepRef, path: string): void {
+/**
+ * resource:// の別名を、その xpi の root に向ける(path が null なら外す)。
+ * **いつも張り直す**: 同じ別名が、もう消えた file を指したまま残っていることがある。
+ */
+function setAlias(alias: string, path: string | null): void {
   const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
-  const alias = depAlias(d);
   if (res.hasSubstitution(alias)) res.setSubstitution(alias, null);
+  if (path === null) return;
   res.setSubstitutionWithFlags(
     alias,
     Services.io.newURI(`jar:${Services.io.newFileURI(new FileUtils.File(path)).spec}!/`),
     Ci.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
   );
 }
+/** library の xpi に別名を張る(addon にはしない。使う drop の child が resource://<alias>/lib.js を scope に読む) */
+function mountDep(d: DepRef, path: string): void {
+  setAlias(depAlias(d), path);
+}
 
 async function installFile(uuid: string, version: string, path: string): Promise<{ id: string; actor: string }> {
   const file = new FileUtils.File(path);
   // xpi の root に別名を張る。parent.sys.mjs / child.sys.mjs / actor.mjs / content.js はこの URL で読まれる
   // (importESModule は jar:file: を信用しない。content process にも同じ別名が届く)
-  const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
   const alias = resAlias(uuid, version);
   const root = `resource://${alias}/`;
-  if (!res.hasSubstitution(alias)) {
-    res.setSubstitutionWithFlags(
-      alias,
-      Services.io.newURI(`jar:${Services.io.newFileURI(file).spec}!/`),
-      Ci.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
-    );
-  }
+  setAlias(alias, path);
   try {
     const addon = await AddonManager.installTemporaryAddon(file);
     const NoraActors = ChromeUtils.importESModule("resource://noraneko/modules/NoraActors.sys.mjs");
@@ -384,15 +408,21 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
   const deps: InstalledDrop["deps"] = [];
   for (const d of inspected.deps ?? []) {
     for (const e of d.entries) {
-      const path = PathUtils.join(dir, "deps", d.name, e.file);
+      const path = PathUtils.join(depDir(uuid, d.name, d.version), e.file);
       if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) throw new Error(`sha256 mismatch at install: ${d.name}/${e.file}`);
       mountDep(d, path);
       deps.push({ name: d.name, uuid: d.uuid, version: d.version, lib: d.lib, wasm: d.wasm, file: e.file });
       console.log(`[noraneko-drops] dep ${d.name} ${d.version} ← ${path}`);
     }
+    // この drop が使わなくなった版は置いていかない(版が path に入るので、
+    // 上書きされずに残る。消してよいのは、いま入れた版以外のもの)
+    const kept = PathUtils.filename(depDir(uuid, d.name, d.version));
+    for (const other of await IOUtils.getChildren(PathUtils.join(dir, "deps", d.name)).catch(() => [])) {
+      if (PathUtils.filename(other) !== kept) await IOUtils.remove(other, { recursive: true, ignoreAbsent: true });
+    }
   }
   for (const e of m.entries) {
-    const path = PathUtils.join(dir, e.file);
+    const path = PathUtils.join(entryDir(uuid, e.version), e.file);
     if (!(await IOUtils.exists(path))) throw new Error(`見てから入れて: ${e.file} が無い`);
     if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
       throw new Error(`sha256 mismatch at install: ${e.file}`);
@@ -403,6 +433,18 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
     files.push(e.file);
     versions.push(e.version);
     console.log(`[noraneko-drops] installed ${e.id} ${e.version} from ${m.name} (${uuid})`);
+  }
+  // 使わなくなった版は置いていかない(deps と同じ理由で、上書きされずに残るので)。
+  // 版の無い path に置かれていた前の形のものも、ここで片づく
+  const keep = new Set(versions);
+  const flat = new Set(files);
+  for (const child of await IOUtils.getChildren(dir).catch(() => [])) {
+    const name = PathUtils.filename(child);
+    if (name === "deps" || keep.has(name)) continue;
+    if (!flat.has(name) && !/^\d+(\.\d+){1,3}$/.test(name)) continue;
+    // file が消えるなら、それを指していた別名も外す
+    if (/^\d+(\.\d+){1,3}$/.test(name)) setAlias(resAlias(uuid, name), null);
+    await IOUtils.remove(child, { recursive: true, ignoreAbsent: true });
   }
   const all = readInstalled();
   all[uuid] = { name: m.name, ids, files, versions, actors, deps, at: Date.now(), note: m.note, registry: inspected.registry.name };
@@ -426,15 +468,10 @@ export async function removeDrop(ref: string): Promise<void> {
     }
   }
   // installFile が張った別名を外す(版ごとに一つ。残すと次の版まで jar: を指したままになる)
-  const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
-  for (const v of d.versions ?? []) {
-    const alias = resAlias(uuid, v);
-    if (res.hasSubstitution(alias)) res.setSubstitution(alias, null);
-  }
+  for (const v of d.versions ?? []) setAlias(resAlias(uuid, v), null);
   for (const dep of d.deps ?? []) {
     const stillUsed = Object.entries(all).some(([u, o]) => u !== uuid && (o.deps ?? []).some((x) => x.uuid === dep.uuid && x.version === dep.version));
-    const alias = depAlias(dep);
-    if (!stillUsed && res.hasSubstitution(alias)) res.setSubstitution(alias, null);
+    if (!stillUsed) setAlias(depAlias(dep), null);
   }
   await IOUtils.remove(dropDir(uuid), { recursive: true, ignoreAbsent: true });
   delete all[uuid];
@@ -463,14 +500,21 @@ export async function restoreDropsAtStartup(): Promise<void> {
     }
     for (const dep of d.deps ?? []) {
       try {
-        mountDep(dep, PathUtils.join(dropDir(uuid), "deps", dep.name, dep.file));
+        // 版の無い path で入っていたもの(この形より前)も、そのまま読む
+        const versioned = PathUtils.join(depDir(uuid, dep.name, dep.version), dep.file);
+        const flat = PathUtils.join(dropDir(uuid), "deps", dep.name, dep.file);
+        mountDep(dep, (await IOUtils.exists(versioned)) ? versioned : flat);
       } catch (e) {
         console.error(`[noraneko-drops] restore ${d.name ?? uuid} dep ${dep.name} failed:`, e);
       }
     }
     for (const [i, f] of (d.files ?? []).entries()) {
       try {
-        await installFile(uuid, d.versions?.[i] ?? "", PathUtils.join(dropDir(uuid), f));
+        const version = d.versions?.[i] ?? "";
+        // 版の無い path で入っていたもの(この形より前)も、そのまま読む
+        const versioned = PathUtils.join(entryDir(uuid, version), f);
+        const flat = PathUtils.join(dropDir(uuid), f);
+        await installFile(uuid, version, (await IOUtils.exists(versioned)) ? versioned : flat);
       } catch (e) {
         console.error(`[noraneko-drops] restore ${d.name ?? uuid}/${f} failed:`, e);
       }
