@@ -112,8 +112,13 @@ export interface DropManifest {
   entries: DropEntry[];
   lib?: boolean; // library drop(actor を持たない。使う drop の scope に読まれる)
   deps?: DepRef[];
-  /** 96px までの PNG を data: で(manifest の中 = 判の内側)。棚にも一枚にも出る */
-  icon?: string;
+  /**
+   * 96px までの PNG。同じ bytes が **xpi の中**(`in` の xpi の `icon.png`)と、
+   * **manifest の隣**(dl の `/drop/<uuid>/<file>`)の両方にある。
+   * 一枚を見るときは落とした xpi から読む(取りに行かない)。棚は落とす前なので隣のほうを使い、
+   * 配る側がこの sha256 を照らしてからでないと返さない。
+   */
+  icon?: { file: string; type?: string; size?: number; sha256: string; in?: string };
   /** xpi の中の絵。落として判を見たあと(= 一枚を開いたとき)だけ読む */
   shots?: Shot[];
 }
@@ -146,6 +151,8 @@ export interface InstalledDrop {
 export interface DropInspection {
   uuid: string;
   name: string; // 札(manifest の name)
+  /** manifest の icon を xpi から読んだもの(data: URI)。読めなければ null */
+  icon?: string | null;
   /** manifest の shots を xpi から読んだもの(data: URI)。読めなかったものは並ばない */
   shots?: { file: string; dataUri: string }[];
   registry: Registry;
@@ -254,7 +261,7 @@ const TEXT_EXT = /\.(js|mjs|cjs|ts|tsx|json|md|css|html|xhtml|svg|txt|toml|tsuba
 /** xpi の中の絵を data: にする。512KB まで、中身の magic が PNG / JPEG / WebP のものだけ */
 const SHOT_MAX = 512 * 1024;
 function readZipImage(path: string, name: string): string | null {
-  if (!/^shots\/[A-Za-z0-9._-]+$/.test(name)) return null;
+  if (!/^(icon\.png|shots\/[A-Za-z0-9._-]+)$/.test(name)) return null;
   const zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
   try {
     zr.open(new FileUtils.File(path));
@@ -378,7 +385,13 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
         .map(([n, text]) => ({ path: n, text })),
     });
   }
-  // 絵: manifest が「どの xpi の中か」を覚えている。落として sha を見たあとの file から読む
+  // 絵: manifest が「どの xpi の中か」を覚えている。落として sha を見たあとの file から読む。
+  // 一枚を開いているときは xpi がもう手元にあるので、絵のために取りに行くことはしない
+  let icon: string | null = null;
+  if (m.icon) {
+    const holder = m.entries.find((e) => e.file === m.icon!.in) ?? m.entries[0];
+    if (holder) icon = readZipImage(PathUtils.join(entryDir(uuid, holder.version), holder.file), "icon.png");
+  }
   const shots: { file: string; dataUri: string }[] = [];
   for (const shot of m.shots ?? []) {
     const holder = m.entries.find((e) => e.file === shot.in);
@@ -413,7 +426,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     console.log(`[noraneko-drops] inspect ${m.name}: dep ${d.name} ${d.version} ok`);
     deps.push({ ...d, attestations: dattest, manifest: dm, entries: dentries });
   }
-  return { uuid, name: m.name, shots, registry: reg, attestations, manifest: m, deps, entries };
+  return { uuid, name: m.name, icon, shots, registry: reg, attestations, manifest: m, deps, entries };
 }
 
 /**
@@ -549,7 +562,7 @@ export interface CatalogItem {
   contact: string[];
   /** library(ほかの drop が使うもの)。棚には並べない */
   lib: boolean;
-  /** 96px までの PNG の data:(判の内側)。無ければ null */
+  /** 絵の URL(`<registry>/<uuid>/<file>`)。配る側が sha256 を照らしてから返す。無ければ null */
   icon: string | null;
   /** 絵の枚数(中身は「見る」で開いたときに xpi から読む) */
   shots: number;
@@ -570,6 +583,14 @@ export interface CatalogItem {
  * 持っていたら、先に並んでいる registry のものを採る(findDrop と同じ順)。
  * ここで返す字は **registry から来た字** なので、描くときは必ずテキストとして描く。
  */
+/** index.json の icon(`{ file, sha256 }`)から、棚が <img> に渡せる URL を組む */
+function iconUrlOf(reg: Registry, uuid: string, icon: unknown): string | null {
+  const i = icon as { file?: unknown; sha256?: unknown } | null | undefined;
+  if (!i || typeof i.file !== "string" || typeof i.sha256 !== "string") return null;
+  if (!/^[A-Za-z0-9._-]+\.png$/.test(i.file) || !/^[0-9a-f]{64}$/.test(i.sha256)) return null;
+  return `${reg.base}/${uuid}/${i.file}`;
+}
+
 export async function listCatalog(): Promise<{ items: CatalogItem[]; failed: { registry: string; reason: string }[] }> {
   const items: CatalogItem[] = [];
   const seen = new Set<string>();
@@ -590,8 +611,9 @@ export async function listCatalog(): Promise<{ items: CatalogItem[]; failed: { r
           name: d.name as string,
           note: typeof d.note === "string" ? d.note : "",
           lib: d.lib === true,
-          // 形と大きさを見てから通す(棚に描くのは、これだけ)
-          icon: typeof d.icon === "string" && d.icon.startsWith("data:image/png;base64,") && d.icon.length <= 64 * 1024 ? d.icon : null,
+          // 棚は xpi を落とす前なので、絵は manifest の隣の一枚を指す。file の名前だけ見てから
+          // 組み立てる(sha256 を照らすのは配る側。ここは URL を作るだけ)
+          icon: iconUrlOf(reg, uuid, d.icon),
           shots: typeof d.shots === "number" ? d.shots : 0,
           contact: Array.isArray(d.contact) ? d.contact.filter((c) => typeof c === "string") : [],
           version: typeof d.version === "string" ? d.version : null,

@@ -110,7 +110,8 @@ export function DropSheet({ seen, busy, onInstall }: { seen: DropInspection; bus
   return (
     <div class="sheet">
       <p class="meta" style={{ margin: "0 0 0.5rem" }}>
-        {seen.manifest.icon && <img class="icon" src={seen.manifest.icon} alt="" />}
+        {/* 落とした xpi の中から読んだ絵。ここでは何も取りに行かない */}
+        {seen.icon && <img class="icon" src={seen.icon} alt="" />}
         <span class="k">{seen.name}</span> <code class="code">{seen.uuid}</code> <span>· {seen.registry.name}</span></p>
       {seen.attestations.map((a) => <Stamp key={a.who} a={a} registry={seen.registry.name} />)}
       {seen.manifest.note && <p class="meta">{seen.manifest.note}</p>}
