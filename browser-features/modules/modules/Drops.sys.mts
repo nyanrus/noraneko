@@ -480,6 +480,70 @@ export async function removeDrop(ref: string): Promise<void> {
   await ChromeUtils.importESModule("resource://noraneko/modules/NoranekoStartup.sys.mjs").registerBuiltinWebExtActors();
 }
 
+/** 棚の一件(registry の /index.json が返す形に、どの registry のものかを足したもの) */
+export interface CatalogItem {
+  uuid: string;
+  name: string;
+  note: string;
+  contact: string[];
+  /** library(ほかの drop が使うもの)。棚には並べない */
+  lib: boolean;
+  version: string | null;
+  entries: { name?: string; version?: string; file?: string; size?: number }[];
+  deps: { name?: string; version?: string }[];
+  source: { repo?: string; commit?: string; commit_time?: string; path?: string } | null;
+  /** registry の判が Rekor に載っている番号(registry が判を押していれば) */
+  rekor: number | null;
+  /** どの registry の棚か */
+  registry: string;
+}
+
+/**
+ * 店の棚: registry の一覧に順に `<base>/index.json` を訊いて、並べられるものを集める。
+ *
+ * 一つの registry が転んでも棚は出す(理由を添えて返す)。同じ uuid を二つの registry が
+ * 持っていたら、先に並んでいる registry のものを採る(findDrop と同じ順)。
+ * ここで返す字は **registry から来た字** なので、描くときは必ずテキストとして描く。
+ */
+export async function listCatalog(): Promise<{ items: CatalogItem[]; failed: { registry: string; reason: string }[] }> {
+  const items: CatalogItem[] = [];
+  const seen = new Set<string>();
+  const failed: { registry: string; reason: string }[] = [];
+  for (const reg of listRegistries()) {
+    try {
+      const resp = await fetch(`${reg.base}/index.json`, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      const body = (await resp.json()) as { drops?: unknown[] };
+      for (const raw of body.drops ?? []) {
+        const d = raw as Partial<CatalogItem>;
+        const uuid = typeof d.uuid === "string" ? d.uuid.toLowerCase() : "";
+        if (!UUID.test(uuid) || seen.has(uuid)) continue;
+        if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(d.name ?? "")) continue;
+        seen.add(uuid);
+        items.push({
+          uuid,
+          name: d.name as string,
+          note: typeof d.note === "string" ? d.note : "",
+          lib: d.lib === true,
+          contact: Array.isArray(d.contact) ? d.contact.filter((c) => typeof c === "string") : [],
+          version: typeof d.version === "string" ? d.version : null,
+          entries: Array.isArray(d.entries) ? d.entries : [],
+          deps: Array.isArray(d.deps) ? d.deps : [],
+          source: (d.source as CatalogItem["source"]) ?? null,
+          rekor: typeof d.rekor === "number" ? d.rekor : null,
+          registry: reg.name,
+        });
+      }
+    } catch (e) {
+      failed.push({ registry: reg.name, reason: String((e as Error)?.message ?? e) });
+      console.warn(`[noraneko-drops] ${reg.name} の棚が読めない:`, e);
+    }
+  }
+  items.sort((a, b) => a.name.localeCompare(b.name));
+  console.log(`[noraneko-drops] catalog: ${items.length} 件` + (failed.length ? `(${failed.length} の registry は読めなかった)` : ""));
+  return { items, failed };
+}
+
 export function listDrops(): Record<string, InstalledDrop> {
   return readInstalled();
 }

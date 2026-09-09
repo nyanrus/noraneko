@@ -101,6 +101,12 @@ details.fold { margin-bottom: 0.8rem; }
 
 .installed { margin-top: 1.2rem; }
 .installed .k { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.2rem; }
+
+/* 棚(一覧)。入っているもの・新しい版があるものに、小さな札 */
+.pill { margin-inline-start: 0.5rem; font-size: 0.7rem; font-weight: 400; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.05rem 0.5rem; vertical-align: 0.08em; }
+.by-uuid { margin-top: 1rem; }
+.by-uuid > summary { color: var(--muted); font-size: 0.82rem; cursor: pointer; }
+.by-uuid > summary::marker { color: var(--line); }
 `;
 
 /** 一度だけ <style> を head に置く */

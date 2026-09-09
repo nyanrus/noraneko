@@ -74,6 +74,19 @@ export interface DropInspection {
   deps: InspectedDep[];
   entries: InspectedEntry[];
 }
+export interface CatalogItem {
+  uuid: string;
+  name: string;
+  note: string;
+  contact: string[];
+  lib: boolean;
+  version: string | null;
+  entries: { name?: string; version?: string; file?: string; size?: number }[];
+  deps: { name?: string; version?: string }[];
+  source?: { repo?: string; commit?: string; commit_time?: string; path?: string } | null;
+  rekor: number | null;
+  registry: string;
+}
 export interface InstalledDrop {
   name?: string;
   ids: string[];
@@ -91,6 +104,7 @@ export interface DropsApi {
   installDrop(inspected: DropInspection): Promise<string[]>;
   removeDrop(ref: string): Promise<void>;
   listDrops(): Record<string, InstalledDrop>;
+  listCatalog(): Promise<{ items: CatalogItem[]; failed: { registry: string; reason: string }[] }>;
 }
 
 export const dropsApi: DropsApi | null = (() => {
