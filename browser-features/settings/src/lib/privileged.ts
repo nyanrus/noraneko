@@ -68,6 +68,7 @@ export interface InspectedDep extends DepRef {
 export interface DropInspection {
   uuid: string;
   name: string; // 札
+  shots?: { file: string; dataUri: string }[];
   registry: Registry;
   attestations: AttestationCheck[];
   manifest: DropManifest;
@@ -80,6 +81,8 @@ export interface CatalogItem {
   note: string;
   contact: string[];
   lib: boolean;
+  icon: string | null;
+  shots: number;
   version: string | null;
   entries: { name?: string; version?: string; file?: string; size?: number }[];
   deps: { name?: string; version?: string }[];

@@ -11,6 +11,18 @@ import { useTask } from "../lib/useTask.ts";
 import { Registries } from "./Registries.tsx";
 import { DropSheet } from "./DropSheet.tsx";
 
+// 絵が無い drop のタイル。サイト(noraneko.f3liz.casa)と同じ六色から、名前で決める
+const TINTS = ["sakura", "tamago", "sora", "wakaba", "fuji", "momo"];
+function tintOf(name: string): string {
+  let n = 0;
+  for (let i = 0; i < name.length; i++) n = (n + name.charCodeAt(i)) % TINTS.length;
+  return TINTS[n];
+}
+function Icon({ item }: { item: CatalogItem }) {
+  if (item.icon) return <img class="icon" src={item.icon} alt="" />;
+  return <span class={`icon tile ${tintOf(item.name)}`}>{[...item.name][0] ?? "?"}</span>;
+}
+
 /** 1.3.0 と 1.10.0 を数で比べる(字で比べると 10 < 3 になる) */
 function newer(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false;
@@ -38,6 +50,7 @@ function Shelf({ items, installed, busy, onSee, onRemove }: {
         const update = have && newer(i.version, version);
         return (
           <div class="row" key={`${i.registry}:${i.uuid}`}>
+            <Icon item={i} />
             <span class="text">
               <span class="label">
                 {i.name}
@@ -47,6 +60,7 @@ function Shelf({ items, installed, busy, onSee, onRemove }: {
               <code class="code">
                 {i.version ?? "?"} · {i.registry}
                 {i.rekor === null ? " · 判なし" : " · 判あり"}
+                {i.shots > 0 && ` · 絵 ${i.shots}`}
                 {have && ` · 入っているのは ${version ?? "?"}`}
               </code>
             </span>

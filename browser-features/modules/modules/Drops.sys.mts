@@ -96,6 +96,13 @@ export interface DropEntry {
   sha256: string;
   size: number;
 }
+/** 絵の一枚。どの entry の xpi に入っているかを、manifest が覚えている */
+export interface Shot {
+  file: string;
+  type?: string;
+  size?: number;
+  in: string;
+}
 export interface DropManifest {
   uuid: string;
   name: string; // 札(registry の中の dir の名前)
@@ -105,6 +112,10 @@ export interface DropManifest {
   entries: DropEntry[];
   lib?: boolean; // library drop(actor を持たない。使う drop の scope に読まれる)
   deps?: DepRef[];
+  /** 96px までの PNG を data: で(manifest の中 = 判の内側)。棚にも一枚にも出る */
+  icon?: string;
+  /** xpi の中の絵。落として判を見たあと(= 一枚を開いたとき)だけ読む */
+  shots?: Shot[];
 }
 /** 見た library drop。使う drop の一枚に一緒に出す */
 export interface InspectedDep extends DepRef {
@@ -135,6 +146,8 @@ export interface InstalledDrop {
 export interface DropInspection {
   uuid: string;
   name: string; // 札(manifest の name)
+  /** manifest の shots を xpi から読んだもの(data: URI)。読めなかったものは並ばない */
+  shots?: { file: string; dataUri: string }[];
   registry: Registry;
   attestations: import("./sigstore/Sigstore.sys.mjs").AttestationCheck[]; // registry の判
   manifest: DropManifest;
@@ -238,6 +251,45 @@ async function findDrop(uuid: string, registryName?: string): Promise<{ reg: Reg
 const TEXT_EXT = /\.(js|mjs|cjs|ts|tsx|json|md|css|html|xhtml|svg|txt|toml|tsubaki|jl)$/i;
 
 /** xpi(zip)の中を文字列で読む。実行はしない */
+/** xpi の中の絵を data: にする。512KB まで、中身の magic が PNG / JPEG / WebP のものだけ */
+const SHOT_MAX = 512 * 1024;
+function readZipImage(path: string, name: string): string | null {
+  if (!/^shots\/[A-Za-z0-9._-]+$/.test(name)) return null;
+  const zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
+  try {
+    zr.open(new FileUtils.File(path));
+    let entry;
+    try {
+      entry = zr.getEntry(name);
+    } catch {
+      return null; // 無い
+    }
+    if (!entry || entry.realSize > SHOT_MAX) return null;
+    const stream = zr.getInputStream(name);
+    const bin = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+    bin.setInputStream(stream);
+    const bytes = bin.readByteArray(entry.realSize) as number[];
+    bin.close();
+    stream.close();
+    const type = imageType(bytes);
+    if (!type) return null; // 名乗りではなく中身で見る
+    let s = "";
+    for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.slice(i, i + 8192));
+    return `data:${type};base64,${btoa(s)}`;
+  } catch (e) {
+    console.warn(`[noraneko-drops] ${name} が読めない:`, e);
+    return null;
+  } finally {
+    zr.close();
+  }
+}
+function imageType(b: number[]): string | null {
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45) return "image/webp";
+  return null;
+}
+
 function readZipEntries(path: string): Map<string, string> {
   const zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
   zr.open(new FileUtils.File(path));
@@ -326,6 +378,15 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
         .map(([n, text]) => ({ path: n, text })),
     });
   }
+  // 絵: manifest が「どの xpi の中か」を覚えている。落として sha を見たあとの file から読む
+  const shots: { file: string; dataUri: string }[] = [];
+  for (const shot of m.shots ?? []) {
+    const holder = m.entries.find((e) => e.file === shot.in);
+    if (!holder) continue;
+    const dataUri = readZipImage(PathUtils.join(entryDir(uuid, holder.version), holder.file), shot.file);
+    if (dataUri) shots.push({ file: shot.file, dataUri });
+  }
+
   // 使う library も、同じように落として、sha と判を見て、中を読む(版は manifest に固定されたもの)
   const deps: InspectedDep[] = [];
   for (const d of m.deps ?? []) {
@@ -352,7 +413,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     console.log(`[noraneko-drops] inspect ${m.name}: dep ${d.name} ${d.version} ok`);
     deps.push({ ...d, attestations: dattest, manifest: dm, entries: dentries });
   }
-  return { uuid, name: m.name, registry: reg, attestations, manifest: m, deps, entries };
+  return { uuid, name: m.name, shots, registry: reg, attestations, manifest: m, deps, entries };
 }
 
 /**
@@ -488,6 +549,10 @@ export interface CatalogItem {
   contact: string[];
   /** library(ほかの drop が使うもの)。棚には並べない */
   lib: boolean;
+  /** 96px までの PNG の data:(判の内側)。無ければ null */
+  icon: string | null;
+  /** 絵の枚数(中身は「見る」で開いたときに xpi から読む) */
+  shots: number;
   version: string | null;
   entries: { name?: string; version?: string; file?: string; size?: number }[];
   deps: { name?: string; version?: string }[];
@@ -525,6 +590,9 @@ export async function listCatalog(): Promise<{ items: CatalogItem[]; failed: { r
           name: d.name as string,
           note: typeof d.note === "string" ? d.note : "",
           lib: d.lib === true,
+          // 形と大きさを見てから通す(棚に描くのは、これだけ)
+          icon: typeof d.icon === "string" && d.icon.startsWith("data:image/png;base64,") && d.icon.length <= 64 * 1024 ? d.icon : null,
+          shots: typeof d.shots === "number" ? d.shots : 0,
           contact: Array.isArray(d.contact) ? d.contact.filter((c) => typeof c === "string") : [],
           version: typeof d.version === "string" ? d.version : null,
           entries: Array.isArray(d.entries) ? d.entries : [],

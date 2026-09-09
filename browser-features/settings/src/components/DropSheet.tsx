@@ -91,13 +91,30 @@ function Caution() {
   );
 }
 
+/**
+ * 絵。xpi の中にあったものを、そのまま出す(外には何も取りに行かない)。
+ * xpi は sha256 を確かめたあとの file なので、絵もコードと同じ一回の判断の内側にいる。
+ */
+function Shots({ shots }: { shots: DropInspection["shots"] }) {
+  if (!shots?.length) return null;
+  return (
+    <div class="shots">
+      {/* data: なので bytes はもう手元にある。lazy にすると、画面に入るまで描かれないだけ損 */}
+      {shots.map((s) => <img key={s.file} src={s.dataUri} alt={s.file} />)}
+    </div>
+  );
+}
+
 export function DropSheet({ seen, busy, onInstall }: { seen: DropInspection; busy: boolean; onInstall: () => void }) {
   const ok = allAttested(seen);
   return (
     <div class="sheet">
-      <p class="meta" style={{ margin: "0 0 0.5rem" }}><span class="k">{seen.name}</span> <code class="code">{seen.uuid}</code> <span>· {seen.registry.name}</span></p>
+      <p class="meta" style={{ margin: "0 0 0.5rem" }}>
+        {seen.manifest.icon && <img class="icon" src={seen.manifest.icon} alt="" />}
+        <span class="k">{seen.name}</span> <code class="code">{seen.uuid}</code> <span>· {seen.registry.name}</span></p>
       {seen.attestations.map((a) => <Stamp key={a.who} a={a} registry={seen.registry.name} />)}
       {seen.manifest.note && <p class="meta">{seen.manifest.note}</p>}
+      <Shots shots={seen.shots} />
       <Contacts contact={seen.manifest.contact} />
       <Source source={seen.manifest.source} />
       {seen.entries.map((e) => <Entry key={e.id} e={e} />)}

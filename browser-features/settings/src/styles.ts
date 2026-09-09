@@ -104,6 +104,27 @@ details.fold { margin-bottom: 0.8rem; }
 
 /* 棚(一覧)。入っているもの・新しい版があるものに、小さな札 */
 .pill { margin-inline-start: 0.5rem; font-size: 0.7rem; font-weight: 400; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.05rem 0.5rem; vertical-align: 0.08em; }
+/* 絵。アイコンは 96px の PNG(判の内側)、無ければ名前で決めた色のタイルに頭文字 */
+.icon { width: 2.1rem; height: 2.1rem; border-radius: 0.6rem; flex: 0 0 auto; object-fit: cover; }
+.sheet .icon { width: 1.5rem; height: 1.5rem; border-radius: 0.4rem; vertical-align: -0.35rem; margin-inline-end: 0.35rem; }
+.icon.tile { display: inline-flex; align-items: center; justify-content: center; font-weight: var(--bold); font-size: 1.05rem; text-transform: uppercase; }
+.icon.tile.sakura { background: #fce4ea; color: #9c4159; }
+.icon.tile.tamago { background: #fdf0cc; color: #7f5e0c; }
+.icon.tile.sora   { background: #dfeaf8; color: #3d6491; }
+.icon.tile.wakaba { background: #dcf0e2; color: #2f7150; }
+.icon.tile.fuji   { background: #e7e3f6; color: #5b4e94; }
+.icon.tile.momo   { background: #fde4dc; color: #a24f38; }
+@media (prefers-color-scheme: dark) {
+  .icon.tile.sakura { background: #3a2a30; color: #f0a9bc; }
+  .icon.tile.tamago { background: #383021; color: #ecd07a; }
+  .icon.tile.sora   { background: #262f3b; color: #a4c4ea; }
+  .icon.tile.wakaba { background: #24332a; color: #9dd6b3; }
+  .icon.tile.fuji   { background: #2c2839; color: #bcb0e8; }
+  .icon.tile.momo   { background: #3a2a25; color: #eba992; }
+}
+.shots { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.6rem 0; }
+.shots img { max-width: 100%; max-height: 15rem; border-radius: 0.5rem; border: 1px solid var(--line); background: var(--code-bg); }
+
 .by-uuid { margin-top: 1rem; }
 .by-uuid > summary { color: var(--muted); font-size: 0.82rem; cursor: pointer; }
 .by-uuid > summary::marker { color: var(--line); }
