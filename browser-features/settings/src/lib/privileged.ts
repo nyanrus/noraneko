@@ -48,6 +48,8 @@ export interface InspectedEntry {
   sha256: string;
   matches: string[];
   chrome: boolean;
+  /** view に <browser> を置ける = ページを読み込む窓(drop.toml の [actor] web_frame) */
+  webFrame: boolean;
   permissions: string[];
   functions: string[];
   sources: { path: string; text: string }[];
@@ -104,6 +106,8 @@ export interface DropsApi {
   removeRegistry(name: string): void;
   inspectDrop(ref: string, registry?: string): Promise<DropInspection>; // ref = uuid
   parseUuid(ref: string): string;
+  /** 入れる前に、落としてある bytes をもう一度照らす(入れない) */
+  verifyDrop(inspected: DropInspection): Promise<{ ok: boolean; checked: number; bad: string[] }>;
   installDrop(inspected: DropInspection): Promise<string[]>;
   removeDrop(ref: string): Promise<void>;
   listDrops(): Record<string, InstalledDrop>;

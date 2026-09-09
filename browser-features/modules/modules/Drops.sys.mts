@@ -167,6 +167,7 @@ export interface DropInspection {
     sha256: string;
     matches: string[]; // content.js が動くページ(actor.json の matches)
     chrome: boolean; // ブラウザの窓そのもの(browser.xhtml)にも効く(actor.json の includeChrome)
+    webFrame: boolean; // view に <browser> を置ける = ページを読み込む窓(actor.json の webFrame)
     permissions: string[]; // (xpi の manifest に permissions があれば。いまの actor には無い)
     functions: string[]; // 親プロセスで呼べる関数(actor.json の methods)
     sources: { path: string; text: string }[]; // 書いたもの(source/)
@@ -360,7 +361,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     const files = readZipEntries(path);
     console.log(`[noraneko-drops] inspect ${m.name}: ${e.file} ${files.size} entries`);
     const wm = JSON.parse(files.get("manifest.json") ?? "{}");
-    let actor: { matches?: string[]; methods?: string[]; includeChrome?: boolean } = {};
+    let actor: { matches?: string[]; methods?: string[]; includeChrome?: boolean; webFrame?: boolean } = {};
     try {
       actor = JSON.parse(files.get("actor.json") ?? "{}");
     } catch {
@@ -374,6 +375,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
       sha256: e.sha256,
       matches: actor.matches ?? [],
       chrome: actor.includeChrome === true,
+      webFrame: actor.webFrame === true,
       permissions: wm.permissions ?? [],
       functions: actor.methods ?? [],
       sources: [...files.entries()]
@@ -471,6 +473,36 @@ async function installFile(uuid: string, version: string, path: string): Promise
 }
 
 /** 2. 入れる: inspectDrop が落として確かめた xpi を入れる。ここで初めて拡張が動き出す。 */
+/**
+ * 入れる前に、落としてある bytes をもう一度照らす。
+ *
+ * `installDrop` が最初にすることと同じ照合を、**入れずに**やる ── 押した人に
+ * 「何を許すのか」を見せているあいだ、それが本当にその bytes なのかを確かめておく。
+ * 見たときから入れるまでのあいだに profile の file が入れ替わっていたら、ここで分かる。
+ */
+export async function verifyDrop(inspected: DropInspection): Promise<{ ok: boolean; checked: number; bad: string[] }> {
+  const uuid = parseUuid(inspected.uuid);
+  const bad: string[] = [];
+  let checked = 0;
+  for (const d of inspected.deps ?? []) {
+    for (const e of d.entries) {
+      const path = PathUtils.join(depDir(uuid, d.name, d.version), e.file);
+      checked++;
+      if (!(await IOUtils.exists(path)) || (await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
+        bad.push(`${d.name}/${e.file}`);
+      }
+    }
+  }
+  for (const e of inspected.manifest.entries) {
+    const path = PathUtils.join(entryDir(uuid, e.version), e.file);
+    checked++;
+    if (!(await IOUtils.exists(path)) || (await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
+      bad.push(e.file);
+    }
+  }
+  return { ok: bad.length === 0, checked, bad };
+}
+
 export async function installDrop(inspected: DropInspection): Promise<string[]> {
   const uuid = parseUuid(inspected.uuid);
   const m = inspected.manifest;

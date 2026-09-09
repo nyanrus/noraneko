@@ -99,6 +99,134 @@ details.fold { margin-bottom: 0.8rem; }
 .caution strong { font-weight: var(--bold); }
 .sheet .actions { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
 
+/* 頁を横に広げる(棚が面になるので、46rem では二列で終わってしまう) */
+.page.wide { max-width: 72rem; }
+/* 左のレールと、右の一枚。GNOME Software と同じ絵 */
+.withrail { display: grid; grid-template-columns: 12rem 1fr; gap: 1.6rem; margin-top: 1.4rem; align-items: start; }
+.rail { display: flex; flex-direction: column; gap: 0.15rem; position: sticky; top: 1.5rem; }
+.rail-item { display: flex; align-items: center; gap: 0.5rem; width: 100%; text-align: left;
+  background: none; border: 0; border-radius: 0.6rem; padding: 0.5rem 0.7rem; cursor: pointer;
+  color: var(--fg); font: inherit; font-size: 0.92rem; }
+.rail-item:hover { background: var(--card); }
+.rail-item.on { background: var(--card); border: 1px solid var(--line); font-weight: var(--bold); }
+.rail-item span:first-child { flex: 1; }
+.rail-item .n { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 0.9rem;
+  padding: 1.4rem 1.6rem 1.6rem; min-height: 20rem; }
+.panel > .hint { margin: 0 0 1rem; color: var(--muted); font-size: 0.86rem; }
+.crumb { margin: 0 0 0.8rem; }
+.link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+
+/* 棚は面に。一件が一枚の札で、押すとその drop のパネルへ */
+.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.8rem; margin-top: 1rem; }
+.tile-card { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto;
+  gap: 0.15rem 0.7rem; text-align: left; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 0.8rem; padding: 0.9rem; cursor: pointer; color: var(--fg); font: inherit; }
+.tile-card:hover { border-color: var(--accent); }
+.tile-card .icon { grid-row: 1 / 3; }
+.tile-card .name { font-weight: var(--bold); align-self: center; }
+.tile-card .desc { color: var(--muted); font-size: 0.84rem; align-self: start;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tile-card .foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.4rem;
+  flex-wrap: wrap; margin-top: 0.5rem; }
+.tile-card .mark { color: var(--muted); font-size: 0.76rem; }
+
+@media (max-width: 46rem) {
+  .withrail { grid-template-columns: 1fr; }
+  .rail { flex-direction: row; flex-wrap: wrap; position: static; }
+  .rail-item { width: auto; }
+}
+
+/* 一枚の表 — 店の頁。絵、説明、スクリーンショット、そして「ねこにいれる」 */
+.store-head { display: flex; gap: 1.1rem; align-items: flex-start; }
+.store-icon { width: 4.5rem; height: 4.5rem; border-radius: 1.1rem; flex: 0 0 auto; object-fit: cover; }
+.store-icon.tile { display: inline-flex; align-items: center; justify-content: center;
+  background: var(--card); border: 1px solid var(--line); font-size: 2rem; font-weight: var(--bold);
+  text-transform: uppercase; color: var(--muted); }
+.store-title h2 { margin: 0 0 0.2rem; font-size: 1.4rem; font-weight: var(--bold); }
+.store-note { margin: 0 0 0.4rem; color: var(--fg); font-size: 0.95rem; }
+.store-meta { margin: 0; display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;
+  color: var(--muted); font-size: 0.82rem; }
+.store-meta .mark { padding: 0.05rem 0.45rem; border-radius: 0.4rem; }
+.store-meta .mark.ok { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--fg); }
+.store-meta .mark.ng { background: color-mix(in srgb, #c04 22%, transparent); color: var(--fg); }
+.store-actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 1.2rem 0 0.4rem; }
+button.big { font-size: 1rem; padding: 0.6rem 1.4rem; border-radius: 0.7rem; }
+.store-shots { display: flex; gap: 0.7rem; overflow-x: auto; margin: 1.2rem 0 0.4rem;
+  padding-bottom: 0.4rem; }
+.store-shots img { max-height: 17rem; border-radius: 0.7rem; border: 1px solid var(--line); }
+.store-facts { display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.9rem; margin: 1.2rem 0 0; }
+.store-facts dt { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.store-facts dd { margin: 0; font-size: 0.9rem; }
+.store-foot { color: var(--muted); font-size: 0.8rem; margin-top: 1.2rem; }
+@media (max-width: 40rem) { .store-facts { grid-template-columns: 1fr; gap: 0.1rem; } }
+
+/* 押してから入るまで: 確かめる → 何を許すのかを見せる → 許されたら入れる */
+.spin { display: inline-block; width: 0.8em; height: 0.8em; margin-inline-end: 0.4em;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: spin 0.7s linear infinite; vertical-align: -0.05em; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.grant { border: 1px solid var(--accent); border-radius: 0.8rem; padding: 1rem 1.2rem;
+  margin-top: 0.8rem; background: var(--bg); }
+.grant.bad { border-color: #c04; }
+.grant-head { margin: 0 0 0.8rem; font-size: 1rem; }
+.grant-sub { display: block; color: var(--muted); font-size: 0.82rem; margin-top: 0.25rem; }
+.grant-list { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.4rem 0.9rem; margin: 0 0 1rem; }
+.grant-list dt { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.grant-list dd { margin: 0; font-size: 0.9rem; }
+.grant .store-actions { margin: 0; }
+@media (max-width: 40rem) { .grant-list { grid-template-columns: 1fr; gap: 0.1rem; } }
+
+/* 一枚の頭。読む前に、読む量と届く範囲を言う */
+.summary { border: 1px solid var(--line); border-radius: 0.7rem; padding: 0.9rem 1.1rem;
+  margin: 0.9rem 0 1.1rem; background: var(--bg); display: grid; gap: 0.75rem; }
+.sum-row { display: grid; grid-template-columns: 7rem 1fr; gap: 0.9rem; align-items: baseline; }
+.sum-k { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.sum-v { font-size: 0.92rem; }
+.sum-v b { font-weight: var(--bold); }
+.sum-sub { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; }
+.sum-list { margin: 0.4rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.1rem;
+  font-size: 0.85rem; color: var(--fg); }
+@media (max-width: 40rem) { .sum-row { grid-template-columns: 1fr; gap: 0.15rem; } }
+
+/* 読むための file: 面に置いて、押した一枚だけが横いっぱいになる */
+.files { margin-top: 1rem; }
+.files-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.files-head .k { font-weight: var(--bold); font-size: 0.9rem; }
+.files-head .n { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.files-head .note { color: var(--muted); font-size: 0.78rem; }
+.filegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.35rem; align-items: start; }
+.filegrid details { margin: 0; padding: 0.4rem 0.55rem; border-radius: 0.5rem;
+  background: var(--bg); border: 1px solid var(--line-soft); }
+.filegrid details:hover { border-color: var(--line); }
+.filegrid details[open] { grid-column: 1 / -1; }
+.filegrid summary { list-style: none; cursor: pointer; font-size: 0.85rem; overflow-wrap: anywhere;
+  display: flex; align-items: baseline; gap: 0.4rem; }
+.filegrid summary::-webkit-details-marker { display: none; }
+.filegrid summary::before { content: "▸"; color: var(--muted); }
+.filegrid details[open] > summary::before { content: "▾"; }
+.filegrid summary .k { font-family: var(--mono); font-size: 0.9em; flex: 1; min-width: 0; }
+.filegrid summary .k .dir { color: var(--muted); }
+.filegrid summary .n { color: var(--muted); font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.filegrid pre.code { margin-top: 0.5rem; max-height: 34rem; overflow: auto; }
+/* 畳んであるもの。開くまでは一行で、なぜ読まなくていいかだけ言う */
+.files.fold, .entry.fold { border: 1px solid var(--line-soft); border-radius: 0.6rem;
+  padding: 0.5rem 0.7rem; margin-top: 0.6rem; }
+.files.fold > summary, .entry.fold > summary { list-style: none; cursor: pointer;
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.files.fold > summary::-webkit-details-marker, .entry.fold > summary::-webkit-details-marker { display: none; }
+.files.fold > summary::before, .entry.fold > summary::before { content: "▸"; color: var(--muted); }
+.files.fold[open] > summary::before, .entry.fold[open] > summary::before { content: "▾"; }
+.files.fold > summary .k, .entry.fold > summary .name { font-weight: var(--bold); font-size: 0.9rem; }
+.files.fold > summary .n, .entry.fold > summary .n { color: var(--muted); font-size: 0.78rem; }
+.files.fold > summary .note { color: var(--muted); font-size: 0.78rem; }
+.entry.fold > summary .mark { font-size: 0.76rem; padding: 0.05rem 0.4rem; border-radius: 0.4rem; }
+.entry.fold > summary .mark.ok { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.entry.fold > summary .mark.ng { background: color-mix(in srgb, #c04 22%, transparent); }
+.files.fold[open] > .filegrid, .entry.fold[open] { margin-top: 0.5rem; }
+
 .installed { margin-top: 1.2rem; }
 .installed .k { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.2rem; }
 
