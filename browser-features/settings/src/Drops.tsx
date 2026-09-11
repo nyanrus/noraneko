@@ -54,7 +54,16 @@ export function Drops() {
   // 表がそのまま「入っている」に変わって、戻すボタンが出る
   const install = (d: DropInspection) =>
     run(async () => { await dropsApi!.installDrop(d); }, `ねこに入った: ${d.name}`);
-  const remove = (u: string) => run(() => dropsApi!.removeDrop(u), `戻した: ${u}`);
+  // 戻したら、同じ一枚を **見直す**。戻すと落としてあった bytes も一緒に消えるので、
+  // 前に見たときの inspection はもう指す先が無い ── そのまま入れると、その file を
+  // 探しに行って転ぶ(「見てから入れて」)。見直しておけば、そのまま入れ直せる
+  const remove = (u: string) =>
+    run(async () => {
+      await dropsApi!.removeDrop(u);
+      if (seen && dropsApi!.parseUuid(seen.uuid) === dropsApi!.parseUuid(u)) {
+        setSeen(await dropsApi!.inspectDrop(u, seen.registry.name));
+      }
+    }, `戻した: ${u}`);
 
   // xpi へのリンクから来たとき(DropLinks.sys.mts): #drop=<uuid>&registry=<name>。
   // about:nora:settings の古い形も同じ字なので、そのまま受ける

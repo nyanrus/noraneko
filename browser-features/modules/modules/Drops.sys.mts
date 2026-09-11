@@ -515,6 +515,9 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
   for (const d of inspected.deps ?? []) {
     for (const e of d.entries) {
       const path = PathUtils.join(depDir(uuid, d.name, d.version), e.file);
+      // 無いときは、無いと言う。**戻すと、落としてあった dep の bytes も一緒に消える**ので、
+      // 戻したあとに前の inspection のまま入れると、ここに来る(下の entries と同じ形に)
+      if (!(await IOUtils.exists(path))) throw new Error(`見てから入れて: ${d.name}/${e.file} が無い`);
       if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) throw new Error(`sha256 mismatch at install: ${d.name}/${e.file}`);
       mountDep(d, path);
       deps.push({ name: d.name, uuid: d.uuid, version: d.version, lib: d.lib, wasm: d.wasm, file: e.file });
