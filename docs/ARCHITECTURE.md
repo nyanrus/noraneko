@@ -86,9 +86,9 @@ noraneko/
 │   ├── vite-oxc-decorator-stage-3/
 │   └── vite-plugin-gen-jarmn/
 │
-├── tools/                     # Build system
-│   ├── feles-build.ts         # Main build entry point
-│   ├── src/                   # Build scripts
+├── tools/                     # Build system (Ruby)
+│   ├── feles-build.rb         # Main build entry point
+│   ├── lib/                   # Build steps
 │   ├── patches/               # Runtime patches
 │   └── scripts/               # Utility scripts
 │

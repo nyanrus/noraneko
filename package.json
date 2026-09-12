@@ -15,7 +15,6 @@
     "chokidar": "^5.0.0",
     "fast-glob": "^3.3.3",
     "lightningcss": "^1.31.1",
-    "linkedom": "0.18.12",
     "oxlint": "^1.51.0",
     "pathe": "^2.0.3",
     "prettier": "^3.8.1",
@@ -33,7 +32,6 @@
     "solid-js": "^1.9.11",
     "tailwindcss": "^4.2.1",
     "unplugin-swc": "^1.5.9",
-    "uuid": "^13.0.0",
     "vite-plugin-istanbul": "^7.2.1",
     "vite-tsconfig-paths": "^6.1.1"
   },

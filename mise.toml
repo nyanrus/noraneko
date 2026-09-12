@@ -1,6 +1,6 @@
 # 道具の版。`mise install` で揃う。
-# - deno: feles-build(ブラウザに入るコードと同じ言語の道具)
-# - ruby: ファイルを触る script(tools/scripts/*.rb)。mac/Linux は precompiled が来る
+# - ruby: 建てる段(tools/)。ファイルを触って、program を起こす役
+# - deno: 束ねる役(vite / 各 package の `deno task build`)と、ブラウザに入るコードそのもの
 [tools]
 deno = "2.9.6"
 ruby = "3.4"
