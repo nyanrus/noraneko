@@ -109,7 +109,7 @@ export const methods = {
    * SessionStore's lazy tab data, and the first one with no such answer
    * inserts the real browser (_insertBrowser) on the spot.
    */
-  // upstream: _createLazyBrowser@878cf4049f FIREFOX_143_0_1_RELEASE
+  // upstream: _createLazyBrowser@5c8ed50bab FIREFOX_155_0_1_RELEASE
   _createLazyBrowser(aTab: MozTabbrowserTab) {
     const tab = aTab as any;
     const browser = tab.linkedBrowser;
@@ -151,7 +151,7 @@ export const methods = {
           getter = () => () => this;
           break;
         case "isRemoteBrowser":
-          getter = () => browser.getAttribute("remote") == "true";
+          getter = () => browser.hasAttribute("remote");
           break;
         case "permitUnload":
           getter = () => () => ({ permitUnload: true });
@@ -174,25 +174,10 @@ export const methods = {
         case "remoteType":
           getter = () => {
             const url = SessionStore.getLazyTabValue(tab, "url") || "about:blank";
-            // Avoid recreating the same nsIURI object over and over again...
-            let uri;
-            if (browser._cachedCurrentURI) {
-              uri = browser._cachedCurrentURI;
-            } else {
-              uri = browser._cachedCurrentURI = Services.io.newURI(url);
-            }
-            const oa = E10SUtils.predictOriginAttributes({
-              browser,
+            return ChromeUtils.predictRemoteTypeForURI(url, {
+              window: this.window,
               userContextId: tab.getAttribute("usercontextid"),
             });
-            return E10SUtils.getRemoteTypeForURI(
-              url,
-              gMultiProcessBrowser,
-              gFissionBrowser,
-              undefined,
-              uri,
-              oa,
-            );
           };
           break;
         case "userTypedValue":

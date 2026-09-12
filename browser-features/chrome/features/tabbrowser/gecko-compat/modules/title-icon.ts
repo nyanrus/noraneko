@@ -20,6 +20,9 @@ declare module "../TabbrowserCompat.ts" {
     updateBrowserSharing(browser: XULBrowserElement, state: any): void;
     resetBrowserSharing(browser: XULBrowserElement): void;
     getWindowTitleForBrowser(browser: XULBrowserElement): string;
+    _populateTitleCache(): void;
+    _determineTaskbarTabTitle(profile: string | false | undefined): string | null;
+    _determineContentTitle(browser: XULBrowserElement): string;
     setPageInfo(tab: MozTabbrowserTab, url: string, description: string, previewImage: string): void;
     setInitialTabTitle(tab: MozTabbrowserTab, title: string, options?: any): void;
     setTabLabelForAuthPrompts(tab: MozTabbrowserTab, label: string): boolean;
@@ -382,34 +385,85 @@ export const methods = {
     } catch (_) { /* */ }
   },
 
-  // upstream: getWindowTitleForBrowser@91b1a79b27 FIREFOX_143_0_1_RELEASE
-  getWindowTitleForBrowser(aBrowser: XULBrowserElement): string {
-    const docElement = this.window.document.documentElement;
-    let title = "";
-    let dataSuffix =
-      docElement.getAttribute("privatebrowsingmode") == "temporary"
-        ? "Private"
-        : "Default";
-
-    if (
-      SelectableProfileService?.isEnabled &&
-      SelectableProfileService.currentProfile
-    ) {
-      dataSuffix += "WithProfile";
+  /**
+   * 窓のタイトルの部品(#mainWindowTitle など)を一度だけ読んで持っておく。
+   * 143 は browser.xhtml の data-title-* を読んでいたが、155 でその属性は消えて
+   * 隠し要素の textContent になった。
+   */
+  _populateTitleCache(): void {
+    const doc = this.window.document;
+    const info: Record<string, string> = {};
+    for (const id of ["mainWindowTitle", "privateWindowTitle", "privateWindowSuffixForContent"]) {
+      info[id] = doc.getElementById(id)?.textContent || "";
     }
-    const defaultTitle = docElement.dataset["title" + dataSuffix]!.replace(
-      "PROFILENAME",
-      () => SelectableProfileService.currentProfile.name.replace(/\0/g, "")
-    );
+    this._cachedTitleInfo = info;
+  },
 
+  /**
+   * Taskbar Tab(Windows)の名前・コンテナ・プロファイルぶんのタイトル。
+   * Taskbar Tab でなければ null(プロファイルは呼び手が足す)。
+   */
+  _determineTaskbarTabTitle(aProfile: string | false | undefined): string | null {
+    if (!this._shouldExposeContentTitle) {
+      // Taskbar Tab とコンテナの名前は、どのサイトに居るかを見せてしまう
+      return null;
+    }
+
+    if (this._taskbarTabTitle && this._taskbarTabTitleLastProfile == aProfile) {
+      return this._taskbarTabTitle;
+    }
+
+    const id = this.TaskbarTabsUtils.getTaskbarTabIdFromWindow(this.window);
+    if (!id) {
+      return null;
+    }
+
+    if (!this._taskbarTab) {
+      this.TaskbarTabs.getTaskbarTab(id)
+        .then((tt: any) => {
+          this._taskbarTab = tt;
+          this.updateTitlebar();
+        })
+        .catch(() => {
+          // その Taskbar Tab は無い。そのままにする
+        });
+      return null;
+    }
+
+    const containerLabel = this._taskbarTab.userContextId
+      ? ContextualIdentityService.getUserContextLabel(this._taskbarTab.userContextId)
+      : "";
+
+    let stringName = "taskbar-tab-title-default";
+    if (containerLabel && aProfile) {
+      stringName = "taskbar-tab-title-container-profile";
+    } else if (containerLabel && !aProfile) {
+      stringName = "taskbar-tab-title-container";
+    } else if (!containerLabel && aProfile) {
+      stringName = "taskbar-tab-title-profile";
+    }
+
+    this._taskbarTabTitle = this.tabLocalization.formatValueSync(stringName, {
+      name: this._taskbarTab.name,
+      container: containerLabel,
+      profile: aProfile,
+    });
+    this._taskbarTabTitleLastProfile = (aProfile as string) ?? null;
+    return this._taskbarTabTitle;
+  },
+
+  /** 中身(ページ)から来るぶんのタイトル。見せない設定なら空。 */
+  _determineContentTitle(aBrowser: XULBrowserElement): string {
+    let title = "";
     if (
       !this._shouldExposeContentTitle ||
       (PrivateBrowsingUtils.isWindowPrivate(this.window) &&
         !this._shouldExposeContentTitlePbm)
     ) {
-      return defaultTitle;
+      return title;
     }
 
+    const docElement = this.window.document.documentElement;
     // If location bar is hidden and the URL type supports a host,
     // add the scheme and host to the title to prevent spoofing.
     // XXX https://bugzilla.mozilla.org/show_bug.cgi?id=22183#c239
@@ -422,15 +476,13 @@ export const methods = {
         } else if (uri.scheme == "moz-extension") {
           const ext = WebExtensionPolicy.getByHostname(uri.host);
           if (ext && ext.name) {
-            const extensionLabel = this.window.document.getElementById(
-              "urlbar-label-extension"
-            );
+            const extensionLabel = this.window.document.getElementById("urlbar-label-extension");
             prefix = `${(extensionLabel as any).value} (${ext.name})`;
           }
         }
         title = prefix + " - ";
       }
-    } catch (e) {
+    } catch (_e) {
       // ignored
     }
 
@@ -439,41 +491,53 @@ export const methods = {
     }
 
     const tab = this.getTabForBrowser(aBrowser) as any;
-    if (tab._labelIsContentTitle) {
+    if (tab?._labelIsContentTitle) {
       // Strip out any null bytes in the content title, since the
       // underlying widget implementations of nsWindow::SetTitle pass
       // null-terminated strings to system APIs.
       title += tab.getAttribute("label").replace(/\0/g, "");
     }
+    return title;
+  },
 
-    if (this.TaskbarTabsUtils.isTaskbarTabWindow(this.window)) {
-      const userContextId = this.getTabForBrowser(aBrowser)?.userContextId;
-      if (userContextId) {
-        const container =
-          ContextualIdentityService.getUserContextLabel(userContextId);
-        title += (title && container ? " — " : "") + container;
-      }
+  // upstream: getWindowTitleForBrowser@0a1921ec88 FIREFOX_155_0_1_RELEASE
+  getWindowTitleForBrowser(aBrowser: XULBrowserElement): string {
+    if (!this._cachedTitleInfo) {
+      this._populateTitleCache();
+    }
+    const contentTitle = this._determineContentTitle(aBrowser);
+    const docElement = this.window.document.documentElement;
+    const isTemporaryPrivateWindow =
+      docElement.getAttribute("privatebrowsingmode") == "temporary";
+
+    const profileIdentifier =
+      SelectableProfileService?.isEnabled &&
+      SelectableProfileService.getCachedProfileCount() > 1 &&
+      SelectableProfileService.currentProfile?.name.replace(/\0/g, "");
+    // 空のものは最後に落とす
+
+    const taskbarTabTitle = this._determineTaskbarTabTitle(profileIdentifier);
+    const parts: (string | false | null | undefined)[] = [
+      contentTitle,
+      taskbarTabTitle ?? profileIdentifier,
+    ];
+
+    // macOS のプライベート窓は、中身のタイトルがあるときだけ接尾辞を足す。
+    // それ以外の platform では、下でブランド名ごと足す。
+    if (AppConstants.platform == "macosx" && contentTitle && isTemporaryPrivateWindow) {
+      parts.push(this._cachedTitleInfo!.privateWindowSuffixForContent);
     }
 
-    if (title) {
-      // We're using a function rather than just using `title` as the
-      // new substring to avoid `$$`, `$'` etc. having a special
-      // meaning to `replace`.
-      // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace#specifying_a_string_as_a_parameter
-      // and the documentation for functions for more info about this.
-      return docElement.dataset["contentTitle" + dataSuffix]!
-        .replace("CONTENTTITLE", () => title)
-        .replace(
-          "PROFILENAME",
-          () =>
-            SelectableProfileService?.currentProfile?.name.replace(
-              /\0/g,
-              ""
-            ) ?? ""
-        );
+    // Taskbar Tab でなければブランド名を出す(Taskbar Tab のときは
+    // _determineTaskbarTabTitle が出している)。macOS は中身のタイトルが
+    // 無いときだけ、ほかは接尾辞として。
+    if (!taskbarTabTitle && (!contentTitle || AppConstants.platform != "macosx")) {
+      parts.push(
+        this._cachedTitleInfo![isTemporaryPrivateWindow ? "privateWindowTitle" : "mainWindowTitle"]
+      );
     }
 
-    return defaultTitle;
+    return parts.filter((x) => !!x).join(" — ");
   },
 
 } satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

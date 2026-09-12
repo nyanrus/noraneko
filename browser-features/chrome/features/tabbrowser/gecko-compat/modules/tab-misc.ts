@@ -83,7 +83,7 @@ export const methods = {
   updateBrowserRemoteness(aBrowser: XULBrowserElement, { newFrameloader, remoteType }: any = {}): boolean {
     const win = this.window as any;
     const browser = aBrowser as any;
-    const isRemote = browser.getAttribute("remote") == "true";
+    const isRemote = browser.hasAttribute("remote");
 
     // We have to be careful with this here, as the "no remote type" is null,
     // not a string. Make sure to check only for undefined, since null is
@@ -146,7 +146,7 @@ export const methods = {
       browser.setAttribute("remote", "true");
       browser.setAttribute("remoteType", remoteType);
     } else {
-      browser.setAttribute("remote", "false");
+      browser.removeAttribute("remote");
       browser.removeAttribute("remoteType");
     }
 
@@ -237,19 +237,14 @@ export const methods = {
    *
    * @returns `false` when the browser already has the correct remote type or on error.
    */
-  // upstream: updateBrowserRemotenessByURL@8d7f7ea78f FIREFOX_143_0_1_RELEASE
+  // upstream: updateBrowserRemotenessByURL@7958241da4 FIREFOX_155_0_1_RELEASE
   updateBrowserRemotenessByURL(browser: XULBrowserElement, url: string, options: any = {}): boolean {
     const currentRemoteType = browser.remoteType;
-    const userContextId = browser.getAttribute("usercontextid") || 0;
-    const oa = E10SUtils.predictOriginAttributes({ window: this.window, userContextId });
-    const remoteType = E10SUtils.getRemoteTypeForURI(
-      url,
-      gMultiProcessBrowser,
-      gFissionBrowser,
-      options.remoteType ?? E10SUtils.DEFAULT_REMOTE_TYPE,
-      null,
-      oa
-    );
+    const remoteType = ChromeUtils.predictRemoteTypeForURI(url, {
+      window: this.window,
+      userContextId: browser.getAttribute("usercontextid") ?? 0,
+      preferredRemoteType: currentRemoteType,
+    });
 
     if (currentRemoteType === remoteType) {
       return false;

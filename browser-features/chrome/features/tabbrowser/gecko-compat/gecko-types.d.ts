@@ -173,7 +173,7 @@ interface MozTabbrowserTabGroup extends XULElement {
   collapsed: boolean;
   /** Live list of tabs belonging to this group. */
   tabs: MozTabbrowserTab[];
-  ownerGlobal: Window;
+  documentGlobal: Window;
 
   before(...nodes: (Node | string)[]): void;
   after(...nodes: (Node | string)[]): void;
@@ -315,6 +315,34 @@ interface XULBrowserElement {
   gotoIndex(index: number): void;
   resumeMedia?(): void;
   destroy?(): void;
+}
+
+// ── ChromeUtils augmentation ─────────────────────────────────────────────────
+/**
+ * `predictRemoteTypeForURI` landed after the typelibs we carry (Firefox
+ * 149.0.2) — Firefox 155 replaced `E10SUtils.predictOriginAttributes` +
+ * `E10SUtils.getRemoteTypeForURI` with this one call. Drop this block when
+ * `libs/@types/gecko` is refreshed from a tree that has it.
+ */
+declare namespace ChromeUtils {
+  function predictRemoteTypeForURI(
+    uri: string | nsIURI | null,
+    options?: {
+      window?: Window;
+      userContextId?: number | string | null;
+      preferredRemoteType?: string | null;
+    }
+  ): string | null;
+}
+
+// ── Element augmentation ─────────────────────────────────────────────────────
+/**
+ * Firefox 155 renamed `Element.ownerGlobal` to `documentGlobal` (upstream
+ * tabbrowser.js: 0 uses of the old name, 14 of the new). The typelibs we carry
+ * (149.0.2) still only declare `ownerGlobal`. Drop this when they are refreshed.
+ */
+interface Element {
+  readonly documentGlobal: Window;
 }
 
 // Chrome-only bits of DOM interfaces that the webidl-generated types leave out.

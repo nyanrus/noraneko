@@ -383,14 +383,10 @@ export const methods = {
           url = tabData.entries[activeIndex].url;
         }
 
-        const preferredRemoteType = E10SUtils.getRemoteTypeForURI(
-          url,
-          gMultiProcessBrowser,
-          gFissionBrowser,
-          E10SUtils.DEFAULT_REMOTE_TYPE,
-          null,
-          E10SUtils.predictOriginAttributes({ window: this.window, userContextId })
-        );
+        const preferredRemoteType = ChromeUtils.predictRemoteTypeForURI(url, {
+          window: this.window,
+          userContextId,
+        });
 
         tab = this.addTrustedTab(createLazyBrowser ? url : "about:blank", {
           createLazyBrowser,

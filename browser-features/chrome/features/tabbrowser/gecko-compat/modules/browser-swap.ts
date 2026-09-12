@@ -51,14 +51,14 @@ export const swapBrowserMethods = {
     // and vice versa.
     if (
       PrivateBrowsingUtils.isWindowPrivate(this.window) !=
-      PrivateBrowsingUtils.isWindowPrivate((otherTab as any).ownerGlobal)
+      PrivateBrowsingUtils.isWindowPrivate((otherTab as any).documentGlobal)
     ) {
       return false;
     }
 
     // Do not allow transfering a useRemoteSubframes tab to a
     // non-useRemoteSubframes window and vice versa.
-    if (gFissionBrowser != (otherTab as any).ownerGlobal.gFissionBrowser) {
+    if (gFissionBrowser != (otherTab as any).documentGlobal.gFissionBrowser) {
       return false;
     }
 
@@ -79,7 +79,7 @@ export const swapBrowserMethods = {
     }
 
     // That's gBrowser for the other window, not the tab's browser!
-    const remoteBrowser = (otherTab as any).ownerGlobal.gBrowser;
+    const remoteBrowser = (otherTab as any).documentGlobal.gBrowser;
     const isPending = (otherTab as any).hasAttribute("pending");
 
     const otherTabListener = remoteBrowser._tabListeners.get(otherTab);
@@ -113,7 +113,7 @@ export const swapBrowserMethods = {
     // about:blank being painted.
     const [closeWindow] = (otherTab as any)._endRemoveArgs;
     if (closeWindow) {
-      const win = (otherTab as any).ownerGlobal;
+      const win = (otherTab as any).documentGlobal;
       win.windowUtils.suppressAnimation(true);
       // Only suppressing window animations isn't enough to avoid
       // an empty content area being painted.
@@ -232,7 +232,7 @@ export const swapBrowserMethods = {
 
     // Finish tearing down the tab that's going away.
     if (closeWindow) {
-      (otherTab as any).ownerGlobal.close();
+      (otherTab as any).documentGlobal.close();
     } else {
       remoteBrowser._endRemoveTab(otherTab);
     }
@@ -267,7 +267,7 @@ export const swapBrowserMethods = {
     // Make sure to unregister any open URIs.
     this._swapRegisteredOpenURIs(ourBrowser, otherBrowser);
 
-    const remoteBrowser = (otherBrowser as any).ownerGlobal.gBrowser;
+    const remoteBrowser = (otherBrowser as any).documentGlobal.gBrowser;
 
     // If switcher is active, it will intercept swap events and
     // react as needed.
@@ -367,10 +367,22 @@ export const swapBrowserMethods = {
     this.appendStatusPanel();
     this._updateVisibleNotificationBox(newBrowser);
 
-    const oldBrowserPopupsBlocked = oldBrowser.popupBlocker.getBlockedPopupCount();
-    const newBrowserPopupsBlocked = newBrowser.popupBlocker.getBlockedPopupCount();
+    // 155 で popupBlocker は popupAndRedirectBlocker になり、UI の更新も
+    // observer 向けの通知に変わった(そのぶん redirect のぶんも見る)。
+    const oldBrowserPopupsBlocked =
+      (oldBrowser as any).popupAndRedirectBlocker.getBlockedPopupCount();
+    const newBrowserPopupsBlocked =
+      (newBrowser as any).popupAndRedirectBlocker.getBlockedPopupCount();
     if (oldBrowserPopupsBlocked != newBrowserPopupsBlocked) {
-      newBrowser.popupBlocker.updateBlockedPopupsUI();
+      (newBrowser as any).popupAndRedirectBlocker.sendObserverUpdateBlockedPopupsEvent();
+    }
+
+    const oldBrowserRedirectBlocked =
+      (oldBrowser as any).popupAndRedirectBlocker.isRedirectBlocked();
+    const newBrowserRedirectBlocked =
+      (newBrowser as any).popupAndRedirectBlocker.isRedirectBlocked();
+    if (oldBrowserRedirectBlocked != newBrowserRedirectBlocked) {
+      (newBrowser as any).popupAndRedirectBlocker.sendObserverUpdateBlockedRedirectEvent();
     }
 
     // Update the URL bar.

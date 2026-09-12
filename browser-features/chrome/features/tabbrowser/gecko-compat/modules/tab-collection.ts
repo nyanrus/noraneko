@@ -40,6 +40,7 @@ declare module "../TabbrowserCompat.ts" {
     readonly nonHiddenTabs: MozTabbrowserTab[];
     readonly pinnedTabCount: number;
     readonly tabGroups: any[];
+    readonly splitViews: any[];
     readonly tabsInCollapsedTabGroups: MozTabbrowserTab[];
     selectedTab: any;
     readonly selectedBrowser: XULBrowserElement;
@@ -215,6 +216,12 @@ export const methods = {
   // upstream: get tabGroups@d7e7f7039f FIREFOX_143_0_1_RELEASE
   get tabGroups(): any[] {
     return this.tabContainer.allGroups;
+  },
+
+  /** SessionStore が窓を畳むときに回す(collectWindowData)。 */
+  // upstream: get splitViews@27e67688c7 FIREFOX_155_0_1_RELEASE
+  get splitViews(): any[] {
+    return this.tabContainer.allSplitViews;
   },
 
   // upstream: get tabsInCollapsedTabGroups@91e29f388f FIREFOX_143_0_1_RELEASE

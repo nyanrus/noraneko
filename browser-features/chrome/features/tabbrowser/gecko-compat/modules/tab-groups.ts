@@ -255,13 +255,13 @@ export const methods = {
     g.removedByAdoption = true;
     g.saveOnWindowClose = false;
 
-    const oldSelectedTab = selectTab && g.ownerGlobal.gBrowser.selectedTab;
+    const oldSelectedTab = selectTab && g.documentGlobal.gBrowser.selectedTab;
     const newTabs: any[] = [];
 
     // bug1969925 adopting a tab group will cause the window to close if it
     // is the only thing on the tab strip
     // In this case, the `TabUngrouped` event will not fire, so we have to do it manually
-    const noOtherTabsInWindow = g.ownerGlobal.gBrowser.nonHiddenTabs.every((t: any) => t.group == group);
+    const noOtherTabsInWindow = g.documentGlobal.gBrowser.nonHiddenTabs.every((t: any) => t.group == group);
 
     for (const tab of g.tabs) {
       if (noOtherTabsInWindow) {
@@ -704,16 +704,16 @@ export const methods = {
     this.selectedTab = this._findTabToBlurTo(aTab);
   },
 
-  // upstream: setSuccessor@8cde3964fa FIREFOX_143_0_1_RELEASE
+  // upstream: setSuccessor@67c975650f FIREFOX_155_0_1_RELEASE
   setSuccessor(aTab: MozTabbrowserTab, successorTab: MozTabbrowserTab | null) {
     const win = this.window;
-    if (aTab.ownerGlobal != win) {
+    if (aTab.documentGlobal != win) {
       throw new Error("Cannot set the successor of another window's tab");
     }
     if (successorTab == aTab) {
       successorTab = null;
     }
-    if (successorTab && successorTab.ownerGlobal != win) {
+    if (successorTab && successorTab.documentGlobal != win) {
       throw new Error("Cannot set the successor to another window's tab");
     }
     if (aTab.successor) {

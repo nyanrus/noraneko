@@ -186,13 +186,19 @@ export class TabbrowserCompat {
 
   // ---- Ours. --------------------------------------------------------------
   // tabbrowser.js: AsyncTabSwitcher and friends reach the window and the
-  // document through these, not through `window`. Firefox 143 (the current
-  // runtime) reads `ownerGlobal`; 149 renamed it `documentGlobal`.
+  // document through these, not through `window`. 143 reads `ownerGlobal`;
+  // 149 以降は `documentGlobal`(155 では要素の ownerGlobal 自体が消えた)。
+  // どちらの runtime でも通るように両方名乗る。
   // upstream: ownerGlobal@ed8ea8d6f7 FIREFOX_143_0_1_RELEASE
   ownerGlobal: Window;
   documentGlobal: Window;
   // upstream: ownerDocument@fdbc07a646 FIREFOX_143_0_1_RELEASE
   ownerDocument: Document;
+  /** 窓のタイトルの部品。155 は隠し要素の textContent から読む。 */
+  _cachedTitleInfo: Record<string, string> | null = null;
+  _taskbarTab: any = null;
+  _taskbarTabTitle: string | null = null;
+  _taskbarTabTitleLastProfile: string | null = null;
   _tabSwitchTelemetry = new Map<string, { count: number; timestamp: number }>();
   _previousURL: string | null = null;
   _tabpanelsSelectHandler: any = null;
@@ -213,6 +219,7 @@ export class TabbrowserCompat {
       TabMetrics: "moz-src:///browser/components/tabbrowser/TabMetrics.sys.mjs",
       TabStateFlusher: "resource:///modules/sessionstore/TabStateFlusher.sys.mjs",
       TaskbarTabsUtils: "resource:///modules/taskbartabs/TaskbarTabsUtils.sys.mjs",
+      TaskbarTabs: "resource:///modules/taskbartabs/TaskbarTabs.sys.mjs",
       GenAI: "resource:///modules/GenAI.sys.mjs",
       TabNotes: "moz-src:///browser/components/tabnotes/TabNotes.sys.mjs",
     });
@@ -237,6 +244,7 @@ export class TabbrowserCompat {
   declare readonly TabMetrics: any;
   declare readonly TabStateFlusher: any;
   declare readonly TaskbarTabsUtils: any;
+  declare readonly TaskbarTabs: any;
   declare readonly UrlbarProviderOpenTabs: any;
   declare readonly GenAI: any;
   declare readonly TabNotes: any;

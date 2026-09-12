@@ -106,7 +106,7 @@ export const methods = {
     return t;
   },
 
-  // upstream: _createBrowserForTab@4718fa9c30 FIREFOX_143_0_1_RELEASE
+  // upstream: _createBrowserForTab@e80bbe23b9 FIREFOX_155_0_1_RELEASE
   _createBrowserForTab(
     tab: MozTabbrowserTab,
     {
@@ -134,7 +134,6 @@ export const methods = {
     }
 
     const { userContextId } = tab;
-    const oa = E10SUtils.predictOriginAttributes({ window: this.window, userContextId });
 
     // For about:blank with referrer, use referrer's remote type
     if (
@@ -143,26 +142,19 @@ export const methods = {
       referrerInfo &&
       referrerInfo.originalReferrer
     ) {
-      preferredRemoteType = E10SUtils.getRemoteTypeForURI(
-        referrerInfo.originalReferrer.spec,
-        gMultiProcessBrowser,
-        gFissionBrowser,
-        E10SUtils.DEFAULT_REMOTE_TYPE,
-        null,
-        oa
+      preferredRemoteType = ChromeUtils.predictRemoteTypeForURI(
+        referrerInfo.originalReferrer,
+        { window: this.window, userContextId }
       );
     }
 
     const remoteType = forceNotRemote
       ? E10SUtils.NOT_REMOTE
-      : E10SUtils.getRemoteTypeForURI(
-          uriString,
-          gMultiProcessBrowser,
-          gFissionBrowser,
+      : ChromeUtils.predictRemoteTypeForURI(uriString, {
+          window: this.window,
+          userContextId,
           preferredRemoteType,
-          null,
-          oa
-        );
+        });
 
     let b;
     let usingPreloadedContent = false;

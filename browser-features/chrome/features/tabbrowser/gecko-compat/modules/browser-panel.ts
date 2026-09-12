@@ -79,13 +79,22 @@ export const methods = {
       userContextId = parseInt(tabArgument.getAttribute("usercontextid"), 10);
     }
 
+    if (openWindowInfo) {
+      userContextId = openWindowInfo.originAttributes.userContextId;
+    }
+
+    const remoteTypeOptions: any = { window: this.window, userContextId };
+    if (triggeringRemoteType) {
+      // 親 process は選ばせない(NOT_REMOTE を preferredRemoteType にはしない)
+      remoteTypeOptions.preferredRemoteType = triggeringRemoteType;
+    }
+
     if (tabArgument && tabArgument.linkedBrowser) {
       remoteType = tabArgument.linkedBrowser.remoteType;
       initialBrowsingContextGroupId = tabArgument.linkedBrowser.browsingContext?.group.id;
     } else if (openWindowInfo) {
-      userContextId = openWindowInfo.originAttributes.userContextId;
       if (openWindowInfo.isRemote) {
-        remoteType = triggeringRemoteType ?? E10SUtils.DEFAULT_REMOTE_TYPE;
+        remoteType = ChromeUtils.predictRemoteTypeForURI(null, remoteTypeOptions);
       } else {
         remoteType = E10SUtils.NOT_REMOTE;
       }
@@ -96,18 +105,7 @@ export const methods = {
       }
 
       if (uriToLoad && typeof uriToLoad === "string") {
-        const oa = E10SUtils.predictOriginAttributes({
-          window: this.window,
-          userContextId,
-        });
-        remoteType = E10SUtils.getRemoteTypeForURI(
-          uriToLoad,
-          gMultiProcessBrowser,
-          gFissionBrowser,
-          triggeringRemoteType ?? E10SUtils.DEFAULT_REMOTE_TYPE,
-          null,
-          oa
-        );
+        remoteType = ChromeUtils.predictRemoteTypeForURI(uriToLoad, remoteTypeOptions);
       } else {
         if (Cu.isInAutomation) {
           ChromeUtils.releaseAssert(

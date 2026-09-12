@@ -704,7 +704,9 @@ export const URILoadingWrapper = {
     if (loadFlags & WNAV.LOAD_FLAGS_FIXUP_SCHEME_TYPOS) {
       fixupFlags |= FIXUP.FIXUP_FLAG_FIX_SCHEME_TYPOS;
     }
-    if (browser.ownerGlobal.PrivateBrowsingUtils.isBrowserPrivate(browser)) {
+    // 本家と同じく、窓の PrivateBrowsingUtils を直に使う(155 は要素の
+    // ownerGlobal を documentGlobal に改名したので、browser 越しには辿れない)。
+    if (PrivateBrowsingUtils.isBrowserPrivate(browser)) {
       fixupFlags |= FIXUP.FIXUP_FLAG_PRIVATE_CONTEXT;
     }
     return fixupFlags;
@@ -746,7 +748,7 @@ export const URILoadingWrapper = {
           .getTypeFromURI(aUri);
         if (mimeType == "application/x-xpinstall") {
           const systemPrincipal = Services.scriptSecurityManager.getSystemPrincipal();
-          const AddonManager = aBrowser.ownerGlobal.AddonManager;
+          const AddonManager = aBrowser.documentGlobal.AddonManager;
           AddonManager.getInstallForURL(aUri.spec, {
             telemetryInfo: { source: "file-url" },
           }).then((install: any) => {
@@ -768,10 +770,11 @@ export const URILoadingWrapper = {
     uriString: string,
     { loadFlags, globalHistoryOptions }: any,
   ) {
-    const gBrowser = browser.ownerGlobal.gBrowser;
     if (globalHistoryOptions?.triggeringSponsoredURL) {
       if (globalHistoryOptions.triggeringSource == "newtab") {
-        gBrowser.SponsorProtection.addProtectedBrowser(browser);
+        // 本家と同じく窓の gBrowser を見る(155 は要素の ownerGlobal を
+        // documentGlobal に改名したので、browser 越しには辿れない)。
+        window.gBrowser.SponsorProtection.addProtectedBrowser(browser);
       }
 
       try {
