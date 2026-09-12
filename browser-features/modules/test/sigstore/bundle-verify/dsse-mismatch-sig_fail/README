@@ -1,0 +1,4 @@
+DSSE signature does not match
+
+This was created by repeating a signing operation over the same payload
+with the same ECDSA key resulting in two valid, but different signatures.

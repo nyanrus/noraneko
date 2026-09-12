@@ -22,7 +22,9 @@ export default defineConfig({
   clean: false,
   // minify しない: xpi の中の JS を人が読めるままにする(drop は入れる本人が読む)
   minify: false,
-  treeshake: { manualPureFunctions: ["defineParent", "defineContent"] },
+  // 親には parent だけを残す。module 直下は純粋、という contract なので、副作用だけの
+  // import(content 側の preact など。preact は sideEffects: false を書いていない)は落とす
+  treeshake: { manualPureFunctions: ["defineParent", "defineContent"], moduleSideEffects: false },
   external: [/^resource:\/\//, /^chrome:\/\//],
   outputOptions: { entryFileNames: "[name].mjs", codeSplitting: false },
 });

@@ -2,28 +2,27 @@
 /**
  * Drops: コード一つで機能(webext-actor の xpi)が降ってくる。
  *
- * Git が使えない人にも試してもらえるように、機能の束を dl.f3liz.casa/drop/<code>/ に置く。
- * about:nora:settings でコードを入れると、まず **見る**(inspectDrop: 落として sha256 を確かめ、
+ * Git が使えない人にも試してもらえるように、機能の束を dl.f3liz.casa/drop/<uuid>/ に置く。
+ * 正体は uuid、名前は札(Julia の General と同じ絵。別の registry に同じ名前があっても uuid が違えば別のもの)。
+ * about:nora:settings で uuid を入れると、まず **見る**(inspectDrop: 落として sha256 を確かめ、
  * xpi の中の manifest / schema / source を zip として読む。JS は一切実行しない)、
- * それから本人が「入れる」を押して **入れる**(installDrop: ここで初めて temporary add-on として
- * install され、拡張の background と api.js が動き出す)。
+ * それから本人が「入れる」を押して **入れる**(installDrop: ここで初めて xpi の中のコードが動き出す)。
  *
- * なぜ temporary か: profile に普通に install した無署名の拡張は特権が無く、
- * about:home などへの content script は注入されない(restrictSchemes)。
- * temporary install は extensions.experiments.enabled(noraneko の既定 true)のとき
- * privileged 扱いになり、built-in と同じ力を持つ。署名の要求も掛からない。
- * 代わりに再起動で消えるので、起動時(final-ui-startup)に手元の xpi から入れ直す(一度入れたものだけ)。
- * 同じ id の built-in より優先されるので置き換わり、戻せば built-in に戻る。
- *
- * 親プロセスのコード(actor.mjs)は、importESModule が jar:file: を信用しないので、
- * resource://noraneko-drop-<code>-<版>/ の別名を xpi の root に張ってから読む(api.js はその URL を持っている)。
+ * 入れかたは Firefox 自身の about:newtab(newtab@mozilla.org)と同じ形:
+ * - xpi は入れ物。AddonManager には temporary add-on として入れる(about:debugging に見える。署名の要求が無い。
+ *   再起動で消えるので、起動時に手元の xpi から入れ直す。同じ id の built-in より優先される)。
+ * - ページに届く道は JSWindowActor(NoraActors.sys.mts)。resource://noraneko-drop-<uuid>-<版>/ の別名を
+ *   xpi の root に張り、その actor.json のとおりに親(parent.sys.mjs)と子(child.sys.mjs)を登録する。
+ *   同じ名前の built-in の actor は外れる(置き換え)。戻せば built-in を登録し直す。
+ * WebExtension の content_scripts は使わない。stock Firefox では about:* / chrome:* に注入されないから
+ * (webext-actors/README.md「addon 式が駄目だった理由」)。
  *
  * 作る側: tools/scripts/build-drop.rb(actor を xpi にして manifest.json を書く。source も同梱)。
  */
 
-const DROP_BASE = "https://dl.f3liz.casa/drop";
-const PREF_INSTALLED = "noraneko.drops.installed"; // JSON: { [code]: { ids, files, versions, at, note } }
-const ENV_CODE = "NORANEKO_DROP_CODE"; // dev build だけ: 起動時にこの env があれば見ずに入れる(試験用)
+const PREF_REGISTRIES = "noraneko.drops.registries"; // JSON: Registry[]。空なら既定の一つ
+const PREF_INSTALLED = "noraneko.drops.installed"; // JSON: { [uuid]: { name, ids, files, versions, at, note, registry } }
+const ENV_UUID = "NORANEKO_DROP_UUID"; // dev build だけ: 起動時にこの env(uuid)があれば見ずに入れる(試験用)
 const DIR_NAME = "noraneko-drops";
 // tsdown の --env.MODE は import.meta.env.MODE の式をそのまま置き換えるので、cast や ?. を挟むと効かない
 const IS_DEV = import.meta.env.MODE === "dev";
@@ -38,6 +37,57 @@ const { NetUtil } = ChromeUtils.importESModule(
   "resource://gre/modules/NetUtil.sys.mjs",
 );
 
+/** drop を配る registry(iOS の代替ストアと同じ絵: 既定の一つ + 本人が足したもの) */
+export interface Registry {
+  name: string;
+  base: string; // 例: https://dl.f3liz.casa/drop  → <base>/<uuid>/manifest.json
+  identity: string; // 判を押す workflow(Fulcio の cert の SAN)
+  issuer: string;
+}
+export const DEFAULT_REGISTRY: Registry = {
+  name: "f3liz",
+  base: "https://dl.f3liz.casa/drop",
+  identity: "https://github.com/f3liz-casa/noraneko-registry/.github/workflows/verify-and-sign.yml@refs/heads/main",
+  issuer: "https://token.actions.githubusercontent.com",
+};
+export function listRegistries(): Registry[] {
+  try {
+    const v = JSON.parse(Services.prefs.getStringPref(PREF_REGISTRIES, "[]")) as Registry[];
+    return v.length ? v : [DEFAULT_REGISTRY];
+  } catch {
+    return [DEFAULT_REGISTRY];
+  }
+}
+export function addRegistry(r: Registry): void {
+  if (!/^[a-z0-9][a-z0-9._-]{0,31}$/.test(r.name)) throw new Error(`bad registry name: ${r.name}`);
+  if (!/^https:\/\/[^\s/]+(\/[^\s]*)?$/.test(r.base)) throw new Error(`base は https の URL で: ${r.base}`);
+  if (!/^https:\/\//.test(r.identity)) throw new Error(`identity は workflow の URL で: ${r.identity}`);
+  const all = listRegistries().filter((x) => x.name !== r.name);
+  all.push({ ...r, base: r.base.replace(/\/$/, ""), issuer: r.issuer || DEFAULT_REGISTRY.issuer });
+  Services.prefs.setStringPref(PREF_REGISTRIES, JSON.stringify(all));
+}
+export function removeRegistry(name: string): void {
+  const all = listRegistries().filter((x) => x.name !== name);
+  Services.prefs.setStringPref(PREF_REGISTRIES, JSON.stringify(all));
+}
+function registryByName(name?: string): Registry {
+  const all = listRegistries();
+  const r = name ? all.find((x) => x.name === name) : all[0];
+  if (!r) throw new Error(`registry "${name}" が無い(設定で足せる)`);
+  return r;
+}
+
+/**
+ * drop の正体は uuid(registry の drop.toml で一度振ったら変えない)。配る URL も、ここに入れる字も uuid。
+ * registry の指定が無ければ、一覧に順に訊いて、持っているところから落とす(uuid は一つなので、取り違えは起きない)。
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export function parseUuid(ref: string): string {
+  const u = ref.trim().toLowerCase();
+  if (!UUID.test(u)) throw new Error(`書きかたは uuid(例: ec4dfa7c-9e5a-4c1d-8d0d-771e3ee81030): ${ref}`);
+  return u;
+}
+
 export interface DropEntry {
   id: string;
   name: string;
@@ -47,32 +97,58 @@ export interface DropEntry {
   size: number;
 }
 export interface DropManifest {
-  code: string;
+  uuid: string;
+  name: string; // 札(registry の中の dir の名前)
   note?: string;
-  built_at?: string;
-  source?: { repo?: string; commit?: string; path?: string };
+  contact?: string[]; // 作者の連絡先。"gh/<user>" "mail/<addr>" "social/<@user@host か URL>" か URL(drop.toml から CI が写す)
+  source?: { repo?: string; commit?: string; commit_time?: string; path?: string };
   entries: DropEntry[];
+  lib?: boolean; // library drop(actor を持たない。使う drop の scope に読まれる)
+  deps?: DepRef[];
+}
+/** 見た library drop。使う drop の一枚に一緒に出す */
+export interface InspectedDep extends DepRef {
+  attestations: import("./sigstore/Sigstore.sys.mjs").AttestationCheck[];
+  manifest: DropManifest;
+  entries: { file: string; version: string; sha256: string; files: { path: string; text: string }[] }[];
+}
+/** 使う library drop。registry の build が版を固定して manifest に写す(組み直さない限り古いまま) */
+export interface DepRef {
+  name: string;
+  uuid: string;
+  version: string; // semver(1.0.0)。dl の /drop/<uuid>/v/<semver>/ から落とす
+  lib: boolean; // lib.js を持つ(content の scope に先に読む)
+  wasm: boolean; // wasm/ を持つ(Tsubaki の runtime)
 }
 export interface InstalledDrop {
+  name?: string; // 札(manifest の name)
   ids: string[];
   files: string[];
   versions: string[];
+  actors?: string[]; // 登録した JSWindowActor の名前(外すときに使う)
+  deps?: (DepRef & { file: string })[]; // 一緒に入れた library(profile の deps/<name>/<file>)
   at: number;
   note?: string;
+  registry?: string;
 }
 /** 見るための情報。manifest / schema / source を読んだだけで、何も実行していない */
 export interface DropInspection {
-  code: string;
+  uuid: string;
+  name: string; // 札(manifest の name)
+  registry: Registry;
+  attestations: import("./sigstore/Sigstore.sys.mjs").AttestationCheck[]; // registry の判
   manifest: DropManifest;
+  deps: InspectedDep[];
   entries: {
     id: string;
     name: string;
     version: string;
     file: string;
     sha256: string;
-    matches: string[];
-    permissions: string[];
-    functions: string[]; // 親プロセスで呼べる関数(experiment API の schema から)
+    matches: string[]; // content.js が動くページ(actor.json の matches)
+    chrome: boolean; // ブラウザの窓そのもの(browser.xhtml)にも効く(actor.json の includeChrome)
+    permissions: string[]; // (xpi の manifest に permissions があれば。いまの actor には無い)
+    functions: string[]; // 親プロセスで呼べる関数(actor.json の methods)
     sources: { path: string; text: string }[]; // 書いたもの(source/)
     files: { path: string; text: string }[]; // 実際に実行される・読まれるもの(xpi の中の JS と JSON、source/ 以外)
   }[];
@@ -88,30 +164,78 @@ function readInstalled(): Record<string, InstalledDrop> {
 function writeInstalled(v: Record<string, InstalledDrop>): void {
   Services.prefs.setStringPref(PREF_INSTALLED, JSON.stringify(v));
 }
-function dropDir(code: string): string {
-  return PathUtils.join(PathUtils.profileDir, DIR_NAME, code);
+/** profile/noraneko-drops/<uuid>/ */
+function dropDir(uuid: string): string {
+  return PathUtils.join(PathUtils.profileDir, DIR_NAME, uuid);
 }
-/** build-drop.rb と同じ規則 */
-function resAlias(code: string, version: string): string {
-  return `noraneko-drop-${code}-${version}`.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+/**
+ * profile/noraneko-drops/<uuid>/<version>/ — drop 自身の xpi の置き場。
+ * 版が path に入る理由は depDir と同じ(別名には版が入っているのに file は
+ * 上書きだったので、入れ替えた版の別名が、前の版の bytes を指していた)。
+ */
+function entryDir(uuid: string, version: string): string {
+  if (!/^\d+(\.\d+){1,3}$/.test(version)) throw new Error(`bad version: ${version}`);
+  return PathUtils.join(dropDir(uuid), version);
+}
+/**
+ * profile/noraneko-drops/<uuid>/deps/<name>/<version>/
+ *
+ * 版が path に入る。入っていないと、版を上げても書き先が同じ file なので、
+ * その session は前の版の jar handle が生きたまま = 中身は古いまま になる
+ * (registry の docs/TRAPS.md「入れ替えた dep は、その session ではまだ古い bytes」。
+ * std 1.1.0 の bytes が 1.2.0 として動いて半時間溶かした)。
+ */
+function depDir(uuid: string, name: string, version: string): string {
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(name)) throw new Error(`bad dep name: ${name}`);
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`bad dep version: ${version}`);
+  return PathUtils.join(dropDir(uuid), "deps", name, version);
+}
+/** build.ts(child.sys.mjs)と同じ規則: "noraneko-dep-" + uuid + "-" + semver、[a-z0-9] 以外は "-"、小文字 */
+function depAlias(d: DepRef): string {
+  return `noraneko-dep-${d.uuid}-${d.version}`.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+}
+/** dl の path: <uuid>(最新)か <uuid>/v/<semver>(その版のまま) */
+function dropPath(uuid: string, semver?: string): string {
+  if (semver && !/^\d+\.\d+\.\d+$/.test(semver)) throw new Error(`bad version: ${semver}`);
+  return semver ? `${uuid}/v/${semver}` : uuid;
+}
+/** build-drop.rb と同じ規則: "noraneko-drop-" + uuid + "-" + 版、[a-z0-9] 以外は "-"、小文字 */
+function resAlias(uuid: string, version: string): string {
+  return `noraneko-drop-${uuid}-${version}`.replace(/[^a-z0-9]/gi, "-").toLowerCase();
 }
 
-export function isValidCode(code: string): boolean {
-  return /^[a-z0-9][a-z0-9._-]{0,63}$/.test(code);
-}
-
-export async function fetchDropManifest(code: string): Promise<DropManifest> {
-  if (!isValidCode(code)) throw new Error(`bad code: ${code}`);
-  const resp = await fetch(`${DROP_BASE}/${code}/manifest.json`, {
-    cache: "no-store",
-  });
-  if (!resp.ok) throw new Error(`no drop for "${code}" (${resp.status})`);
-  const m = (await resp.json()) as DropManifest;
+/** manifest.json は bytes のまま持つ(判はその bytes に対して押されている) */
+async function fetchDropManifest(reg: Registry, uuid: string, semver?: string): Promise<{ manifest: DropManifest; bytes: Uint8Array }> {
+  const resp = await fetch(`${reg.base}/${dropPath(uuid, semver)}/manifest.json`, { cache: "no-store" });
+  if (!resp.ok) throw new Error(`no drop ${uuid} in ${reg.name} (${resp.status})`);
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  const m = JSON.parse(new TextDecoder().decode(bytes)) as DropManifest;
+  if (m.uuid !== uuid) throw new Error(`manifest の uuid(${m.uuid})が ${uuid} と違う`);
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(m.name ?? "")) throw new Error(`manifest の name の形が違う: ${m.name}`);
   if (!Array.isArray(m.entries) || m.entries.length === 0) {
-    throw new Error(`drop "${code}" has no entries`);
+    throw new Error(`drop ${uuid} has no entries`);
   }
-  return m;
+  return { manifest: m, bytes };
 }
+/** registry の指定があればそこ。無ければ一覧に順に訊いて、最初に持っていたところ */
+async function findDrop(uuid: string, registryName?: string): Promise<{ reg: Registry; manifest: DropManifest; bytes: Uint8Array }> {
+  if (registryName) {
+    const reg = registryByName(registryName);
+    return { reg, ...(await fetchDropManifest(reg, uuid)) };
+  }
+  const misses: string[] = [];
+  for (const reg of listRegistries()) {
+    try {
+      return { reg, ...(await fetchDropManifest(reg, uuid)) };
+    } catch (e) {
+      misses.push(String((e as Error)?.message ?? e));
+    }
+  }
+  throw new Error(`どの registry にも ${uuid} が無い(${misses.join(" / ")})`);
+}
+
+/** 読める字のもの。それ以外(.wasm など)は中を開かず、大きさだけ見せる */
+const TEXT_EXT = /\.(js|mjs|cjs|ts|tsx|json|md|css|html|xhtml|svg|txt|toml|tsubaki|jl)$/i;
 
 /** xpi(zip)の中を文字列で読む。実行はしない */
 function readZipEntries(path: string): Map<string, string> {
@@ -121,6 +245,10 @@ function readZipEntries(path: string): Map<string, string> {
   try {
     for (const name of zr.findEntries("*")) {
       if (name.endsWith("/")) continue;
+      if (!TEXT_EXT.test(name)) {
+        out.set(name, `(binary, ${zr.getEntry(name).realSize} bytes)`);
+        continue;
+      }
       const stream = zr.getInputStream(name);
       const text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
       stream.close();
@@ -132,38 +260,52 @@ function readZipEntries(path: string): Map<string, string> {
   return out;
 }
 
-/** 1. 見る: 落として sha256 を確かめ、中身を読む。実行はしない。 */
-export async function inspectDrop(code: string): Promise<DropInspection> {
-  console.log(`[noraneko-drops] inspect ${code}: manifest`);
-  const m = await fetchDropManifest(code);
-  const dir = dropDir(code);
+/** registry の判を確かめる。無ければ ok=false で理由を書く。止めはしない */
+async function checkAttestations(reg: Registry, uuid: string, manifestBytes: Uint8Array, semver?: string) {
+  const { verifyKeylessBundle } = ChromeUtils.importESModule("resource://noraneko/modules/sigstore/Sigstore.sys.mjs");
+  const r = await fetch(`${reg.base}/${dropPath(uuid, semver)}/manifest.json.sigstore.json`, { cache: "no-store" });
+  if (!r.ok) {
+    return [{ who: "registry", identity: reg.identity, issuer: reg.issuer, ok: false, reason: "registry の判(manifest.json.sigstore.json)が無い" }];
+  }
+  return [await verifyKeylessBundle("registry", await r.json(), manifestBytes, reg.identity, reg.issuer)];
+}
+
+/**
+ * 1. 見る: 落として sha256 を確かめ、判を確かめ、中身を読む。実行はしない。
+ * ref は uuid。registry は指定が無ければ一覧に順に訊く。
+ */
+export async function inspectDrop(ref: string, registryName?: string): Promise<DropInspection> {
+  const uuid = parseUuid(ref);
+  const { reg, manifest: m, bytes: manifestBytes } = await findDrop(uuid, registryName);
+  console.log(`[noraneko-drops] inspect ${uuid} (${m.name}) @ ${reg.name}: manifest`);
+  const attestations = await checkAttestations(reg, uuid, manifestBytes);
+  const dir = dropDir(uuid);
   await IOUtils.makeDirectory(dir, { createAncestors: true, ignoreExisting: true });
   const entries: DropInspection["entries"] = [];
   for (const e of m.entries) {
     if (!/^[A-Za-z0-9._-]+$/.test(e.file)) throw new Error(`bad file name: ${e.file}`);
-    const url = `${DROP_BASE}/${code}/${e.file}`;
+    const url = `${reg.base}/${uuid}/${e.file}`;
     const resp = await fetch(url, { cache: "no-store" });
     if (!resp.ok) throw new Error(`download failed: ${url} (${resp.status})`);
     const bytes = new Uint8Array(await resp.arrayBuffer());
-    const path = PathUtils.join(dir, e.file);
+    const edir = entryDir(uuid, e.version);
+    await IOUtils.makeDirectory(edir, { createAncestors: true, ignoreExisting: true });
+    const path = PathUtils.join(edir, e.file);
     await IOUtils.write(path, bytes, { tmpPath: `${path}.tmp` });
     const digest = await IOUtils.computeHexDigest(path, "sha256");
     if (digest !== e.sha256) {
       await IOUtils.remove(path);
       throw new Error(`sha256 mismatch: ${e.file}`);
     }
-    console.log(`[noraneko-drops] inspect ${code}: ${e.file} sha256 ok, reading zip`);
+    console.log(`[noraneko-drops] inspect ${m.name}: ${e.file} sha256 ok, reading zip`);
     const files = readZipEntries(path);
-    console.log(`[noraneko-drops] inspect ${code}: ${e.file} ${files.size} entries`);
+    console.log(`[noraneko-drops] inspect ${m.name}: ${e.file} ${files.size} entries`);
     const wm = JSON.parse(files.get("manifest.json") ?? "{}");
-    let functions: string[] = [];
+    let actor: { matches?: string[]; methods?: string[]; includeChrome?: boolean } = {};
     try {
-      const schema = JSON.parse(files.get("schema.json") ?? "[]");
-      functions = (Array.isArray(schema) ? schema : [schema])
-        .flatMap((ns: { functions?: { name: string }[] }) => ns.functions ?? [])
-        .map((f: { name: string }) => f.name);
+      actor = JSON.parse(files.get("actor.json") ?? "{}");
     } catch {
-      // schema が無い・壊れているなら関数は空のまま(表示だけの話)
+      // actor.json が壊れているなら空のまま(表示だけの話。入れるときに改めて読んで失敗する)
     }
     entries.push({
       id: wm.browser_specific_settings?.gecko?.id ?? e.id,
@@ -171,9 +313,10 @@ export async function inspectDrop(code: string): Promise<DropInspection> {
       version: wm.version ?? e.version,
       file: e.file,
       sha256: e.sha256,
-      matches: (wm.content_scripts ?? []).flatMap((c: { matches?: string[] }) => c.matches ?? []),
+      matches: actor.matches ?? [],
+      chrome: actor.includeChrome === true,
       permissions: wm.permissions ?? [],
-      functions,
+      functions: actor.methods ?? [],
       sources: [...files.entries()]
         .filter(([n]) => n.startsWith("source/"))
         .map(([n, text]) => ({ path: n.slice("source/".length), text })),
@@ -183,25 +326,68 @@ export async function inspectDrop(code: string): Promise<DropInspection> {
         .map(([n, text]) => ({ path: n, text })),
     });
   }
-  return { code, manifest: m, entries };
+  // 使う library も、同じように落として、sha と判を見て、中を読む(版は manifest に固定されたもの)
+  const deps: InspectedDep[] = [];
+  for (const d of m.deps ?? []) {
+    const du = parseUuid(d.uuid);
+    const { manifest: dm, bytes: dbytes } = await fetchDropManifest(reg, du, d.version);
+    const dattest = await checkAttestations(reg, du, dbytes, d.version);
+    const ddir = depDir(uuid, d.name, d.version);
+    await IOUtils.makeDirectory(ddir, { createAncestors: true, ignoreExisting: true });
+    const dentries: InspectedDep["entries"] = [];
+    for (const e of dm.entries) {
+      if (!/^[A-Za-z0-9._-]+$/.test(e.file)) throw new Error(`bad file name: ${e.file}`);
+      const url = `${reg.base}/${dropPath(du, d.version)}/${e.file}`;
+      const resp = await fetch(url, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`download failed: ${url} (${resp.status})`);
+      const path = PathUtils.join(ddir, e.file);
+      await IOUtils.write(path, new Uint8Array(await resp.arrayBuffer()), { tmpPath: `${path}.tmp` });
+      if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
+        await IOUtils.remove(path);
+        throw new Error(`sha256 mismatch: ${d.name}/${e.file}`);
+      }
+      const files = readZipEntries(path);
+      dentries.push({ file: e.file, version: e.version, sha256: e.sha256, files: [...files.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => ({ path: p, text })) });
+    }
+    console.log(`[noraneko-drops] inspect ${m.name}: dep ${d.name} ${d.version} ok`);
+    deps.push({ ...d, attestations: dattest, manifest: dm, entries: dentries });
+  }
+  return { uuid, name: m.name, registry: reg, attestations, manifest: m, deps, entries };
 }
 
-async function installFile(code: string, version: string, path: string): Promise<string> {
-  const file = new FileUtils.File(path);
-  // 親プロセスのコード(actor.mjs)を読むための別名。api.js が resource://<alias>/actor.mjs を読む
+/**
+ * resource:// の別名を、その xpi の root に向ける(path が null なら外す)。
+ * **いつも張り直す**: 同じ別名が、もう消えた file を指したまま残っていることがある。
+ */
+function setAlias(alias: string, path: string | null): void {
   const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
-  const alias = resAlias(code, version);
-  if (!res.hasSubstitution(alias)) {
-    res.setSubstitution(alias, Services.io.newURI(`jar:${Services.io.newFileURI(file).spec}!/`));
-  }
+  if (res.hasSubstitution(alias)) res.setSubstitution(alias, null);
+  if (path === null) return;
+  res.setSubstitutionWithFlags(
+    alias,
+    Services.io.newURI(`jar:${Services.io.newFileURI(new FileUtils.File(path)).spec}!/`),
+    Ci.nsISubstitutingProtocolHandler.ALLOW_CONTENT_ACCESS,
+  );
+}
+/** library の xpi に別名を張る(addon にはしない。使う drop の child が resource://<alias>/lib.js を scope に読む) */
+function mountDep(d: DepRef, path: string): void {
+  setAlias(depAlias(d), path);
+}
+
+async function installFile(uuid: string, version: string, path: string): Promise<{ id: string; actor: string }> {
+  const file = new FileUtils.File(path);
+  // xpi の root に別名を張る。parent.sys.mjs / child.sys.mjs / actor.mjs / content.js はこの URL で読まれる
+  // (importESModule は jar:file: を信用しない。content process にも同じ別名が届く)
+  const alias = resAlias(uuid, version);
+  const root = `resource://${alias}/`;
+  setAlias(alias, path);
   try {
     const addon = await AddonManager.installTemporaryAddon(file);
-    const policy = (globalThis as { WebExtensionPolicy?: { getByID(id: string): { isPrivileged: boolean; extension?: { rootURI?: { spec: string } } } | null } }).WebExtensionPolicy?.getByID(addon.id);
-    console.log(
-      `[noraneko-drops] ${addon.id}: active=${addon.isActive} privileged=${policy?.isPrivileged} ` +
-        `root=${policy?.extension?.rootURI?.spec ?? "?"} alias=resource://${alias}/`,
-    );
-    return addon.id;
+    const NoraActors = ChromeUtils.importESModule("resource://noraneko/modules/NoraActors.sys.mjs");
+    const reg = await NoraActors.readActorJson(root);
+    NoraActors.register(root, reg);
+    console.log(`[noraneko-drops] ${addon.id} ${addon.version}: actor ${reg.name} ← ${root}`);
+    return { id: addon.id, actor: reg.name };
   } catch (e) {
     // "Extension is invalid" は manifest の error を additionalErrors に持っている。見えないと直せない
     const err = e as { message?: string; additionalErrors?: string[] };
@@ -212,43 +398,86 @@ async function installFile(code: string, version: string, path: string): Promise
 
 /** 2. 入れる: inspectDrop が落として確かめた xpi を入れる。ここで初めて拡張が動き出す。 */
 export async function installDrop(inspected: DropInspection): Promise<string[]> {
-  const { code, manifest: m } = inspected;
-  const dir = dropDir(code);
+  const uuid = parseUuid(inspected.uuid);
+  const m = inspected.manifest;
+  const dir = dropDir(uuid);
   const ids: string[] = [];
   const files: string[] = [];
   const versions: string[] = [];
+  const actors: string[] = [];
+  const deps: InstalledDrop["deps"] = [];
+  for (const d of inspected.deps ?? []) {
+    for (const e of d.entries) {
+      const path = PathUtils.join(depDir(uuid, d.name, d.version), e.file);
+      if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) throw new Error(`sha256 mismatch at install: ${d.name}/${e.file}`);
+      mountDep(d, path);
+      deps.push({ name: d.name, uuid: d.uuid, version: d.version, lib: d.lib, wasm: d.wasm, file: e.file });
+      console.log(`[noraneko-drops] dep ${d.name} ${d.version} ← ${path}`);
+    }
+    // この drop が使わなくなった版は置いていかない(版が path に入るので、
+    // 上書きされずに残る。消してよいのは、いま入れた版以外のもの)
+    const kept = PathUtils.filename(depDir(uuid, d.name, d.version));
+    for (const other of await IOUtils.getChildren(PathUtils.join(dir, "deps", d.name)).catch(() => [])) {
+      if (PathUtils.filename(other) !== kept) await IOUtils.remove(other, { recursive: true, ignoreAbsent: true });
+    }
+  }
   for (const e of m.entries) {
-    const path = PathUtils.join(dir, e.file);
+    const path = PathUtils.join(entryDir(uuid, e.version), e.file);
     if (!(await IOUtils.exists(path))) throw new Error(`見てから入れて: ${e.file} が無い`);
     if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
       throw new Error(`sha256 mismatch at install: ${e.file}`);
     }
-    ids.push(await installFile(code, e.version, path));
+    const r = await installFile(uuid, e.version, path);
+    ids.push(r.id);
+    actors.push(r.actor);
     files.push(e.file);
     versions.push(e.version);
-    console.log(`[noraneko-drops] installed ${e.id} ${e.version} from ${code}`);
+    console.log(`[noraneko-drops] installed ${e.id} ${e.version} from ${m.name} (${uuid})`);
+  }
+  // 使わなくなった版は置いていかない(deps と同じ理由で、上書きされずに残るので)。
+  // 版の無い path に置かれていた前の形のものも、ここで片づく
+  const keep = new Set(versions);
+  const flat = new Set(files);
+  for (const child of await IOUtils.getChildren(dir).catch(() => [])) {
+    const name = PathUtils.filename(child);
+    if (name === "deps" || keep.has(name)) continue;
+    if (!flat.has(name) && !/^\d+(\.\d+){1,3}$/.test(name)) continue;
+    // file が消えるなら、それを指していた別名も外す
+    if (/^\d+(\.\d+){1,3}$/.test(name)) setAlias(resAlias(uuid, name), null);
+    await IOUtils.remove(child, { recursive: true, ignoreAbsent: true });
   }
   const all = readInstalled();
-  all[code] = { ids, files, versions, at: Date.now(), note: m.note };
+  all[uuid] = { name: m.name, ids, files, versions, actors, deps, at: Date.now(), note: m.note, registry: inspected.registry.name };
   writeInstalled(all);
   return ids;
 }
 
 /** コードの束を外す(built-in に戻る)。手元の xpi も消す。 */
-export async function removeDrop(code: string): Promise<void> {
+export async function removeDrop(ref: string): Promise<void> {
+  const uuid = parseUuid(ref);
   const all = readInstalled();
-  const d = all[code];
+  const d = all[uuid];
   if (!d) return;
+  const NoraActors = ChromeUtils.importESModule("resource://noraneko/modules/NoraActors.sys.mjs");
+  for (const name of d.actors ?? []) NoraActors.unregister(name);
   for (const id of d.ids) {
     const addon = await AddonManager.getAddonByID(id);
     if (addon && addon.temporarilyInstalled) {
       await addon.uninstall();
-      console.log(`[noraneko-drops] removed ${id} (${code})`);
+      console.log(`[noraneko-drops] removed ${id} (${d.name ?? uuid})`);
     }
   }
-  await IOUtils.remove(dropDir(code), { recursive: true, ignoreAbsent: true });
-  delete all[code];
+  // installFile が張った別名を外す(版ごとに一つ。残すと次の版まで jar: を指したままになる)
+  for (const v of d.versions ?? []) setAlias(resAlias(uuid, v), null);
+  for (const dep of d.deps ?? []) {
+    const stillUsed = Object.entries(all).some(([u, o]) => u !== uuid && (o.deps ?? []).some((x) => x.uuid === dep.uuid && x.version === dep.version));
+    if (!stillUsed) setAlias(depAlias(dep), null);
+  }
+  await IOUtils.remove(dropDir(uuid), { recursive: true, ignoreAbsent: true });
+  delete all[uuid];
   writeInstalled(all);
+  // built-in の actor を登録し直す(同じ名前のものが戻る)
+  await ChromeUtils.importESModule("resource://noraneko/modules/NoranekoStartup.sys.mjs").registerBuiltinWebExtActors();
 }
 
 export function listDrops(): Record<string, InstalledDrop> {
@@ -257,27 +486,48 @@ export function listDrops(): Record<string, InstalledDrop> {
 
 /**
  * 起動時: 一度「入れる」を押した drop を手元の xpi から入れ直す(承認は一回でいい。画面には常に出る)。
- * dev build だけ: NORANEKO_DROP_CODE があれば見ずに入れる(試験用。製品にはこの道は無い)。
+ * dev build だけ: NORANEKO_DROP_UUID があれば見ずに入れる(試験用。製品にはこの道は無い)。
  */
 export async function restoreDropsAtStartup(): Promise<void> {
   const all = readInstalled();
-  for (const [code, d] of Object.entries(all)) {
-    for (const [i, f] of (d.files ?? []).entries()) {
+  for (const [uuid, d] of Object.entries(all)) {
+    if (!UUID.test(uuid)) {
+      // 古い形(key が uuid でない)は入れ直せない。一覧からは外す(手元の xpi も古い形で、もう入らない)
+      console.warn(`[noraneko-drops] dropping old entry "${uuid}" (形が古い。入れ直して)`);
+      delete all[uuid];
+      writeInstalled(all);
+      continue;
+    }
+    for (const dep of d.deps ?? []) {
       try {
-        await installFile(code, d.versions?.[i] ?? "", PathUtils.join(dropDir(code), f));
+        // 版の無い path で入っていたもの(この形より前)も、そのまま読む
+        const versioned = PathUtils.join(depDir(uuid, dep.name, dep.version), dep.file);
+        const flat = PathUtils.join(dropDir(uuid), "deps", dep.name, dep.file);
+        mountDep(dep, (await IOUtils.exists(versioned)) ? versioned : flat);
       } catch (e) {
-        console.error(`[noraneko-drops] restore ${code}/${f} failed:`, e);
+        console.error(`[noraneko-drops] restore ${d.name ?? uuid} dep ${dep.name} failed:`, e);
       }
     }
-    if (d.files?.length) console.log(`[noraneko-drops] restored ${code} (${d.ids.join(", ")})`);
+    for (const [i, f] of (d.files ?? []).entries()) {
+      try {
+        const version = d.versions?.[i] ?? "";
+        // 版の無い path で入っていたもの(この形より前)も、そのまま読む
+        const versioned = PathUtils.join(entryDir(uuid, version), f);
+        const flat = PathUtils.join(dropDir(uuid), f);
+        await installFile(uuid, version, (await IOUtils.exists(versioned)) ? versioned : flat);
+      } catch (e) {
+        console.error(`[noraneko-drops] restore ${d.name ?? uuid}/${f} failed:`, e);
+      }
+    }
+    if (d.files?.length) console.log(`[noraneko-drops] restored ${d.name ?? uuid} (${d.ids.join(", ")})`);
   }
-  const code = IS_DEV ? Services.env.get(ENV_CODE) : "";
-  console.log(`[noraneko-drops] startup: dev=${IS_DEV} env=${code || "-"} restored=${Object.keys(all).length}`);
-  if (code && !all[code]) {
+  const ref = IS_DEV ? Services.env.get(ENV_UUID) : ""; // uuid
+  console.log(`[noraneko-drops] startup: dev=${IS_DEV} env=${ref || "-"} restored=${Object.keys(all).length}`);
+  if (ref && !all[ref.trim().toLowerCase()]) {
     try {
-      await installDrop(await inspectDrop(code));
+      await installDrop(await inspectDrop(ref, Services.env.get("NORANEKO_DROP_REGISTRY") || undefined));
     } catch (e) {
-      console.error(`[noraneko-drops] ${ENV_CODE}=${code} failed:`, e);
+      console.error(`[noraneko-drops] ${ENV_UUID}=${ref} failed:`, e);
     }
   }
 }

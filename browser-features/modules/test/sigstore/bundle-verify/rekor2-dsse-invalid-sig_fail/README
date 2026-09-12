@@ -1,0 +1,19 @@
+Invalid bundle for an in-toto DSSE envelope logged to Rekor v2 with the
+new hashedrekord-over-DSSE encoding (kind=hashedrekord/0.0.2). The
+envelope signature does not verify under the bundle's certificate (it was
+made with a different key entirely). The TSA timestamp matches the
+envelope signature, so it should not produce a timestamp failure.
+
+Construction:
+  1. Sign in-toto statement A as DSSE with key/cert #1 → bundle1
+     (happy-path source)
+  2. Sign in-toto statement A as DSSE with an unrelated key/cert #2 →
+     bundle2
+  3. In bundle1, replace the envelope signature and the RFC3161 timestamps
+     with those from bundle2.
+
+Signed against staging Sigstore using the
+sigstore-conformance/extremely-dangerous-public-oidc-beacon workflow
+identity. The bundle ships its own trusted_root.json (the staging trust
+root); once production has a Rekor v2 instance the custom trust root can
+be removed.

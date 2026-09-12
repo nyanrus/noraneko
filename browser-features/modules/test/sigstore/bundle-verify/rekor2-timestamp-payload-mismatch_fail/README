@@ -1,0 +1,16 @@
+This is an invalid bundle where the hashedrekord 0.0.2 entry comes from a Rekor v2
+instance. the TSA timestamp payload is a valid timestamp however client should reject
+the bundle because the timestamp payload does **not** match the bundle signature.
+
+
+Test was created by creating two bundles at same time and manually replacing the 
+timestamp from one with the other (TOKEN is token from 
+https://github.com/sigstore-conformance/extremely-dangerous-public-oidc-beacon):
+
+   sigstore --trust-config ~/src/sigstore-python/test/assets/trust_config/staging-but-sign-with-rekor-v2.json sign --identity-token $TOKEN --bundle bundle2.sigstore.json test/assets/bundle-verify/a.txt
+
+   sigstore --trust-config ~/src/sigstore-python/test/assets/trust_config/staging-but-sign-with-rekor-v2.json sign --identity-token $TOKEN --bundle bundle.sigstore.json test/assets/bundle-verify/a.txt
+
+The test uses a custom trusted root (it's just the staging trust root: once prod has a rekor
+v2 instance the test bundle could be replaced and the custom trus root removed)
+

@@ -1,0 +1,12 @@
+This is a valid bundle where the entry comes from a Rekor v2 instance:
+* Entry type is hashedrekord 0.0.2
+* there is a TSA timestamp in the bundle (since there is no integrated time anymore in the entry)
+
+The test uses a custom trusted root (it's just the staging trust root: once prod has a rekor v2
+instance the test bundle could be replaced and the custom trust root removed)
+
+The log checkpoint has been replaced by a checkpoint cosigned by a witness. The signature line
+is a [timestamped cosignature](https://github.com/C2SP/C2SP/blob/main/tlog-cosignature.md).
+Clients should ignore this signature line since the witness verification key is unknown. Eventually,
+the witness keys will be distributed by the trust root and a client should verify this additional
+signature and return the timestamp from the signature line as well.

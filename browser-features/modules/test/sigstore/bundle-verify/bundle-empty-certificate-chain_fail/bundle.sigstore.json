@@ -1,0 +1,40 @@
+{
+    "mediaType": "application/vnd.dev.sigstore.bundle+json;version=0.1",
+    "verificationMaterial": {
+        "x509CertificateChain": {
+            "certificates": []
+        },
+        "tlogEntries": [
+            {
+                "logIndex": "27246492",
+                "logId": {
+                    "keyId": "wNI9atQGlz+VWfO6LRygH4QUfY/8W4RFwiT5i5WRgB0="
+                },
+                "kindVersion": {
+                    "kind": "hashedrekord",
+                    "version": "0.0.1"
+                },
+                "integratedTime": "1689177396",
+                "inclusionPromise": {
+                    "signedEntryTimestamp": "MEUCIQCvkqgP1sCP3BiNYQ+36o79yGXZP5CNeo7OmpmVT6kehgIgegEh0UlZwjMj2KEi/X0nm9cyq+vuG8uOGqG4i//nqgM="
+                },
+                "inclusionProof": {
+                    "logIndex": "23083061",
+                    "rootHash": "dauhleYK4YyAdxwwDtR0l0KnSOWZdG2bwqHftlanvcI=",
+                    "treeSize": "23083062",
+                    "hashes": [
+                        "/vK4Da3g7ZhRgme8FxCi8QIBL7DSlwpSwyERyIV+uS8="
+                    ]
+                },
+                "canonicalizedBody": "eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiaGFzaGVkcmVrb3JkIn0="
+            }
+        ]
+    },
+    "messageSignature": {
+        "messageDigest": {
+            "algorithm": "SHA2_256",
+            "digest": "oM/HEnHW4njlfNMy/5V8P3BD/do1TEy7GQow1W76Ab8="
+        },
+        "signature": "MEQCIFOpaXKWvvBDwThDjTHX7tFF8liRoSxLZIsSeoUM/6D4AiBxV9/RnTMMw1t6nniX0rCuwrf8Vh+feLFu99m4ir+3yA=="
+    }
+}
