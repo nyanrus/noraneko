@@ -1,0 +1,2 @@
+A Signed Entry Timestamp (integrated time) that falls outside the validity window of the
+signing certificate is invalid

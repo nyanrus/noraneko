@@ -9,12 +9,18 @@
       "npm:vite/client",
       "jsr:@types/gecko"
     ],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   },
   "imports": {
     "@std/path": "jsr:@std/path@^1.1.4",
     "birpc": "npm:birpc@^4.0.0",
-    "tsdown": "npm:tsdown@^0.21.0"
+    "tsdown": "npm:tsdown@^0.21.0",
+    "preact": "npm:preact@^10.28.4",
+    "preact/hooks": "npm:preact@^10.28.4/hooks",
+    "preact/jsx-runtime": "npm:preact@^10.28.4/jsx-runtime",
+    "@preact/signals-core": "npm:@preact/signals-core@^1.13.0"
   },
   "tasks": {
     "build": "deno run -A build.ts"

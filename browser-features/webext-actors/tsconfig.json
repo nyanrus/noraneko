@@ -7,6 +7,11 @@
     "strictNullChecks": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "lib": ["ESNext", "DOM"]
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   }
 }

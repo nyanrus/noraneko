@@ -1,0 +1,2 @@
+The signed entry timestamp (rekor integrated time) is not within signing certificate validity:
+client should reject.

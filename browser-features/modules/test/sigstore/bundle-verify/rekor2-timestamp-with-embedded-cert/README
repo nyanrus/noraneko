@@ -1,0 +1,10 @@
+This is a valid bundle where the entry comes from a Rekor v2 instance:
+* Entry type is hashedrekord 0.0.2
+* there is a TSA timestamp in the bundle (since there is no integrated time anymore in the entry) with embedded certificates
+
+
+The test uses a custom trusted root (it's just the staging trust root: once prod has a rekor v2
+instance the test bundle could be replaced and the custom trus root removed)
+
+
+The timestamp was requested specifically to include embedded certificates.

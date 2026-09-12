@@ -1,0 +1,9 @@
+# 道具の版。`mise install` で揃う。
+# - ruby: 建てる段(tools/)。ファイルを触って、program を起こす役
+# - deno: 束ねる役(vite / 各 package の `deno task build`)と、ブラウザに入るコードそのもの
+[tools]
+deno = "2.9.6"
+ruby = "3.4"
+
+[settings]
+ruby.compile = false

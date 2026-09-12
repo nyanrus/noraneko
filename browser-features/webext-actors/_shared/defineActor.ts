@@ -1,11 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 
-// Authoring surface for a WebExtension-based "actor". Each actor lives in one
-// file that exports three things by name:
+// Authoring surface for an "actor": a small xpi whose page side is a
+// JSWindowActor (the same shape as Firefox's own about:newtab add-on). Each
+// actor lives in one file that exports three things by name:
 //
 //   export const meta    = { id, namespace, matches, ... };
-//   export const parent  = defineParent({ method(...) { ... } });  // main process
-//   export const content = defineContent((parent, ctx) => { ... }); // content script
+//   export const parent  = defineParent({ method(...) { ... } });  // main process (JSWindowActorParent)
+//   export const content = defineContent((parent, ctx) => { ... }); // page side (run by JSWindowActorChild)
+//
+// The page side is NOT a WebExtension content script: content scripts are not
+// injected into about:* / chrome:* documents in stock Firefox (see README,
+// "addon 式が駄目だった理由"). The child actor loads content.js into the page's
+// process with `window` / `document` on the scope chain, so the hook is written
+// the same way, but it runs with the child actor's privileges.
 //
 // Named exports (rather than one nested object) are deliberate: the build
 // bundles `parent` and `content` into separate outputs, and named exports let
@@ -24,11 +31,24 @@ export interface ActorMeta {
   version: string;
   /** Experiment-API namespace, e.g. "noraSettings". Also the message channel. */
   namespace: string;
-  /** content_scripts match patterns. */
+  /** Match patterns for the pages the content hook runs in (JSWindowActor `matches`). */
   matches: string[];
-  /** content_scripts run_at. Defaults to "document_end". */
+  /**
+   * When the content hook runs. Maps to a child actor event:
+   * document_start → DOMDocElementInserted, document_end → DOMContentLoaded,
+   * document_idle → load. Defaults to "document_end".
+   */
   runAt?: "document_start" | "document_end" | "document_idle";
+  /**
+   * JSWindowActor name. Defaults to "Nora" + PascalCase(<dir>), e.g. NoraNewtab.
+   * A drop with the same actor name replaces the built-in one (unregister → register).
+   */
+  actor?: string;
+  /** Legacy JSActor (BrowserGlue) this one replaces; it is unregistered when this actor is registered. */
+  replaces?: string;
 }
+
+import type { Io } from "./io.ts";
 
 type ParentMethods = Record<string, (...args: any[]) => unknown>;
 
@@ -37,6 +57,32 @@ export interface ContentCtx {
   dev: boolean;
   /** Expose functions on the page window (via exportFunction). */
   expose(funcs: Record<string, (...args: any[]) => unknown>): void;
+  /**
+   * Run when this actor goes away in this window (the drop is removed or
+   * replaced). Put back what the hook changed: DOM, observers, listeners.
+   */
+  onDestroy(fn: () => void): void;
+  /**
+   * Place things through these (DOM, styles, listeners, pref observers) and
+   * they are taken out again by themselves: each verb puts its way back on
+   * the same ledger as onDestroy.
+   */
+  io: Io;
+  /** This actor's own files: `${ctx.base}ops/x.tsubaki` and the like. */
+  base: string;
+  /**
+   * The actor's logic in Tsubaki (when it ships wasm/): run a .tsubaki file of
+   * its own with load("ops/x.tsubaki"), then call(name, ...args). Values cross
+   * as ordinary JS values; a Tsubaki error is a JS Error. undefined without wasm/.
+   */
+  ops: Ops | undefined;
+}
+
+export interface Ops {
+  ready: Promise<void>;
+  eval(src: string): unknown;
+  call(name: string, ...args: unknown[]): unknown;
+  load(rel: string): Promise<unknown>;
 }
 
 /** Proxy to the parent methods; each call is forwarded to the main process. */

@@ -1,0 +1,2 @@
+The inclusion proof has a corrupted hash (bit flip in one of the proof hashes).
+Verification must fail because the Merkle proof is invalid.

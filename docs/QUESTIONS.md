@@ -123,6 +123,9 @@ This document contains questions that would help future AI agents (or developers
   it is fast, isn't it? :3
 - **Q14.3:** Are there concerns about the `linkedom` dependency (version pinned at 0.18.12)?
   No. when I tried latest version, it had bug for XHTML processing. for now, I'm not sure I should update or not.
+  (2026-09: `linkedom` is gone. `tools/lib/xhtml.rb` edits the two XHTML files as text, touching only
+  the `data-geckomixin` script it wrote itself and the CSP `<meta>` it names — no DOM round-trip,
+  so the rest of the file keeps its bytes.)
 
 ## Documentation Questions
 

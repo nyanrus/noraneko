@@ -19,8 +19,6 @@
     "#bridge-loader-features/": "./bridge/loader-features/",
     "@nora/shared/": "./browser-features/shared/",
     "@mobily/ts-belt": "npm:@mobily/ts-belt@^3.13.1",
-    "jszip": "npm:jszip@^3.10.1",
-    "diff": "npm:diff@^8.0.3",
     "@std/streams": "jsr:@std/streams@^1.0.17",
     "@std/toml": "npm:@jsr/std__toml@^1.0.11",
     "@preact/signals-core": "npm:@preact/signals-core@^1.13.0",
@@ -44,10 +42,13 @@
     "gaji.config.ts"
   ],
   "tasks": {
-    "feles-build": "deno run -A tools/feles-build.ts",
+    "feles-build": "ruby tools/feles-build.rb",
+    "launcher": "ruby tools/launcher.rb",
+    "test:tools": "ruby tools/test/dev_browser_test.rb",
+    "drop:build": "ruby tools/scripts/build-drop.rb",
     "gha:dev": "gaji dev",
     "gha:build": "gaji build",
-    "check:tabbrowser": "deno run -A tools/scripts/check-tabbrowser-methods.ts"
+    "check:tabbrowser": "ruby tools/scripts/check-tabbrowser-methods.rb"
   },
   "nodeModulesDir": "auto",
   "vendor": true
