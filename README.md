@@ -55,6 +55,7 @@ For developers and contributors, see the following documentation:
 | Document | Description |
 |----------|-------------|
 | [Development](docs/DEV.md) | Getting a dev browser running (macOS arm64 / Linux) |
+| [Launcher](docs/LAUNCHER.md) | A page that builds and opens Noraneko for you, no commands to remember |
 | [Architecture](docs/ARCHITECTURE.md) | High-level architecture overview |
 | [Build System](docs/BUILD_SYSTEM.md) | Build system and tooling documentation |
 | [Event Dispatcher](docs/RPC_SYSTEM_README.md) | Inter-module communication system |
