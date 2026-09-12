@@ -41,6 +41,7 @@
   ],
   "tasks": {
     "feles-build": "ruby tools/feles-build.rb",
+    "launcher": "ruby tools/launcher.rb",
     "drop:build": "ruby tools/scripts/build-drop.rb",
     "gha:dev": "gaji dev",
     "gha:build": "gaji build"
