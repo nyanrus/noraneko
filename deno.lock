@@ -3467,7 +3467,6 @@
         "npm:tailwindcss@^4.2.1",
         "npm:typescript@^5.9.3",
         "npm:unplugin-swc@^1.5.9",
-        "npm:uuid@13",
         "npm:vite-plugin-istanbul@^7.2.1",
         "npm:vite-plugin-solid@^2.11.10",
         "npm:vite-tsconfig-paths@^6.1.1",

@@ -2,16 +2,20 @@
 
 import * as Initializer from "./src/initializer.ts";
 import * as Patcher from "./src/patcher.ts";
-import * as Symlinker from "./src/symlinker.ts";
-import * as Update from "./src/update.ts";
 import * as Builder from "./src/builder.ts";
 import * as DevServer from "./src/dev_server.ts";
 import * as Injector from "./src/injector.ts";
 import * as BrowserLauncher from "./src/browser_launcher.ts";
-import * as DevEnvManager from "./src/dev_env_manager.ts";
-import { Logger } from "./src/utils.ts";
+import { Logger, runRuby, runRubyCapture } from "./src/utils.ts";
 
 const logger = new Logger("feles-build");
+
+/** build.rb uuid: Ruby の SecureRandom.uuid_v7 を一つもらう */
+function generateBuildid2(): string {
+  const buildid2 = runRubyCapture("uuid");
+  logger.info(`Generated build id: ${buildid2}`);
+  return buildid2;
+}
 
 /**
  * Simple writable-like object to capture ready signal from DevServer.run
@@ -81,15 +85,15 @@ async function runDev(): Promise<void> {
   // Initial setup
   await Initializer.run();
   await Patcher.run("apply");
-  Symlinker.run();
+  runRuby("symlink");
 
-  const buildid2 = Update.generateUuidV7();
+  const buildid2 = generateBuildid2();
   await Builder.run("dev", buildid2);
   await Injector.run("dev");
   await Injector.injectXhtmlFromTs(true);
   // Re-seal the bundle after the last omni.ja modification (stock Firefox / darwin).
   Initializer.resignMacApp();
-  DevEnvManager.setup();
+  runRuby("dev-env");
 
   setupDevServerAndBrowser();
   // Keep process alive until SIGINT or process termination from BrowserLauncher path
@@ -103,13 +107,13 @@ async function runStage(): Promise<void> {
   // Initial setup
   await Initializer.run();
   await Patcher.run("apply");
-  Symlinker.run();
-  const buildid2 = Update.generateUuidV7();
+  runRuby("symlink");
+  const buildid2 = generateBuildid2();
   await Builder.run("stage", buildid2);
   await Injector.run("stage");
   await Injector.injectXhtmlFromTs(true);
   Initializer.resignMacApp();
-  DevEnvManager.setup();
+  runRuby("dev-env");
 
   setupDevServerAndBrowser();
   // Keep process alive until SIGINT or browser termination like runDev
@@ -123,9 +127,9 @@ async function runBuild(phase?: string): Promise<void> {
   }
 
   if (optionsPhase === "before-mach") {
-    Symlinker.run();
+    runRuby("symlink");
     // Build production assets
-    const buildid2 = Update.generateUuidV7();
+    const buildid2 = generateBuildid2();
     await Builder.run("production", buildid2);
   } else if (optionsPhase === "after-mach") {
     await Injector.injectXhtmlFromTs(false, true);
@@ -199,8 +203,7 @@ async function main(): Promise<void> {
         const action = idx >= 0 ? argv[idx + 1] : "apply";
         runPatch(action);
       } else if (sub === "writeVersion") {
-        Update.writeVersion("static/gecko");
-        logger.success("Version written to static/gecko/config/");
+        runRuby("write-version", "static/gecko");
       } else {
         logger.error(`Unknown misc command: ${sub}`);
         printHelp();

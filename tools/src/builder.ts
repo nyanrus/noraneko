@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import * as path from "@std/path";
-import { PROJECT_ROOT, PATHS } from "./defines.ts";
+import { PROJECT_ROOT } from "./defines.ts";
 import {
   createFeatureSymlinks,
   exists,
   Logger,
   runCommandChecked,
+  runRuby,
   safeRemove,
 } from "./utils.ts";
-import { writeBuildid2 } from "./update.ts";
 
 const logger = new Logger("builder");
 
@@ -48,8 +48,9 @@ export async function run(mode = "dev", buildid2: string): Promise<void> {
   logger.info(`Building features with mode=${mode}`);
 
   // Ensure buildid2 is written to the expected path so other tools can read it.
+  // (the path lives in tools/lib/defines.rb now — dev_env_manager.rb reads it back)
   try {
-    writeBuildid2(PATHS.buildid2, buildid2);
+    runRuby("write-buildid2", buildid2);
   } catch (e: any) {
     logger.error(`Failed to write buildid2: ${e?.message ?? e}`);
   }

@@ -11,7 +11,7 @@ Noraneko's build system is designed to:
 4. Inject the built assets into the runtime
 5. Create the final distributable package
 
-The build system is implemented in TypeScript and runs on **Deno**.
+The build system is TypeScript on **Deno**, with the file-touching parts in **Ruby** (`tools/lib/`). Both come from `mise install`.
 
 ## Entry Point
 
@@ -34,7 +34,15 @@ This runs `tools/feles-build.ts`, which orchestrates the entire build process.
 
 ## Build Components
 
-All build components are located in `tools/src/`:
+Build components live in two places, split by what they need:
+
+- `tools/src/` — TypeScript, run by Deno. Everything that touches the JS
+  ecosystem (vite, the omni.ja editing via JSZip, the patch application via
+  npm:diff).
+- `tools/lib/` — Ruby, run by `ruby`. The parts that only touch files and start
+  programs. One door: `ruby tools/lib/build.rb <step>` (run it with no arguments
+  to list the steps). `tools/src/utils.ts` calls it with `runRuby()` /
+  `runRubyCapture()`. (`tools/scripts/build-drop.rb` is Ruby for the same reason.)
 
 ### 1. Initializer (`initializer.ts`)
 
@@ -75,7 +83,7 @@ Check `tools/patches/` for the current list of patches. Common patches target:
 
 > **Note:** Patches with `.temp` suffix are not applied automatically.
 
-### 3. Symlinker (`symlinker.ts`)
+### 3. Symlinker (`tools/lib/symlinker.rb`, step `symlink`)
 
 **Purpose:** Creates symbolic links for development mode.
 
@@ -152,7 +160,7 @@ resource noraneko resource/ contentaccessible=yes
 - `--wait-for-browser`
 - `--jsdebugger`
 
-### 8. Dev Env Manager (`dev_env_manager.ts`)
+### 8. Dev Env Manager (`tools/lib/dev_env_manager.rb`, step `dev-env`)
 
 **Purpose:** Sets up the development environment.
 
@@ -161,15 +169,15 @@ resource noraneko resource/ contentaccessible=yes
 - `writeDevVersionInfo()` - Writes version information
 - `setup()` - Runs both above functions
 
-### 9. Update (`update.ts`)
+### 9. Update (`tools/lib/update.rb`)
 
 **Purpose:** Manages version and build information.
 
 **Key Functions:**
-- `writeVersion()` - Writes version to Gecko config
-- `writeBuildid2()` - Writes build ID (UUID v7)
-- `generateUuidV7()` - Generates UUID v7 for builds
-- `generateUpdateXml()` - Creates update manifest for MAR updates
+- step `write-version <dir>` - Writes version to Gecko config
+- step `write-buildid2 <id>` - Writes build ID to `_dist/buildid2`
+- step `uuid` - Prints a UUID v7 (`SecureRandom.uuid_v7`) for builds
+- step `update-xml <meta.json> <out>` - Creates update manifest for MAR updates (nothing calls this)
 
 ### 10. Defines (`defines.ts`)
 
@@ -194,6 +202,7 @@ resource noraneko resource/ contentaccessible=yes
 - `createSymlink()` - Create symbolic links
 - `Logger` - Colored console logging
 - `ProcessUtils` - Stream stdout/stderr with callbacks
+- `runRuby()`, `runRubyCapture()` - Run one step of `tools/lib/build.rb`
 
 ## Development Workflow
 
@@ -208,7 +217,7 @@ When you run `deno task feles-build dev`:
 2. Patcher.run("apply")
    └── Apply patches to runtime
 
-3. Symlinker.run()
+3. ruby tools/lib/build.rb symlink
    └── Create development symlinks
 
 4. Builder.run("dev")
@@ -221,7 +230,7 @@ When you run `deno task feles-build dev`:
    └── Create noraneko.manifest
    └── Symlink built assets into runtime
 
-6. DevEnvManager.setup()
+6. ruby tools/lib/build.rb dev-env
    └── Save profile preferences
    └── Write version info
 
@@ -256,21 +265,25 @@ Between phases, `mach build` runs to build the Firefox runtime with artifact bui
 ```
 tools/
 ├── feles-build.ts         # Main entry point
-├── src/
+├── src/                   # TypeScript, run by Deno
 │   ├── builder.ts         # Asset building
 │   ├── browser_launcher.ts # Browser launch
-│   ├── defines.ts         # Constants/paths
-│   ├── dev_env_manager.ts # Dev environment setup
+│   ├── defines.ts         # Constants/paths (the platform-dependent ones)
 │   ├── dev_server.ts      # Vite dev servers
 │   ├── initializer.ts     # Binary initialization
 │   ├── injector.ts        # Asset injection
 │   ├── patcher.ts         # Patch management
-│   ├── symlinker.ts       # Symlink creation
-│   ├── update.ts          # Version management
-│   └── utils.ts           # Shared utilities
+│   └── utils.ts           # Shared utilities (incl. runRuby)
+├── lib/                   # Ruby, run by `ruby`
+│   ├── build.rb           # The one door: `build.rb <step>`
+│   ├── defines.rb         # Paths the Ruby side uses
+│   ├── dev_env_manager.rb # Dev environment setup
+│   ├── symlinker.rb       # Symlink creation
+│   ├── update.rb          # Version / build id
+│   └── utils.rb           # Logger
 ├── patches/               # Runtime patches
 └── scripts/
-    ├── gen-uuid.ts        # UUID generation
+    ├── build-drop.rb      # webext-actor -> drop (xpi)
     └── xhtml.ts           # XHTML injection
 ```
 

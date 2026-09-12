@@ -33,7 +33,6 @@
     "solid-js": "^1.9.11",
     "tailwindcss": "^4.2.1",
     "unplugin-swc": "^1.5.9",
-    "uuid": "^13.0.0",
     "vite-plugin-istanbul": "^7.2.1",
     "vite-tsconfig-paths": "^6.1.1"
   },

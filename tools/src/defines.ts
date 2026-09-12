@@ -59,13 +59,9 @@ export const PATHS = {
   root: PROJECT_ROOT,
   bin_root: path.join(PROJECT_ROOT, "_dist", "bin"),
   noraneko_out: path.join(PROJECT_ROOT, "_dist", "noraneko"),
-  buildid2: path.join(PROJECT_ROOT, "_dist", "buildid2"),
+  // profile_test は tools/lib/defines.rb にも同じものがある(dev_env_manager が Ruby)
   profile_test: path.join(PROJECT_ROOT, "_dist", "profile", "test"),
-  loader_features: path.join(PROJECT_ROOT, "bridge/loader-features"),
   features_chrome: path.join(PROJECT_ROOT, "browser-features/chrome"),
-  i18n: path.join(PROJECT_ROOT, "i18n"),
-  loader_modules: path.join(PROJECT_ROOT, "bridge/loader-modules"),
-  modules: path.join(PROJECT_ROOT, "browser-features/modules"),
   mozbuild_output: path.join(PROJECT_ROOT, "obj-artifact-build-output/dist"),
 } as const;
 

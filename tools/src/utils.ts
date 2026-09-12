@@ -102,6 +102,31 @@ export function runCommand(
   return result;
 }
 
+/** The build steps that live in Ruby. `ruby tools/lib/build.rb` lists them. */
+const BUILD_RB = path.join(PROJECT_ROOT, "tools", "lib", "build.rb");
+
+/**
+ * Run one build step, letting its output go straight to the terminal (the Ruby
+ * side logs in the same "[prefix] LEVEL: message" shape as Logger above).
+ */
+export function runRuby(step: string, ...args: string[]): void {
+  const result = new Deno.Command("ruby", {
+    args: [BUILD_RB, step, ...args],
+    stdout: "inherit",
+    stderr: "inherit",
+  }).outputSync();
+  if (result.code !== 0) {
+    throw new Error(
+      `ruby tools/lib/build.rb ${step} failed (exit ${result.code})`,
+    );
+  }
+}
+
+/** Same, for the steps that print a value we need back. */
+export function runRubyCapture(step: string, ...args: string[]): string {
+  return runCommand("ruby", [BUILD_RB, step, ...args]).stdout.trim();
+}
+
 /* Logger class similar to Ruby utils.Logger */
 export class Logger {
   private prefix: string;
