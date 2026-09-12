@@ -48,6 +48,8 @@ export interface InspectedEntry {
   sha256: string;
   matches: string[];
   chrome: boolean;
+  /** view に <browser> を置ける = ページを読み込む窓(drop.toml の [actor] web_frame) */
+  webFrame: boolean;
   permissions: string[];
   functions: string[];
   sources: { path: string; text: string }[];
@@ -68,11 +70,27 @@ export interface InspectedDep extends DepRef {
 export interface DropInspection {
   uuid: string;
   name: string; // 札
+  shots?: { file: string; dataUri: string }[];
   registry: Registry;
   attestations: AttestationCheck[];
   manifest: DropManifest;
   deps: InspectedDep[];
   entries: InspectedEntry[];
+}
+export interface CatalogItem {
+  uuid: string;
+  name: string;
+  note: string;
+  contact: string[];
+  lib: boolean;
+  icon: string | null;
+  shots: number;
+  version: string | null;
+  entries: { name?: string; version?: string; file?: string; size?: number }[];
+  deps: { name?: string; version?: string }[];
+  source?: { repo?: string; commit?: string; commit_time?: string; path?: string } | null;
+  rekor: number | null;
+  registry: string;
 }
 export interface InstalledDrop {
   name?: string;
@@ -88,9 +106,12 @@ export interface DropsApi {
   removeRegistry(name: string): void;
   inspectDrop(ref: string, registry?: string): Promise<DropInspection>; // ref = uuid
   parseUuid(ref: string): string;
+  /** 入れる前に、落としてある bytes をもう一度照らす(入れない) */
+  verifyDrop(inspected: DropInspection): Promise<{ ok: boolean; checked: number; bad: string[] }>;
   installDrop(inspected: DropInspection): Promise<string[]>;
   removeDrop(ref: string): Promise<void>;
   listDrops(): Record<string, InstalledDrop>;
+  listCatalog(): Promise<{ items: CatalogItem[]; failed: { registry: string; reason: string }[] }>;
 }
 
 export const dropsApi: DropsApi | null = (() => {

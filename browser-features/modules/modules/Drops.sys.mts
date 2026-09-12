@@ -96,6 +96,13 @@ export interface DropEntry {
   sha256: string;
   size: number;
 }
+/** 絵の一枚。どの entry の xpi に入っているかを、manifest が覚えている */
+export interface Shot {
+  file: string;
+  type?: string;
+  size?: number;
+  in: string;
+}
 export interface DropManifest {
   uuid: string;
   name: string; // 札(registry の中の dir の名前)
@@ -105,6 +112,15 @@ export interface DropManifest {
   entries: DropEntry[];
   lib?: boolean; // library drop(actor を持たない。使う drop の scope に読まれる)
   deps?: DepRef[];
+  /**
+   * 96px までの PNG。同じ bytes が **xpi の中**(`in` の xpi の `icon.png`)と、
+   * **manifest の隣**(dl の `/drop/<uuid>/<file>`)の両方にある。
+   * 一枚を見るときは落とした xpi から読む(取りに行かない)。棚は落とす前なので隣のほうを使い、
+   * 配る側がこの sha256 を照らしてからでないと返さない。
+   */
+  icon?: { file: string; type?: string; size?: number; sha256: string; in?: string };
+  /** xpi の中の絵。落として判を見たあと(= 一枚を開いたとき)だけ読む */
+  shots?: Shot[];
 }
 /** 見た library drop。使う drop の一枚に一緒に出す */
 export interface InspectedDep extends DepRef {
@@ -135,6 +151,10 @@ export interface InstalledDrop {
 export interface DropInspection {
   uuid: string;
   name: string; // 札(manifest の name)
+  /** manifest の icon を xpi から読んだもの(data: URI)。読めなければ null */
+  icon?: string | null;
+  /** manifest の shots を xpi から読んだもの(data: URI)。読めなかったものは並ばない */
+  shots?: { file: string; dataUri: string }[];
   registry: Registry;
   attestations: import("./sigstore/Sigstore.sys.mjs").AttestationCheck[]; // registry の判
   manifest: DropManifest;
@@ -147,6 +167,7 @@ export interface DropInspection {
     sha256: string;
     matches: string[]; // content.js が動くページ(actor.json の matches)
     chrome: boolean; // ブラウザの窓そのもの(browser.xhtml)にも効く(actor.json の includeChrome)
+    webFrame: boolean; // view に <browser> を置ける = ページを読み込む窓(actor.json の webFrame)
     permissions: string[]; // (xpi の manifest に permissions があれば。いまの actor には無い)
     functions: string[]; // 親プロセスで呼べる関数(actor.json の methods)
     sources: { path: string; text: string }[]; // 書いたもの(source/)
@@ -238,6 +259,45 @@ async function findDrop(uuid: string, registryName?: string): Promise<{ reg: Reg
 const TEXT_EXT = /\.(js|mjs|cjs|ts|tsx|json|md|css|html|xhtml|svg|txt|toml|tsubaki|jl)$/i;
 
 /** xpi(zip)の中を文字列で読む。実行はしない */
+/** xpi の中の絵を data: にする。512KB まで、中身の magic が PNG / JPEG / WebP のものだけ */
+const SHOT_MAX = 512 * 1024;
+function readZipImage(path: string, name: string): string | null {
+  if (!/^(icon\.png|shots\/[A-Za-z0-9._-]+)$/.test(name)) return null;
+  const zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
+  try {
+    zr.open(new FileUtils.File(path));
+    let entry;
+    try {
+      entry = zr.getEntry(name);
+    } catch {
+      return null; // 無い
+    }
+    if (!entry || entry.realSize > SHOT_MAX) return null;
+    const stream = zr.getInputStream(name);
+    const bin = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
+    bin.setInputStream(stream);
+    const bytes = bin.readByteArray(entry.realSize) as number[];
+    bin.close();
+    stream.close();
+    const type = imageType(bytes);
+    if (!type) return null; // 名乗りではなく中身で見る
+    let s = "";
+    for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.slice(i, i + 8192));
+    return `data:${type};base64,${btoa(s)}`;
+  } catch (e) {
+    console.warn(`[noraneko-drops] ${name} が読めない:`, e);
+    return null;
+  } finally {
+    zr.close();
+  }
+}
+function imageType(b: number[]): string | null {
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45) return "image/webp";
+  return null;
+}
+
 function readZipEntries(path: string): Map<string, string> {
   const zr = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
   zr.open(new FileUtils.File(path));
@@ -301,7 +361,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     const files = readZipEntries(path);
     console.log(`[noraneko-drops] inspect ${m.name}: ${e.file} ${files.size} entries`);
     const wm = JSON.parse(files.get("manifest.json") ?? "{}");
-    let actor: { matches?: string[]; methods?: string[]; includeChrome?: boolean } = {};
+    let actor: { matches?: string[]; methods?: string[]; includeChrome?: boolean; webFrame?: boolean } = {};
     try {
       actor = JSON.parse(files.get("actor.json") ?? "{}");
     } catch {
@@ -315,6 +375,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
       sha256: e.sha256,
       matches: actor.matches ?? [],
       chrome: actor.includeChrome === true,
+      webFrame: actor.webFrame === true,
       permissions: wm.permissions ?? [],
       functions: actor.methods ?? [],
       sources: [...files.entries()]
@@ -326,6 +387,21 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
         .map(([n, text]) => ({ path: n, text })),
     });
   }
+  // 絵: manifest が「どの xpi の中か」を覚えている。落として sha を見たあとの file から読む。
+  // 一枚を開いているときは xpi がもう手元にあるので、絵のために取りに行くことはしない
+  let icon: string | null = null;
+  if (m.icon) {
+    const holder = m.entries.find((e) => e.file === m.icon!.in) ?? m.entries[0];
+    if (holder) icon = readZipImage(PathUtils.join(entryDir(uuid, holder.version), holder.file), "icon.png");
+  }
+  const shots: { file: string; dataUri: string }[] = [];
+  for (const shot of m.shots ?? []) {
+    const holder = m.entries.find((e) => e.file === shot.in);
+    if (!holder) continue;
+    const dataUri = readZipImage(PathUtils.join(entryDir(uuid, holder.version), holder.file), shot.file);
+    if (dataUri) shots.push({ file: shot.file, dataUri });
+  }
+
   // 使う library も、同じように落として、sha と判を見て、中を読む(版は manifest に固定されたもの)
   const deps: InspectedDep[] = [];
   for (const d of m.deps ?? []) {
@@ -352,7 +428,7 @@ export async function inspectDrop(ref: string, registryName?: string): Promise<D
     console.log(`[noraneko-drops] inspect ${m.name}: dep ${d.name} ${d.version} ok`);
     deps.push({ ...d, attestations: dattest, manifest: dm, entries: dentries });
   }
-  return { uuid, name: m.name, registry: reg, attestations, manifest: m, deps, entries };
+  return { uuid, name: m.name, icon, shots, registry: reg, attestations, manifest: m, deps, entries };
 }
 
 /**
@@ -397,6 +473,36 @@ async function installFile(uuid: string, version: string, path: string): Promise
 }
 
 /** 2. 入れる: inspectDrop が落として確かめた xpi を入れる。ここで初めて拡張が動き出す。 */
+/**
+ * 入れる前に、落としてある bytes をもう一度照らす。
+ *
+ * `installDrop` が最初にすることと同じ照合を、**入れずに**やる ── 押した人に
+ * 「何を許すのか」を見せているあいだ、それが本当にその bytes なのかを確かめておく。
+ * 見たときから入れるまでのあいだに profile の file が入れ替わっていたら、ここで分かる。
+ */
+export async function verifyDrop(inspected: DropInspection): Promise<{ ok: boolean; checked: number; bad: string[] }> {
+  const uuid = parseUuid(inspected.uuid);
+  const bad: string[] = [];
+  let checked = 0;
+  for (const d of inspected.deps ?? []) {
+    for (const e of d.entries) {
+      const path = PathUtils.join(depDir(uuid, d.name, d.version), e.file);
+      checked++;
+      if (!(await IOUtils.exists(path)) || (await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
+        bad.push(`${d.name}/${e.file}`);
+      }
+    }
+  }
+  for (const e of inspected.manifest.entries) {
+    const path = PathUtils.join(entryDir(uuid, e.version), e.file);
+    checked++;
+    if (!(await IOUtils.exists(path)) || (await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) {
+      bad.push(e.file);
+    }
+  }
+  return { ok: bad.length === 0, checked, bad };
+}
+
 export async function installDrop(inspected: DropInspection): Promise<string[]> {
   const uuid = parseUuid(inspected.uuid);
   const m = inspected.manifest;
@@ -409,6 +515,9 @@ export async function installDrop(inspected: DropInspection): Promise<string[]> 
   for (const d of inspected.deps ?? []) {
     for (const e of d.entries) {
       const path = PathUtils.join(depDir(uuid, d.name, d.version), e.file);
+      // 無いときは、無いと言う。**戻すと、落としてあった dep の bytes も一緒に消える**ので、
+      // 戻したあとに前の inspection のまま入れると、ここに来る(下の entries と同じ形に)
+      if (!(await IOUtils.exists(path))) throw new Error(`見てから入れて: ${d.name}/${e.file} が無い`);
       if ((await IOUtils.computeHexDigest(path, "sha256")) !== e.sha256) throw new Error(`sha256 mismatch at install: ${d.name}/${e.file}`);
       mountDep(d, path);
       deps.push({ name: d.name, uuid: d.uuid, version: d.version, lib: d.lib, wasm: d.wasm, file: e.file });
@@ -478,6 +587,86 @@ export async function removeDrop(ref: string): Promise<void> {
   writeInstalled(all);
   // built-in の actor を登録し直す(同じ名前のものが戻る)
   await ChromeUtils.importESModule("resource://noraneko/modules/NoranekoStartup.sys.mjs").registerBuiltinWebExtActors();
+}
+
+/** 棚の一件(registry の /index.json が返す形に、どの registry のものかを足したもの) */
+export interface CatalogItem {
+  uuid: string;
+  name: string;
+  note: string;
+  contact: string[];
+  /** library(ほかの drop が使うもの)。棚には並べない */
+  lib: boolean;
+  /** 絵の URL(`<registry>/<uuid>/<file>`)。配る側が sha256 を照らしてから返す。無ければ null */
+  icon: string | null;
+  /** 絵の枚数(中身は「見る」で開いたときに xpi から読む) */
+  shots: number;
+  version: string | null;
+  entries: { name?: string; version?: string; file?: string; size?: number }[];
+  deps: { name?: string; version?: string }[];
+  source: { repo?: string; commit?: string; commit_time?: string; path?: string } | null;
+  /** registry の判が Rekor に載っている番号(registry が判を押していれば) */
+  rekor: number | null;
+  /** どの registry の棚か */
+  registry: string;
+}
+
+/**
+ * 店の棚: registry の一覧に順に `<base>/index.json` を訊いて、並べられるものを集める。
+ *
+ * 一つの registry が転んでも棚は出す(理由を添えて返す)。同じ uuid を二つの registry が
+ * 持っていたら、先に並んでいる registry のものを採る(findDrop と同じ順)。
+ * ここで返す字は **registry から来た字** なので、描くときは必ずテキストとして描く。
+ */
+/** index.json の icon(`{ file, sha256 }`)から、棚が <img> に渡せる URL を組む */
+function iconUrlOf(reg: Registry, uuid: string, icon: unknown): string | null {
+  const i = icon as { file?: unknown; sha256?: unknown } | null | undefined;
+  if (!i || typeof i.file !== "string" || typeof i.sha256 !== "string") return null;
+  if (!/^[A-Za-z0-9._-]+\.png$/.test(i.file) || !/^[0-9a-f]{64}$/.test(i.sha256)) return null;
+  return `${reg.base}/${uuid}/${i.file}`;
+}
+
+export async function listCatalog(): Promise<{ items: CatalogItem[]; failed: { registry: string; reason: string }[] }> {
+  const items: CatalogItem[] = [];
+  const seen = new Set<string>();
+  const failed: { registry: string; reason: string }[] = [];
+  for (const reg of listRegistries()) {
+    try {
+      const resp = await fetch(`${reg.base}/index.json`, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      const body = (await resp.json()) as { drops?: unknown[] };
+      for (const raw of body.drops ?? []) {
+        const d = raw as Partial<CatalogItem>;
+        const uuid = typeof d.uuid === "string" ? d.uuid.toLowerCase() : "";
+        if (!UUID.test(uuid) || seen.has(uuid)) continue;
+        if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(d.name ?? "")) continue;
+        seen.add(uuid);
+        items.push({
+          uuid,
+          name: d.name as string,
+          note: typeof d.note === "string" ? d.note : "",
+          lib: d.lib === true,
+          // 棚は xpi を落とす前なので、絵は manifest の隣の一枚を指す。file の名前だけ見てから
+          // 組み立てる(sha256 を照らすのは配る側。ここは URL を作るだけ)
+          icon: iconUrlOf(reg, uuid, d.icon),
+          shots: typeof d.shots === "number" ? d.shots : 0,
+          contact: Array.isArray(d.contact) ? d.contact.filter((c) => typeof c === "string") : [],
+          version: typeof d.version === "string" ? d.version : null,
+          entries: Array.isArray(d.entries) ? d.entries : [],
+          deps: Array.isArray(d.deps) ? d.deps : [],
+          source: (d.source as CatalogItem["source"]) ?? null,
+          rekor: typeof d.rekor === "number" ? d.rekor : null,
+          registry: reg.name,
+        });
+      }
+    } catch (e) {
+      failed.push({ registry: reg.name, reason: String((e as Error)?.message ?? e) });
+      console.warn(`[noraneko-drops] ${reg.name} の棚が読めない:`, e);
+    }
+  }
+  items.sort((a, b) => a.name.localeCompare(b.name));
+  console.log(`[noraneko-drops] catalog: ${items.length} 件` + (failed.length ? `(${failed.length} の registry は読めなかった)` : ""));
+  return { items, failed };
 }
 
 export function listDrops(): Record<string, InstalledDrop> {

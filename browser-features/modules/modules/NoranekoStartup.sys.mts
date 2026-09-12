@@ -235,6 +235,10 @@ const getCustomAboutPages = async (): Promise<Record<string, string>> => {
     // going through about:'s fully-supported load path (a raw nora: scheme is
     // blocked by content security; see firefox-custom-url-scheme memo).
     "nora:settings": "chrome://noraneko-settings/content/index.html",
+    // 同じ束から出る二つ目の頁(settings/src/main.tsx が URL で分ける)。
+    // drops は settings の一節に収まらなくなった — 棚、一枚、registry が
+    // それぞれ自分のパネルを欲しがる
+    "nora:drops": "chrome://noraneko-settings/content/index.html",
   };
 
   if (await checkNewtabUserPreference()) {
