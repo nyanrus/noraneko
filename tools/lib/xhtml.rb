@@ -5,7 +5,7 @@ require_relative "omni"
 require_relative "utils"
 
 module FelesBuild
-  # browser.xhtml に startup の script を足し、dev では preferences.xhtml の CSP をゆるめる。
+  # 前に足した startup の <script> を外し、dev では preferences.xhtml の CSP をゆるめる。
   #
   # DOM を組まずに、文字のまま触る。触るのは自分で書いた印(data-geckomixin)と、
   # 名指しした CSP の meta だけ — injector が chrome.manifest でやっている
@@ -15,8 +15,6 @@ module FelesBuild
     LOGGER = Utils::Logger.new("xhtml")
 
     MARK = "data-geckomixin"
-    SCRIPT = %(<script type="module" src="chrome://noraneko-startup/content/chrome_root.js" ) +
-             %(async="async" #{MARK}=""></script>)
     MARKED = /<script\b[^>]*\b#{MARK}\b[^>]*(?:\/>|>\s*<\/script>)/
 
     BROWSER = "browser/chrome/browser/content/browser/browser.xhtml"
@@ -38,11 +36,9 @@ module FelesBuild
     end
 
     def self.inject(root, dev: false)
-      edit(root, BROWSER) do |text|
-        raise "</head> が browser.xhtml に無い" unless text.include?("</head>")
-
-        text.gsub(MARKED, "").sub("</head>", "#{SCRIPT}</head>")
-      end
+      # 古い build が差し込んだ <script data-geckomixin> を外すだけ。入り口は
+      # NoranekoWindow.sys.mts(browser-window-domcontentloaded)に移した。
+      edit(root, BROWSER) { |text| text.gsub(MARKED, "") }
 
       if dev
         edit(root, PREFERENCES) do |text|

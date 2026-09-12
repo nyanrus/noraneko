@@ -7,6 +7,9 @@ import type { TabbrowserCompat } from "../TabbrowserCompat.ts";
 /** @augments TabbrowserCompat */
 declare module "../TabbrowserCompat.ts" {
   interface TabbrowserCompat {
+    _createBrowserForTab(tab: any, options?: any): any;
+    _createTab(options: any): any;
+    createBrowser(options?: any): any;
     // Methods provided by this module
     _setFindbarData(findBar: any, tab: MozTabbrowserTab): void;
     // Methods called by this module but defined elsewhere
@@ -16,31 +19,30 @@ declare module "../TabbrowserCompat.ts" {
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
+  // upstream: _setFindbarData@23f26f7c74 FIREFOX_143_0_1_RELEASE
   _setFindbarData() {
-    // Ensure content processes know the find bar keyboard shortcut
-    try {
-      const { sharedData } = Services.ppmm;
-      if (!sharedData.has("Findbar:Shortcut")) {
-        const keyEl = this.window.document.getElementById("key_find");
-        if (keyEl) {
-          let mods = keyEl.getAttribute("modifiers") || "";
-          mods = mods.replace(
-            /accel/i,
-            AppConstants.platform === "macosx" ? "meta" : "control"
-          );
-          sharedData.set("Findbar:Shortcut", {
-            key: keyEl.getAttribute("key"),
-            shiftKey: mods.includes("shift"),
-            ctrlKey: mods.includes("control"),
-            altKey: mods.includes("alt"),
-            metaKey: mods.includes("meta"),
-          });
-        }
-      }
-    } catch (_) { /* */ }
+    // Ensure we know what the find bar key is in the content process:
+    const { sharedData } = Services.ppmm;
+    if (!sharedData.has("Findbar:Shortcut")) {
+      const keyEl = this.window.document.getElementById("key_find")!;
+      const mods = keyEl
+        .getAttribute("modifiers")!
+        .replace(
+          /accel/i,
+          AppConstants.platform === "macosx" ? "meta" : "control"
+        );
+      sharedData.set("Findbar:Shortcut", {
+        key: keyEl.getAttribute("key"),
+        shiftKey: mods.includes("shift"),
+        ctrlKey: mods.includes("control"),
+        altKey: mods.includes("alt"),
+        metaKey: mods.includes("meta"),
+      });
+    }
   },
 
+  // upstream: _createTab@bf467c8d1e FIREFOX_143_0_1_RELEASE
   _createTab({
     uriString,
     userContextId,
@@ -51,19 +53,19 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     animate,
   }: any): any {
     const t = this._xulEl("tab", { is: "tabbrowser-tab" }) as any;
-    
+
     // Tag as being created so extension code can ignore pre-TabOpen events
     (t as any).initializingTab = true;
     (t as any).openerTab = openerTab;
 
     // Inherit user context from opener if not specified
     if (userContextId == null && openerTab) {
-      userContextId = openerTab.getAttribute?.("usercontextid") || 0;
+      userContextId = openerTab.getAttribute("usercontextid") || 0;
     }
 
     if (!noInitialLabel) {
       if (isBlankPageURL(uriString)) {
-        t.setAttribute("label", this.tabContainer?.emptyTabTitle || "New Tab");
+        t.setAttribute("label", this.tabContainer.emptyTabTitle);
       } else {
         this.setInitialTabTitle(t, uriString, {
           beforeTabOpen: true,
@@ -74,11 +76,11 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
 
     if (userContextId) {
       t.setAttribute("usercontextid", userContextId);
-      ContextualIdentityService?.setTabStyle?.(t);
+      ContextualIdentityService.setTabStyle(t);
     }
 
     if (skipBackgroundNotify) {
-      t.setAttribute("skipbackgroundnotify", "true");
+      t.setAttribute("skipbackgroundnotify", true);
     }
 
     if (pinned) {
@@ -87,22 +89,24 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
 
     t.classList.add("tabbrowser-tab");
 
-    this.tabContainer?._unlockTabSizing?.();
+    this.tabContainer._unlockTabSizing();
 
     if (!animate) {
-      (this.window as any).UserInteraction?.update?.("browser.tabs.opening", "not-animated", this.window);
+      (this.window as any).UserInteraction.update("browser.tabs.opening", "not-animated", this.window);
       t.setAttribute("fadein", "true");
-      // Call _handleNewTab asynchronously
+      // Call _handleNewTab asynchronously as it needs to know if the
+      // new tab is selected.
       setTimeout(() => {
-        this.tabContainer?._handleNewTab?.(t);
+        this.tabContainer._handleNewTab(t);
       }, 0);
     } else {
-      (this.window as any).UserInteraction?.update?.("browser.tabs.opening", "animated", this.window);
+      (this.window as any).UserInteraction.update("browser.tabs.opening", "animated", this.window);
     }
 
     return t;
   },
 
+  // upstream: _createBrowserForTab@e80bbe23b9 FIREFOX_155_0_1_RELEASE
   _createBrowserForTab(
     tab: MozTabbrowserTab,
     {
@@ -130,34 +134,27 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     }
 
     const { userContextId } = tab;
-    const oa = E10SUtils.predictOriginAttributes({ window: this.window, userContextId });
 
     // For about:blank with referrer, use referrer's remote type
     if (
       uriIsAboutBlank &&
       !preferredRemoteType &&
-      referrerInfo?.originalReferrer
+      referrerInfo &&
+      referrerInfo.originalReferrer
     ) {
-      preferredRemoteType = E10SUtils.getRemoteTypeForURI(
-        referrerInfo.originalReferrer.spec,
-        gMultiProcessBrowser,
-        gFissionBrowser,
-        E10SUtils.DEFAULT_REMOTE_TYPE,
-        null,
-        oa
+      preferredRemoteType = ChromeUtils.predictRemoteTypeForURI(
+        referrerInfo.originalReferrer,
+        { window: this.window, userContextId }
       );
     }
 
     const remoteType = forceNotRemote
       ? E10SUtils.NOT_REMOTE
-      : E10SUtils.getRemoteTypeForURI(
-          uriString,
-          gMultiProcessBrowser,
-          gFissionBrowser,
+      : ChromeUtils.predictRemoteTypeForURI(uriString, {
+          window: this.window,
+          userContextId,
           preferredRemoteType,
-          null,
-          oa
-        );
+        });
 
     let b;
     let usingPreloadedContent = false;
@@ -165,7 +162,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     // Check for preloaded browser (newtab in default context)
     const BROWSER_NEW_TAB_URL = "about:newtab";
     if (uriString === BROWSER_NEW_TAB_URL && !userContextId) {
-      b = (this.window as any).NewTabPagePreloading?.getPreloadedBrowser?.(this.window);
+      b = (this.window as any).NewTabPagePreloading.getPreloadedBrowser(this.window);
       if (b) {
         usingPreloadedContent = true;
       }
@@ -198,6 +195,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     return { browser: b, usingPreloadedContent };
   },
 
+  // upstream: _kickOffBrowserLoad@919c0f9d08 FIREFOX_154_0_RELEASE
   _kickOffBrowserLoad(
     browser: XULBrowserElement,
     {
@@ -232,15 +230,15 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       originStoragePrincipal &&
       uriString
     ) {
-      const { URI_INHERITS_SECURITY_CONTEXT } = Ci.nsIProtocolHandler;
-      try {
-        if (!uri || ((this.window as any).doGetProtocolFlags?.(uri) & URI_INHERITS_SECURITY_CONTEXT)) {
-          browser.createAboutBlankDocumentViewer?.(
-            originPrincipal,
-            originStoragePrincipal
-          );
-        }
-      } catch (_) { /* */ }
+      const { URI_INHERITS_SECURITY_CONTEXT } = Ci.nsIProtocolHandler as Required<typeof Ci.nsIProtocolHandler>;
+      // Unless we know for sure we're not inheriting principals,
+      // force the about:blank viewer to have the right principal:
+      if (!uri || ((this.window as any).doGetProtocolFlags(uri) & URI_INHERITS_SECURITY_CONTEXT)) {
+        browser.createAboutBlankDocumentViewer!(
+          originPrincipal,
+          originStoragePrincipal
+        );
+      }
     }
 
     // Load the URL if not using preloaded content
@@ -256,13 +254,13 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       }
 
       const LOAD_FLAGS_NONE = 0;
-      const LOAD_FLAGS_FROM_EXTERNAL = Ci.nsIWebNavigation.LOAD_FLAGS_FROM_EXTERNAL;
-      const LOAD_FLAGS_FIRST_LOAD = Ci.nsIWebNavigation.LOAD_FLAGS_FIRST_LOAD;
-      const LOAD_FLAGS_DISALLOW_INHERIT_PRINCIPAL = Ci.nsIWebNavigation.LOAD_FLAGS_DISALLOW_INHERIT_PRINCIPAL;
-      const LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP = Ci.nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
-      const LOAD_FLAGS_FIXUP_SCHEME_TYPOS = Ci.nsIWebNavigation.LOAD_FLAGS_FIXUP_SCHEME_TYPOS;
-      const LOAD_FLAGS_DISABLE_TRR = Ci.nsIWebNavigation.LOAD_FLAGS_DISABLE_TRR;
-      const LOAD_FLAGS_FORCE_ALLOW_DATA_URI = Ci.nsIWebNavigation.LOAD_FLAGS_FORCE_ALLOW_DATA_URI;
+      const LOAD_FLAGS_FROM_EXTERNAL = Ci.nsIWebNavigation.LOAD_FLAGS_FROM_EXTERNAL!;
+      const LOAD_FLAGS_FIRST_LOAD = Ci.nsIWebNavigation.LOAD_FLAGS_FIRST_LOAD!;
+      const LOAD_FLAGS_DISALLOW_INHERIT_PRINCIPAL = Ci.nsIWebNavigation.LOAD_FLAGS_DISALLOW_INHERIT_PRINCIPAL!;
+      const LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP = Ci.nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP!;
+      const LOAD_FLAGS_FIXUP_SCHEME_TYPOS = Ci.nsIWebNavigation.LOAD_FLAGS_FIXUP_SCHEME_TYPOS!;
+      const LOAD_FLAGS_DISABLE_TRR = Ci.nsIWebNavigation.LOAD_FLAGS_DISABLE_TRR!;
+      const LOAD_FLAGS_FORCE_ALLOW_DATA_URI = Ci.nsIWebNavigation.LOAD_FLAGS_FORCE_ALLOW_DATA_URI!;
 
       let loadFlags = LOAD_FLAGS_NONE;
       if (allowThirdPartyFixup) {
@@ -270,7 +268,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       }
       if (fromExternal) {
         loadFlags |= LOAD_FLAGS_FROM_EXTERNAL;
-      } else if (!triggeringPrincipal?.isSystemPrincipal) {
+      } else if (!triggeringPrincipal.isSystemPrincipal) {
         loadFlags |= LOAD_FLAGS_FIRST_LOAD;
       }
       if (!allowInheritPrincipal) {
@@ -284,7 +282,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       }
 
       try {
-        browser.fixupAndLoadURIString?.(uriString, {
+        browser.fixupAndLoadURIString(uriString, {
           loadFlags,
           triggeringPrincipal,
           referrerInfo,
@@ -304,12 +302,14 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     }
   },
 
-  _fireTabOpen(tab: MozTabbrowserTab, eventDetail: any = {}) {
+  // upstream: _fireTabOpen@8075e2ff4c FIREFOX_143_0_1_RELEASE
+  _fireTabOpen(tab: MozTabbrowserTab, eventDetail?: any) {
+    delete (tab as any).initializingTab;
     const evt = new CustomEvent("TabOpen", {
       bubbles: true,
-      detail: eventDetail,
+      detail: eventDetail || {},
     });
-    (tab as any).dispatchEvent?.(evt);
+    tab.dispatchEvent(evt);
   },
 
   /**
@@ -317,6 +317,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    *
    * Does not insert the element into the document — callers are responsible for placement.
    */
+  // upstream: createBrowser@80031f59d1 FIREFOX_143_0_1_RELEASE
   createBrowser({
     isPreloadBrowser,
     name,
@@ -341,8 +342,8 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       manualactiveness: "true",
     };
 
-    for (const attribute in defaultBrowserAttributes) {
-      b.setAttribute(attribute, defaultBrowserAttributes[attribute]);
+    for (const [attribute, value] of Object.entries(defaultBrowserAttributes)) {
+      b.setAttribute(attribute, value);
     }
 
     if (gMultiProcessBrowser || remoteType) {
@@ -404,4 +405,4 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
 
     return b;
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

@@ -4,23 +4,29 @@
 
 import type { TabbrowserCompat } from "../TabbrowserCompat.ts";
 
+// browser.js declares this with `class`, so it lives in the global lexical
+// scope, not on window: reach it by name.
+declare const TabDialogBox: any;
+
 /** @augments TabbrowserCompat */
 declare module "../TabbrowserCompat.ts" {
   interface TabbrowserCompat {
-    // Class fields used by this module
-    _windowIsClosing: boolean;
-    _nextNotificationBoxId: number;
-    _notificationEnableDelay: number;
+    discardBrowser(aTab: MozTabbrowserTab, aForceDiscard?: boolean): boolean;
+    prepareDiscardBrowser(aTab: MozTabbrowserTab): Promise<void>;
+    _createLazyBrowser(aTab: MozTabbrowserTab): void;
     // Methods provided by this module
     _mayDiscardBrowser(tab: MozTabbrowserTab, skipBeforeUnloadCheck?: boolean): boolean;
     getNotificationBox(browser?: any): any;
     getTabDialogBox(browser?: any): any;
+    getTabNotificationDeck(): any;
+    readNotificationBox(browser?: any): any;
+    _updateVisibleNotificationBox(browser?: any): void;
     // Methods called by this module but defined elsewhere
     _hasBeforeUnload(tab: MozTabbrowserTab): boolean;
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
   // ==========================================================================
   // Notification & Dialog Boxes
   // tabbrowser.js L1000~L1053
@@ -30,42 +36,66 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * Return (lazily creating if necessary) the `NotificationBox` for `browser`.
    * Defaults to `selectedBrowser` when not provided.
    */
-  getNotificationBox(browser?: XULBrowserElement): any {
+  // upstream: getNotificationBox@d5df027ad5 FIREFOX_143_0_1_RELEASE
+  getNotificationBox(browser?: XULBrowserElement | null): any {
     browser = browser || this.selectedBrowser;
-    if (!browser) return null;
     if (!(browser as any)._notificationBox) {
-      try {
-        (browser as any)._notificationBox = new MozElements.NotificationBox((element: any) => {
-          element.setAttribute("notificationside", "top");
-          element.setAttribute("name", `tab-notification-box-${this._nextNotificationBoxId++}`);
-          this.getTabNotificationDeck()?.append?.(element);
-          if (browser === this.selectedBrowser) {
-            this._updateVisibleNotificationBox(browser);
-          }
-        }, this._notificationEnableDelay);
-      } catch (_) {
-        // MozElements.NotificationBox may not be available; fall back
-        const container = this.getBrowserContainer(browser);
-        if (container) {
-          const existing = container.querySelector?.("notificationbox");
-          if (existing) { (browser as any)._notificationBox = existing; return existing; }
+      (browser as any)._notificationBox = new MozElements.NotificationBox((element: any) => {
+        element.setAttribute("notificationside", "top");
+        element.setAttribute("name", `tab-notification-box-${this._nextNotificationBoxId++}`);
+        this.getTabNotificationDeck().append(element);
+        if (browser === this.selectedBrowser) {
+          this._updateVisibleNotificationBox(browser);
         }
-        return null;
-      }
+      }, this._notificationEnableDelay);
     }
     return (browser as any)._notificationBox;
   },
 
-  /**
-   * Return the `<tabdialogbox>` element for `browser`'s container.
-   * Used for per-tab modal dialogs (permissions, authentication, etc.).
-   * Defaults to `selectedBrowser` when not provided.
-   */
-  getTabDialogBox(browser?: XULBrowserElement): any {
+  /** The deck that holds every tab's notification box; stamped out of its template on first use. */
+  // upstream: getTabNotificationDeck@e4aa6cb463 FIREFOX_143_0_1_RELEASE
+  getTabNotificationDeck() {
+    if (!this._tabNotificationDeck) {
+      const doc = this.window.document;
+      const template = doc.getElementById("tab-notification-deck-template") as any;
+      template.replaceWith(template.content);
+      this._tabNotificationDeck = doc.getElementById("tab-notification-deck");
+    }
+    return this._tabNotificationDeck;
+  },
+
+  /** The notification box `browser` already has, or null; never creates one. */
+  // upstream: readNotificationBox@1695a544bc FIREFOX_143_0_1_RELEASE
+  readNotificationBox(browser?: XULBrowserElement | null) {
     browser = browser || this.selectedBrowser;
-    if (!browser) return null;
-    const container = this.getBrowserContainer(browser);
-    return container?.querySelector?.("tabdialogbox") ?? null;
+    return (browser as any)._notificationBox || null;
+  },
+
+  // upstream: _updateVisibleNotificationBox@1505e553ae FIREFOX_143_0_1_RELEASE
+  _updateVisibleNotificationBox(browser?: XULBrowserElement | null) {
+    if (!this._tabNotificationDeck) {
+      // If the deck hasn't been created we don't need to create it here.
+      return;
+    }
+    const notificationBox = this.readNotificationBox(browser);
+    this.getTabNotificationDeck().selectedViewName = notificationBox
+      ? notificationBox.stack.getAttribute("name")
+      : "";
+  },
+
+  /**
+   * Return the `<tabdialogbox>` for `browser`, lazily constructing it (mirrors the
+   * native `TabDialogBox` global from browser.js — used for per-tab modal dialogs).
+   */
+  // upstream: getTabDialogBox@55ab21ebb3 FIREFOX_143_0_1_RELEASE
+  getTabDialogBox(browser: XULBrowserElement): any {
+    if (!browser) {
+      throw new Error("aBrowser is required");
+    }
+    if (!(browser as any).tabDialogBox) {
+      (browser as any).tabDialogBox = new TabDialogBox(browser);
+    }
+    return (browser as any).tabDialogBox;
   },
 
   // ==========================================================================
@@ -73,10 +103,117 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
   // tabbrowser.js L2714~L2896
   // ==========================================================================
 
-  _mayDiscardBrowser(aTab: MozTabbrowserTab, aForceDiscard?: boolean): boolean {
-    const browser = aTab?.linkedBrowser;
-    if (!browser) return false;
+  /**
+   * Turn `aTab.linkedBrowser` into a lazy browser: every member in
+   * _browserBindingProperties becomes an accessor that answers from
+   * SessionStore's lazy tab data, and the first one with no such answer
+   * inserts the real browser (_insertBrowser) on the spot.
+   */
+  // upstream: _createLazyBrowser@5c8ed50bab FIREFOX_155_0_1_RELEASE
+  _createLazyBrowser(aTab: MozTabbrowserTab) {
+    const tab = aTab as any;
+    const browser = tab.linkedBrowser;
 
+    const names = this._browserBindingProperties;
+
+    for (let i = 0; i < names.length; i++) {
+      const name = names[i];
+      let getter: () => any;
+      let setter: ((value: any) => any) | undefined;
+      switch (name) {
+        case "audioMuted":
+          getter = () => tab.hasAttribute("muted");
+          break;
+        case "contentTitle":
+          getter = () => SessionStore.getLazyTabValue(tab, "title");
+          break;
+        case "currentURI":
+          getter = () => {
+            // Avoid recreating the same nsIURI object over and over again...
+            if (browser._cachedCurrentURI) {
+              return browser._cachedCurrentURI;
+            }
+            const url = SessionStore.getLazyTabValue(tab, "url") || "about:blank";
+            return (browser._cachedCurrentURI = Services.io.newURI(url));
+          };
+          break;
+        case "didStartLoadSinceLastUserTyping":
+          getter = () => () => false;
+          break;
+        case "fullZoom":
+        case "textZoom":
+          getter = () => 1;
+          break;
+        case "tabHasCustomZoom":
+          getter = () => false;
+          break;
+        case "getTabBrowser":
+          getter = () => () => this;
+          break;
+        case "isRemoteBrowser":
+          getter = () => browser.hasAttribute("remote");
+          break;
+        case "permitUnload":
+          getter = () => () => ({ permitUnload: true });
+          break;
+        case "reload":
+        case "reloadWithFlags":
+          getter = () => (params: any) => {
+            // Wait for load handler to be instantiated before
+            // initializing the reload.
+            tab.addEventListener(
+              "SSTabRestoring",
+              () => {
+                browser[name](params);
+              },
+              { once: true },
+            );
+            this._insertBrowser(tab);
+          };
+          break;
+        case "remoteType":
+          getter = () => {
+            const url = SessionStore.getLazyTabValue(tab, "url") || "about:blank";
+            return ChromeUtils.predictRemoteTypeForURI(url, {
+              window: this.window,
+              userContextId: tab.getAttribute("usercontextid"),
+            });
+          };
+          break;
+        case "userTypedValue":
+        case "userTypedClear":
+          getter = () => SessionStore.getLazyTabValue(tab, name);
+          break;
+        default:
+          getter = () => {
+            if (AppConstants.NIGHTLY_BUILD) {
+              const message = `[bug 1345098] Lazy browser prematurely inserted via '${name}' property access:\n`;
+              Services.console.logStringMessage(message + new Error().stack);
+            }
+            this._insertBrowser(tab);
+            return browser[name];
+          };
+          setter = (value: any) => {
+            if (AppConstants.NIGHTLY_BUILD) {
+              const message = `[bug 1345098] Lazy browser prematurely inserted via '${name}' property access:\n`;
+              Services.console.logStringMessage(message + new Error().stack);
+            }
+            this._insertBrowser(tab);
+            return (browser[name] = value);
+          };
+      }
+      Object.defineProperty(browser, name, {
+        get: getter,
+        set: setter,
+        configurable: true,
+        enumerable: true,
+      });
+    }
+  },
+
+  // upstream: _mayDiscardBrowser@f7b632b942 FIREFOX_143_0_1_RELEASE
+  _mayDiscardBrowser(aTab: MozTabbrowserTab, aForceDiscard?: boolean): boolean {
+    const browser = (aTab as any).linkedBrowser;
     const action = aForceDiscard ? "unload" : "dontUnload";
 
     if (
@@ -86,15 +223,16 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       this._windowIsClosing ||
       !browser.isConnected ||
       !browser.isRemoteBrowser ||
-      !browser.permitUnload?.(action)?.permitUnload
+      !browser.permitUnload(action).permitUnload
     ) {
       return false;
     }
 
-    // Don't discard if dialogs are open (unless forcing)
+    // discarding a browser will dismiss any dialogs, so don't
+    // allow this unless we're forcing it.
     if (
       !aForceDiscard &&
-      this.getTabDialogBox(browser)?._tabDialogManager?._dialogs?.length
+      this.getTabDialogBox(browser)._tabDialogManager._dialogs.length
     ) {
       return false;
     }
@@ -107,21 +245,17 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    *
    * Must be awaited before calling `discardBrowser` to avoid losing session history.
    */
+  // upstream: prepareDiscardBrowser@d4dc3f070b FIREFOX_143_0_1_RELEASE
   async prepareDiscardBrowser(aTab: MozTabbrowserTab): Promise<void> {
-    const browser = aTab?.linkedBrowser;
-    if (!browser) return;
+    const browser = (aTab as any).linkedBrowser;
 
     // Don't prepare if already closing or not remote
     if (aTab.closing || this._windowIsClosing || !browser.isRemoteBrowser) {
       return;
     }
 
-    // Flush tab state to session store
-    try {
-      await this.TabStateFlusher?.flush?.(browser);
-    } catch (e) {
-      console.warn("Failed to flush tab state before discard", e);
-    }
+    // Flush the tab's state so session restore has the latest data.
+    await this.TabStateFlusher.flush(browser);
   },
 
   /**
@@ -133,67 +267,55 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    *
    * @param aForceDiscard - Skip the beforeunload check and force-close any open dialogs.
    */
+  // upstream: discardBrowser@7ea41b54de FIREFOX_143_0_1_RELEASE
   discardBrowser(aTab: MozTabbrowserTab, aForceDiscard?: boolean): boolean {
-    const browser = aTab?.linkedBrowser;
-    if (!browser) return false;
+    const browser = (aTab as any).linkedBrowser;
 
     if (!this._mayDiscardBrowser(aTab, aForceDiscard)) {
       return false;
     }
 
-    // Reset sharing state
-    if (aTab._sharingState) {
-      this.resetBrowserSharing?.(browser);
-    }
-    try {
-      webrtcUI?.forgetStreamsFromBrowserContext?.(browser.browsingContext);
-    } catch (_) { /* */ }
+    // Reset sharing state.
+    this.resetBrowserSharing(browser);
+    webrtcUI.forgetStreamsFromBrowserContext(browser.browsingContext);
 
-    // Abort any open dialogs
-    try {
-      const tabDialogBox = this.getTabDialogBox(browser);
-      tabDialogBox?.abortAllDialogs?.();
-    } catch (_) { /* */ }
+    // Abort any dialogs since the browser is about to be discarded.
+    const tabDialogBox = this.getTabDialogBox(browser);
+    tabDialogBox.abortAllDialogs();
 
     // Save browser parameters for restoration
-    aTab._browserParams = {
-      uriIsAboutBlank: browser.currentURI?.spec === "about:blank",
+    (aTab as any)._browserParams = {
+      uriIsAboutBlank: browser.currentURI.spec == "about:blank",
       remoteType: browser.remoteType,
       usingPreloadedContent: false,
     };
 
-    // Reset browser to lazy state in SessionStore
-    try {
-      SessionStore?.resetBrowserToLazyState?.(aTab);
-    } catch (_) { /* */ }
-
+    SessionStore.resetBrowserToLazyState(aTab);
+    // Indicate that this tab was explicitly unloaded (i.e. not
+    // from a session restore) in case we want to style that
+    // differently.
     if (aForceDiscard) {
-      aTab.toggleAttribute?.("discarded", true);
+      (aTab as any).toggleAttribute("discarded", true);
     }
 
-    // Remove progress listeners
+    // Remove the tab's filter and progress listener.
     const filter = this._tabFilters.get(aTab);
     const listener = this._tabListeners.get(aTab);
-    if (filter && listener) {
-      try {
-        browser.webProgress?.removeProgressListener?.(filter);
-        filter.removeProgressListener?.(listener);
-        listener.destroy?.();
-      } catch (_) { /* */ }
-    }
+    browser.webProgress.removeProgressListener(filter);
+    filter.removeProgressListener(listener);
+    listener.destroy();
+
     this._tabListeners.delete(aTab);
     this._tabFilters.delete(aTab);
 
-    // Remove findbar if present
-    if (aTab._findBar) {
-      try {
-        aTab._findBar.close?.(true);
-        aTab._findBar.remove?.();
-        delete aTab._findBar;
-      } catch (_) { /* */ }
+    // Reset the findbar and remove it if it is attached to the tab.
+    if ((aTab as any)._findBar) {
+      (aTab as any)._findBar.close(true);
+      (aTab as any)._findBar.remove();
+      delete (aTab as any)._findBar;
     }
 
-    // Clean up potentially stale attributes
+    // Remove potentially stale attributes.
     const attributesToRemove = [
       "activemedia-blocked",
       "busy",
@@ -203,21 +325,23 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     ];
     const removedAttributes: string[] = [];
     for (const attr of attributesToRemove) {
-      if (aTab.hasAttribute?.(attr)) {
+      if ((aTab as any).hasAttribute(attr)) {
         removedAttributes.push(attr);
-        aTab.removeAttribute(attr);
+        (aTab as any).removeAttribute(attr);
       }
     }
     if (removedAttributes.length) {
-      this._tabAttrModified?.(aTab, removedAttributes);
+      this._tabAttrModified(aTab, removedAttributes);
     }
 
-    browser.destroy?.();
-    this.getPanel(browser)?.remove?.();
-    aTab.removeAttribute?.("linkedpanel");
-    this._createLazyBrowser?.(aTab);
-    aTab.dispatchEvent?.(new CustomEvent("TabBrowserDiscarded", { bubbles: true }));
+    browser.destroy();
+    this.getPanel(browser).remove();
+    (aTab as any).removeAttribute("linkedpanel");
 
+    this._createLazyBrowser(aTab);
+
+    const evt = new CustomEvent("TabBrowserDiscarded", { bubbles: true });
+    (aTab as any).dispatchEvent(evt);
     return true;
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

@@ -6,7 +6,6 @@
     "@jsr/std__assert": "npm:@jsr/std__assert@^1.0.19",
     "@jsr/std__collections": "npm:@jsr/std__collections@^1.1.6",
     "@types/uuid": "npm:@types/uuid@^11.0.0",
-
     "birpc": "npm:birpc@^4.0.0",
     "es-toolkit": "npm:es-toolkit@^1.45.1",
     "@mobily/ts-belt": "npm:@mobily/ts-belt@^3.13.1",
@@ -23,26 +22,37 @@
     "@types/chroma-js": "npm:@types/chroma-js@^3.1.2",
     "@types/gecko": "jsr:@types/gecko",
     "valibot": "npm:valibot@^1.2.0",
-    "@nora/solid-xul": "../shared/",
     "@nora/preact-xul": "../../libs/preact-xul/index.ts",
     "#features-chrome/": "./",
     "@lib": "./lib/mod.ts",
     "@lib/std": "./lib/std/mod.ts",
     "@lib/core": "./lib/core/mod.ts",
-    "@lib/ui": "./lib/ui/mod.ts"
+    "@lib/ui": "./lib/ui/mod.ts",
+    "oxc-parser": "npm:oxc-parser@^0.147.0"
   },
   "tasks": {
-    "build": "deno run -A npm:vite build"
+    "build": "deno run -A npm:vite build",
+    "check": "deno check main.ts features/tabbrowser/mod.ts",
+    "upstream-diff": "deno run -A features/tabbrowser/upstream-diff.ts"
   },
   "compilerOptions": {
-    "lib": ["ESNext", "DOM"],
-    "types": ["npm:vite/client", "jsr:@types/gecko"],
+    "lib": [
+      "ESNext"
+    ],
+    "types": [
+      "npm:vite/client",
+      "jsr:@types/gecko"
+    ],
     "jsx": "react-jsx",
-    "jsxImportSource": "preact"
+    "jsxImportSource": "preact",
+    "skipLibCheck": true
   },
   "lint": {
     "rules": {
-      "exclude": ["no-sloppy-imports", "no-window"]
+      "exclude": [
+        "no-sloppy-imports",
+        "no-window"
+      ]
     }
   },
   "exports": {

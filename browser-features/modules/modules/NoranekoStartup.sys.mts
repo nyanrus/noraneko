@@ -24,36 +24,51 @@ export function executeOnce(id: string, callback: () => void): boolean {
   return true;
 }
 
-export function onFinalUIStartup(): void {
-  Services.obs.removeObserver(onFinalUIStartup, "final-ui-startup");
+/**
+ * App-level entry point, registered in chrome.manifest as
+ *
+ *   category browser-before-ui-startup
+ *     resource://noraneko/modules/NoranekoStartup.sys.mjs NoranekoStartup.init
+ *
+ * BrowserGlue calls this from _beforeUIStartup (final-ui-startup), before the
+ * first browser window opens. No patch to BrowserGlue.sys.mjs is needed.
+ */
+export const NoranekoStartup = {
+  init(): void {
+    executeOnce("NoranekoStartup.init", () => {
+      setupNoranekoNewTab().catch(console.error);
+      registerCustomAboutPages().catch(console.error);
+      if (!isMainBrowser) return;
 
-  createDefaultUserChromeFiles().catch((error) => {
-    console.error("Failed to create default userChrome files:", error);
-  });
+      createDefaultUserChromeFiles().catch((error) => {
+        console.error("Failed to create default userChrome files:", error);
+      });
 
-  // built-in の actor を登録してから、drops(手元の xpi)で置き換える。NORANEKO_DROP_UUID=<uuid> があれば落として入れる(Drops.sys.mts)
-  registerBuiltinWebExtActors()
-    .catch((error) => {
-      console.error("Failed to register builtin WebExtension actors:", error);
-    })
-    .then(() => ChromeUtils.importESModule("resource://noraneko/modules/Drops.sys.mjs").restoreDropsAtStartup())
-    .catch((error: unknown) => {
-      console.error("[noraneko-drops] startup install failed:", error);
+      // built-in の actor を登録してから、drops(手元の xpi)で置き換える。NORANEKO_DROP_UUID=<uuid> があれば落として入れる(Drops.sys.mts)
+      registerBuiltinWebExtActors()
+        .catch((error) => {
+          console.error("Failed to register builtin WebExtension actors:", error);
+        })
+        .then(() => ChromeUtils.importESModule("resource://noraneko/modules/Drops.sys.mjs").restoreDropsAtStartup())
+        .catch((error: unknown) => {
+          console.error("[noraneko-drops] startup install failed:", error);
+        });
+      // registry の xpi へのリンクは、add-on のインストールでなく drops の「見る」へ(DropLinks.sys.mts)
+      try {
+        ChromeUtils.importESModule("resource://noraneko/modules/DropLinks.sys.mjs").registerDropLinks();
+      } catch (error) {
+        console.error("[noraneko-drops] link handler failed:", error);
+      }
+      // sigstore の verifier(library)がブラウザの中で動くかの自己確認。ログ一行だけ
+      ChromeUtils.importESModule("resource://noraneko/modules/sigstore/Sigstore.sys.mjs")
+        .selfCheck()
+        .then((msg: string) => console.log(`[noraneko-sigstore] ${msg}`))
+        .catch((error: unknown) => {
+          console.error("[noraneko-sigstore] self check failed:", error);
+        });
     });
-  // registry の xpi へのリンクは、add-on のインストールでなく drops の「見る」へ(DropLinks.sys.mts)
-  try {
-    ChromeUtils.importESModule("resource://noraneko/modules/DropLinks.sys.mjs").registerDropLinks();
-  } catch (error) {
-    console.error("[noraneko-drops] link handler failed:", error);
-  }
-  // sigstore の verifier(library)がブラウザの中で動くかの自己確認。ログ一行だけ
-  ChromeUtils.importESModule("resource://noraneko/modules/sigstore/Sigstore.sys.mjs")
-    .selfCheck()
-    .then((msg: string) => console.log(`[noraneko-sigstore] ${msg}`))
-    .catch((error: unknown) => {
-      console.error("[noraneko-sigstore] self check failed:", error);
-    });
-}
+  },
+};
 
 /**
  * noraneko の built-in actor(webext-actors の xpi)を入れて、その JSWindowActor を登録する。
@@ -82,7 +97,8 @@ export async function registerBuiltinWebExtActors(): Promise<void> {
     if (!response.ok) {
       return;
     }
-    entries = await response.json();
+    // gecko types give Response.json() as Promise<JSON>; the file is ours.
+    entries = (await response.json()) as unknown as BuiltinActorEntry[];
   } catch (error) {
     console.error("[noraneko] Failed to read builtins.json:", error);
     return;
@@ -310,11 +326,3 @@ async function registerCustomAboutPages(): Promise<void> {
   }
 }
 
-(async () => {
-  await setupNoranekoNewTab();
-})().catch(console.error);
-registerCustomAboutPages();
-
-if (isMainBrowser) {
-  Services.obs.addObserver(onFinalUIStartup, "final-ui-startup");
-}

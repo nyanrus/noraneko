@@ -26,9 +26,7 @@ module FelesBuild
         "bridge/loader-modules",
       ]
       startup = [["deno", "task", "build", "--env.MODE=#{mode}"], "bridge/startup"]
-      with_mode = ["bridge/loader-features", "browser-features/webext-actors"].map do |dir|
-        [["deno", "task", "build", "--env.MODE=#{mode}"], dir]
-      end
+      webext_actors = [["deno", "task", "build", "--env.MODE=#{mode}"], "browser-features/webext-actors"]
       plain = %w[
         browser-features/pages-aboutDialog
         browser-features/pages-newtab
@@ -36,7 +34,7 @@ module FelesBuild
       ].map { |dir| [%w[deno task build], dir] }
 
       middle = mode.start_with?("dev") ? [loader_modules, chrome] : [chrome, loader_modules]
-      [startup, *middle, *with_mode, *plain]
+      [startup, *middle, webext_actors, *plain]
     end
 
     def self.run(mode, buildid2)

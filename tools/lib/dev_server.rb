@@ -22,17 +22,34 @@ module FelesBuild
       FileUtils.mkdir_p(logs)
       kill_stale
 
-      SERVERS.each do |name, (dir, port)|
+      started = SERVERS.map do |name, (dir, port)|
         log = File.join(logs, "vite-#{name}.log")
+        File.write(log, "") # 前の回の「用意できた」を読まないように
         pid = spawn("deno", "run", "-A", "npm:vite", "--port", port.to_s,
                     chdir: Defines.in_root(dir), in: File::NULL, out: log, err: [:child, :out])
         Process.detach(pid)
         @pids << pid
         LOGGER.info "Started Vite dev server for #{name} with PID: #{pid}, logging to #{log}"
+        [name, log]
       end
 
       LOGGER.info "All Vite dev servers started."
-      sleep 5 # 立ち上がるのを待つ(出力を読んで確かめるほうが正しいが、いまはこれ)
+      started.each { |name, log| wait_ready(name, log) }
+    end
+
+    # vite が log に「Local:」か「ready in」と書くまで待つ。30 秒で諦めて先へ進む
+    # (待てないより、遅れて繋がるほうがまし)。
+    READY = /Local:|ready in/
+    READY_TIMEOUT = 30
+
+    def self.wait_ready(name, log)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + READY_TIMEOUT
+      until Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        return if File.exist?(log) && File.read(log).match?(READY)
+
+        sleep 0.2
+      end
+      LOGGER.warn "#{name}: vite の ready がまだ見えない(#{READY_TIMEOUT}s)。このまま進む"
     end
 
     # 前の回の vite(親が SIGKILL などで落ちて孤児になったもの)を止める。

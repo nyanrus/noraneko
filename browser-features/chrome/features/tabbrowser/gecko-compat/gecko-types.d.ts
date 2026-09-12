@@ -27,12 +27,11 @@
  * property below is derived from the actual `<tab>` XBL binding and
  * `tabbrowser.js` source.
  */
-interface MozTabbrowserTab {
+interface MozTabbrowserTab extends XULElement {
   // ── Core identity ─────────────────────────────────────────────────────────
   /** Internal UUID assigned by TabbrowserCompat. */
-  _tabId?: string;
-  /** DOM id attribute (may be absent). */
-  id?: string;
+  /** Tab to select when this one closes (browser.tabs.selectOwnerOnClose). */
+  owner?: MozTabbrowserTab | null;
   /** Zero-based position in the tab strip (including hidden tabs). */
   _tPos: number;
   /** `true` once the open animation has finished. */
@@ -154,30 +153,6 @@ interface MozTabbrowserTab {
   // ── Activity tracking ─────────────────────────────────────────────────────
   /** Updates the last-seen-active timestamp; called on window activate/deactivate. */
   updateLastSeenActive?(): void;
-
-  // ── Standard Element methods (re-declared for interface completeness) ──────
-  getAttribute(name: string): string | null;
-  toggleAttribute(name: string, force?: boolean): boolean;
-  hasAttribute(name: string): boolean;
-  setAttribute(name: string, value: string): void;
-  removeAttribute(name: string): void;
-  dispatchEvent(event: Event): boolean;
-  addEventListener(
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-    options?: boolean | AddEventListenerOptions,
-  ): void;
-  removeEventListener(
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-    options?: boolean | EventListenerOptions,
-  ): void;
-  ownerGlobal: Window;
-  ownerDocument: Document;
-  before(...nodes: (Node | string)[]): void;
-  after(...nodes: (Node | string)[]): void;
-  remove(): void;
-  style: CSSStyleDeclaration;
 }
 
 /**
@@ -198,7 +173,7 @@ interface MozTabbrowserTabGroup extends XULElement {
   collapsed: boolean;
   /** Live list of tabs belonging to this group. */
   tabs: MozTabbrowserTab[];
-  ownerGlobal: Window;
+  documentGlobal: Window;
 
   before(...nodes: (Node | string)[]): void;
   after(...nodes: (Node | string)[]): void;
@@ -238,7 +213,7 @@ declare const gURLBar: any;
 declare const SessionStore: {
   resetBrowserToLazyState(tab: MozTabbrowserTab): void;
   getTabState(tab: MozTabbrowserTab): string;
-  setTabState(tab: MozTabbrowserTab, state: string): void;
+  setTabState(tab: any, state: string | object): void;
   promiseInitialized: Promise<void>;
   [key: string]: any;
 };
@@ -256,7 +231,7 @@ declare const BrowserWindowTracker: {
 };
 declare const StatusPanel: any;
 declare const MozElements: {
-  NotificationBox: new (callback: (el: Element) => void) => any;
+  NotificationBox: new (callback: (el: Element) => void, delayOverride?: number) => any;
   [key: string]: any;
 };
 declare const ShortcutUtils: any;
@@ -269,28 +244,17 @@ declare const webrtcUI: {
   [key: string]: any;
 };
 declare const SelectableProfileService: any;
-declare const TabProgressListener: new (
-  tab: MozTabbrowserTab,
-  browser: MozBrowser,
-  initial: boolean,
-  preloaded: boolean,
-  stateFlags?: number,
-) => any;
-declare function updateUserContextUIIndicator(): void;
 declare const gPermissionPanel: any;
 declare const ContextualIdentityService: any;
 declare const PlacesUtils: {
   favicons: any;
   [key: string]: any;
 };
-declare const FAVICON_DEFAULTS: Record<string, string>;
 declare const WebExtensionPolicy: any;
 declare function isBlankPageURL(url: string): boolean;
 declare const gFindBarInitialized: boolean;
 declare const gFindBar: any;
 declare const RTL_UI: boolean;
-declare const handleDroppedLink: any;
-declare const URILoadingWrapper: any;
 declare const gBrowserInit: any;
 declare const gBrowserAllowScriptsToCloseInitialTabs: boolean;
 declare const gBrowser: TabbrowserCompat;
@@ -300,51 +264,94 @@ declare const GenAI: any;
 declare const TabStateFlusher: any;
 declare const UrlbarProviderOpenTabs: any;
 
-/** XULBrowserElement — alias for MozBrowser with additional tabbrowser-specific properties. */
-type XULBrowserElement = MozBrowser & {
-  _tabId?: string;
-  docShellIsActive?: boolean;
+/**
+ * Tabbrowser-specific extras on the typelib's `XULBrowserElement` (which
+ * `MozBrowser` aliases). Declaration merging, not a new type: everything a
+ * <browser> already has (docShell, webNavigation, currentURI, ...) comes from
+ * XULFrameElement, so only what tabbrowser.js bolts on is listed here.
+ */
+interface XULBrowserElement {
   permanentKey?: object;
   mIconURL?: string;
   isDistinctProductPageVisit?: boolean;
   registeredOpenURI?: nsIURI;
   _cachedCurrentURI?: nsIURI | null;
-  docShell?: any;
-  webProgress?: any;
-  webNavigation?: any;
   contentTitle?: string;
   /** Per-browser lazy `NotificationBox` instance (created by `getNotificationBox`). */
   _notificationBox?: any;
-  mute?(): void;
-  swapDocShells?(other: XULBrowserElement): void;
-  ownerDocument?: Document;
-};
-
-// ── MozBrowser augmentation ──────────────────────────────────────────────────
-/**
- * Additional Gecko-specific properties on `MozBrowser` that are not (yet)
- * declared in the upstream `lib.gecko.augmentations.d.ts`.
- *
- * Only properties directly accessed via `browser.X` (without an `as any`
- * escape) in the tabbrowser bridge modules are listed here.
- */
-interface MozBrowser {
   /** Whether the browser's audio output is muted. */
   audioMuted?: boolean;
-  /** Whether this browser is hosted in a remote (content) process. */
-  isRemoteBrowser?: boolean;
-  /** Current URI loaded in the browser's content. */
-  currentURI?: nsIURI;
-  /** `true` while this browser's docShell is considered active/visible. */
-  docShellIsActive?: boolean;
-  /** URI registered as the open-tab URI (used for deduplication). */
-  registeredOpenURI?: nsIURI;
+  mute?(): void;
+  swapDocShells?(other: XULBrowserElement): void;
   /** Preserve compositor layers while the window is hidden or occluded. */
   preserveLayers?(inactive: boolean): void;
   /** Send a message to a JSWindowActor running in this browser's process. */
   sendMessageToActor?(messageName: string, data?: any, actorName?: string): void;
   /** Create an about:blank document viewer with the specified principals. */
   createAboutBlankDocumentViewer?(principal: any, storagePrincipal: any): void;
+  webProgress?: any;
+  sessionHistory?: any;
+  contentPrincipal?: any;
+  userTypedValue: string;
+  isNavigating?: boolean;
+  loadURI(uri: nsIURI, params?: any): void;
+  fixupAndLoadURIString(uriString: string, params?: any): void;
+  permitUnload?(action?: any): { permitUnload: boolean };
+  asyncPermitUnload?(action?: any): Promise<{ permitUnload: boolean }>;
+  // Forwarded by tabbrowser.js ("FORWARDED BROWSER PROPERTIES").
+  securityUI: any;
+  finder: any;
+  isSyntheticDocument: boolean;
+  fullZoom: number;
+  textZoom: number;
+  canGoBack: boolean;
+  canGoBackIgnoringUserInteraction: boolean;
+  canGoForward: boolean;
+  goBack(requireUserInteraction?: boolean): boolean;
+  goForward(requireUserInteraction?: boolean): boolean;
+  reload(): void;
+  reloadWithFlags(flags: number): void;
+  stop(): void;
+  gotoIndex(index: number): void;
+  resumeMedia?(): void;
+  destroy?(): void;
+}
+
+// ── ChromeUtils augmentation ─────────────────────────────────────────────────
+/**
+ * `predictRemoteTypeForURI` landed after the typelibs we carry (Firefox
+ * 149.0.2) — Firefox 155 replaced `E10SUtils.predictOriginAttributes` +
+ * `E10SUtils.getRemoteTypeForURI` with this one call. Drop this block when
+ * `libs/@types/gecko` is refreshed from a tree that has it.
+ */
+declare namespace ChromeUtils {
+  function predictRemoteTypeForURI(
+    uri: string | nsIURI | null,
+    options?: {
+      window?: Window;
+      userContextId?: number | string | null;
+      preferredRemoteType?: string | null;
+    }
+  ): string | null;
+}
+
+// ── Element augmentation ─────────────────────────────────────────────────────
+/**
+ * Firefox 155 renamed `Element.ownerGlobal` to `documentGlobal` (upstream
+ * tabbrowser.js: 0 uses of the old name, 14 of the new). The typelibs we carry
+ * (149.0.2) still only declare `ownerGlobal`. Drop this when they are refreshed.
+ */
+interface Element {
+  readonly documentGlobal: Window;
+}
+
+// Chrome-only bits of DOM interfaces that the webidl-generated types leave out.
+interface Event {
+  readonly defaultCancelled: boolean;
+  readonly defaultPreventedByChrome: boolean;
+}
+interface BrowsingContext {
+  isCaptivePortalTab: boolean;
 }
 
 // ── Document augmentation (Firefox Fluent l10n) ───────────────────────────────
@@ -398,8 +405,9 @@ interface Document {
 //   `Node.parentNode` is typed as `Node | null`; `insertAdjacentElement` is
 //   only on `Element`. Use `parentElement` for a properly typed alternative.
 //
-// NOTE: `(this as any).showPidAndActiveness`, `(this as any)._isFirstOrLastInTabGroup`,
-//   `(this as any)._showTabCardPreview`, `(this as any)._allowTransparentBrowser` —
-//   internal TabbrowserCompat fields declared in feature modules; cannot be
-//   added here without importing TabbrowserCompat.
+// NOTE: `(this as any)._allowTransparentBrowser` — internal TabbrowserCompat
+//   field declared in a feature module; cannot be added here without
+//   importing TabbrowserCompat. (`showPidAndActiveness`, `_isFirstOrLastInTabGroup`,
+//   and `_showTabCardPreview` turned out to already be declared directly on
+//   TabbrowserCompat, so those three no longer need the cast.)
 

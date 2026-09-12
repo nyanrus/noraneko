@@ -10,7 +10,6 @@ module FelesBuild
     LOGGER = Utils::Logger.new("symlinker")
 
     LINKS = {
-      File.join(Defines::PATHS[:loader_features], "link-i18n") => Defines::PATHS[:i18n],
       File.join(Defines::PATHS[:loader_modules], "link-modules") => Defines::PATHS[:modules],
     }.freeze
 

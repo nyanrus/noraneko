@@ -23,7 +23,6 @@ module FelesBuild
        "--remote-debugging-port", port.to_s,
        # dev だけ: BiDi から about:/chrome: のページの中も評価できるように(手元で drop の様子を見るため)
        "--remote-allow-system-access",
-       "--wait-for-browser",
        "--jsdebugger"]
     end
 

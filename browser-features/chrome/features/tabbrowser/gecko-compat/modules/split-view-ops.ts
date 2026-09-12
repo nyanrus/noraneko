@@ -3,11 +3,6 @@
 // Section: Split View Operations · Adjacent Tab Operations
 
 import type { TabbrowserCompat } from "../TabbrowserCompat.ts";
-import { appState, send } from "../../state/store.ts";
-import * as GroupOps from "../../ops/group-ops.ts";
-import { DOMRegistry } from "../DOMRegistry.ts";
-import type { TabId, SplitViewId } from "../../types/TabState.ts";
-import { resolveTabId, dispatch } from "../compat-helpers.ts";
 
 /** @augments TabbrowserCompat */
 declare module "../TabbrowserCompat.ts" {
@@ -23,7 +18,6 @@ declare module "../TabbrowserCompat.ts" {
     replaceTabWithWindow(tab: MozTabbrowserTab, options?: any): any;
     replaceTabsWithWindow(contextTab: any, options?: any): any;
     replaceGroupWithWindow(group: MozTabbrowserTabGroup): any;
-    ungroupTab(tab: MozTabbrowserTab): void;
     ungroupSplitView(splitView: any): void;
     createTabsForSessionRestore(
       restoreTabsLazily: boolean,
@@ -34,7 +28,7 @@ declare module "../TabbrowserCompat.ts" {
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
   // ==========================================================================
   // Split View & Adjacent Tab Operations
   // tabbrowser.js L3218~L3367
@@ -47,23 +41,22 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * The new tab inherits the user-context ID and group of `tab` and receives
    * focus in the URL bar.
    */
+  // upstream: addAdjacentNewTab@5ab49fa4ca FIREFOX_143_0_1_RELEASE
   addAdjacentNewTab(tab: MozTabbrowserTab) {
-    try {
-      Services.obs?.notifyObservers?.(
-        {
-          wrappedJSObject: new Promise(resolve => {
-            this.selectedTab = this.addTrustedTab("about:newtab", {
-              tabIndex: (tab as any)._tPos + 1,
-              userContextId: (tab as any).userContextId,
-              tabGroup: (tab as any).group,
-              focusUrlBar: true,
-            });
-            resolve(this.selectedBrowser);
-          }),
-        },
-        "browser-open-newtab-start"
-      );
-    } catch (_) { /* */ }
+    Services.obs.notifyObservers(
+      {
+        wrappedJSObject: new Promise(resolve => {
+          this.selectedTab = this.addTrustedTab("about:newtab", {
+            tabIndex: (tab as any)._tPos + 1,
+            userContextId: (tab as any).userContextId,
+            tabGroup: (tab as any).group,
+            focusUrlBar: true,
+          });
+          resolve(this.selectedBrowser);
+        }),
+      },
+      "browser-open-newtab-start"
+    );
   },
 
   /**
@@ -78,7 +71,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     // Insert tab after adjacent tab, or after its group if it's in one
     const tabIndex =
       !options.tabGroup && (adjacentTab as any).group
-        ? (adjacentTab as any).group.tabs.at(-1)?._tPos + 1
+        ? (adjacentTab as any).group.tabs.at(-1)._tPos + 1
         : (adjacentTab as any)._tPos + 1;
 
     return this.addTab(uriString, {
@@ -91,8 +84,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * Returns `true` if `element` is a `tab-split-view-wrapper` custom element.
    */
   isSplitViewWrapper(element: any): boolean {
-    return element?.tagName === "tab-split-view-wrapper" ||
-           element?.localName === "tab-split-view-wrapper";
+    return element?.tagName === "tab-split-view-wrapper";
   },
 
   /**
@@ -117,12 +109,9 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       return;
     }
 
-    // Use native tabContainer methods if available
-    try {
-      (this as any)._handleTabMove?.(tab, () => splitViewWrapper.appendChild(tab));
-      this.removeFromMultiSelectedTabs(tab);
-      this.tabContainer?._notifyBackgroundTab?.(tab);
-    } catch (_) { /* */ }
+    this._handleTabMove(tab, () => splitViewWrapper.appendChild(tab));
+    this.removeFromMultiSelectedTabs(tab);
+    this.tabContainer._notifyBackgroundTab(tab);
   },
 
   /**
@@ -141,17 +130,15 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     }
 
     const splitViewTabs = splitView.tabs;
-    try {
-      (this as any)._handleTabMove?.(
-        splitView,
-        () => group.appendChild(splitView),
-        metricsContext
-      );
-      for (const tab of splitViewTabs) {
-        this.removeFromMultiSelectedTabs(tab);
-        this.tabContainer?._notifyBackgroundTab?.(tab);
-      }
-    } catch (_) { /* */ }
+    this._handleTabMove(
+      splitView,
+      () => group.appendChild(splitView),
+      metricsContext
+    );
+    for (const tab of splitViewTabs) {
+      this.removeFromMultiSelectedTabs(tab);
+      this.tabContainer._notifyBackgroundTab(tab);
+    }
   },
 
   /**
@@ -164,17 +151,14 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     const panels: string[] = [];
     for (const tab of tabs) {
       this._insertBrowser(tab, false);
-      (this as any)._insertSplitViewFooter?.(tab);
+      this._insertSplitViewFooter(tab);
       const browser = (tab as any).linkedBrowser;
       if (browser) {
         browser.docShellIsActive = true;
       }
       panels.push((tab as any).linkedPanel);
     }
-    const tabpanels = this.window.document.getElementById("tabbrowser-tabpanels");
-    if (tabpanels) {
-      (tabpanels as any).splitViewPanels = panels;
-    }
+    this.tabpanels.splitViewPanels = panels;
   },
 
   /**
@@ -191,10 +175,8 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * Opens the split-view context menu anchored to `anchorElement`.
    */
   openSplitViewMenu(anchorElement: any) {
-    try {
-      const menu = this.window.document.getElementById("split-view-menu");
-      menu?.openPopup?.(anchorElement, "after_start");
-    } catch (_) { /* */ }
+    const menu = this.window.document.getElementById("split-view-menu") as XULPopupElement | null;
+    menu!.openPopup(anchorElement, "after_start");
   },
 
   /**
@@ -205,6 +187,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    *
    * @returns The new `Window`, or `null` on failure.
    */
+  // upstream: replaceTabWithWindow@e05472bb7d FIREFOX_143_0_1_RELEASE
   replaceTabWithWindow(tab: MozTabbrowserTab, options: any = {}): any {
     // Move tab to new window
     try {
@@ -253,6 +236,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    *
    * @returns The new `Window`, or `null` when there is nothing to move.
    */
+  // upstream: replaceTabsWithWindow@354f106a94 FIREFOX_143_0_1_RELEASE
   replaceTabsWithWindow(contextTab: any, options: any = {}): any {
     // If only one tab selected or context tab not multi-selected, use single tab
     if (this.selectedTabs.length === 1 || !this.selectedTabs.includes(contextTab)) {
@@ -301,6 +285,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    *
    * @returns The new `Window`, or `null` if the group is empty.
    */
+  // upstream: replaceGroupWithWindow@be9b539537 FIREFOX_143_0_1_RELEASE
   replaceGroupWithWindow(group: MozTabbrowserTabGroup): any {
     // Move entire tab group to new window
     if (!group?.tabs?.length) return null;
@@ -312,15 +297,6 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    *
    * Does nothing if the tab is not currently in a group.
    */
-  ungroupTab(tab: MozTabbrowserTab) {
-    const id = resolveTabId(tab);
-    if (!id) return;
-    const tabData = appState.value.tabs[id];
-    if (!tabData?.groupId) return;
-
-    send({ type: "REMOVE_TAB_FROM_GROUP", tabId: id });
-    dispatch(tab, "TabUngrouped");
-  },
 
   /**
    * Removes every tab in `splitView` from its tab group.
@@ -349,6 +325,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * @param tabGroupDataList  - Serialised tab-group state objects from SessionStore.
    * @returns Array of created (or reused) tab elements in restore order.
    */
+  // upstream: createTabsForSessionRestore@27d532f24c FIREFOX_143_0_1_RELEASE
   createTabsForSessionRestore(
     restoreTabsLazily: boolean,
     selectTab: number,
@@ -382,8 +359,8 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       if (
         select &&
         (this.selectedTab as any).userContextId === userContextId &&
-        !SessionStore?.isTabRestoring?.(this.selectedTab) &&
-        !this.tabContainer?.verticalMode
+        !SessionStore.isTabRestoring(this.selectedTab) &&
+        !this.tabContainer.verticalMode
       ) {
         tabWasReused = true;
         tab = this.selectedTab;
@@ -406,14 +383,10 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
           url = tabData.entries[activeIndex].url;
         }
 
-        const preferredRemoteType = E10SUtils.getRemoteTypeForURI?.(
-          url,
-          gMultiProcessBrowser,
-          gFissionBrowser,
-          E10SUtils.DEFAULT_REMOTE_TYPE,
-          null,
-          E10SUtils.predictOriginAttributes?.({ window: this.window, userContextId })
-        );
+        const preferredRemoteType = ChromeUtils.predictRemoteTypeForURI(url, {
+          window: this.window,
+          userContextId,
+        });
 
         tab = this.addTrustedTab(createLazyBrowser ? url : "about:blank", {
           createLazyBrowser,
@@ -444,15 +417,13 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
         if (tabGroup) {
           tabGroup.containingTabsFragment.appendChild(tab);
           if (!tabGroup.node) {
-            tabGroup.node = (this as any)._createTabGroup?.(
+            tabGroup.node = this._createTabGroup(
               tabGroup.stateData.id,
               tabGroup.stateData.color,
               tabGroup.stateData.collapsed,
               tabGroup.stateData.name
             );
-            if (tabGroup.node) {
-              tabsFragment.appendChild(tabGroup.node);
-            }
+            tabsFragment.appendChild(tabGroup.node);
           }
         }
       } else {
@@ -484,4 +455,4 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
 
     return tabs;
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

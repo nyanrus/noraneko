@@ -38,7 +38,6 @@ module FelesBuild
       profile_test: in_root("_dist", "profile", "test"),
       # omni.ja をほどいて置く場所。.app の外に置く(codesign --deep に 56MB を掴ませない)
       omni_work: in_root("_dist", "omni"),
-      loader_features: in_root("bridge/loader-features"),
       loader_modules: in_root("bridge/loader-modules"),
       i18n: in_root("i18n"),
       modules: in_root("browser-features/modules"),
@@ -52,7 +51,6 @@ module FelesBuild
       ["skin", "browser-features/skin"],
       ["resource", "bridge/loader-modules/_dist"],
       ["resource-builtin", "browser-features/webext-actors/_dist"],
-      ["loader", "bridge/loader-features/_dist"],
       ["aboutdialog", "browser-features/pages-aboutDialog/_dist"],
       ["newtab", "browser-features/pages-newtab/_dist"],
       ["settings", "browser-features/settings/_dist"],

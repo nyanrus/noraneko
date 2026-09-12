@@ -3,9 +3,9 @@
 // Section: Keyboard Navigation — "how does keyboard navigation in the tab strip work?"
 
 import type { TabbrowserCompat } from "../TabbrowserCompat.ts";
-import { appState } from "../../state/store.ts";
-import * as TabOps from "../../ops/tab-ops.ts";
-import { resolveTabId, dispatch } from "../compat-helpers.ts";
+
+const DIRECTION_FORWARD = 1;
+const DIRECTION_BACKWARD = -1;
 
 /** @augments TabbrowserCompat */
 declare module "../TabbrowserCompat.ts" {
@@ -13,14 +13,16 @@ declare module "../TabbrowserCompat.ts" {
     toggleCaretBrowsing(): void;
     moveTabForward(): void;
     moveTabBackward(): void;
+    selectTabAtIndex(index: number, event?: Event): void;
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
   /**
    * Toggles caret browsing mode, showing a confirmation prompt the first time
    * if the warning preference has not been permanently dismissed.
    */
+  // upstream: toggleCaretBrowsing@568244e5d2 FIREFOX_143_0_1_RELEASE
   toggleCaretBrowsing() {
     const kPrefName = "accessibility.browsewithcaret_shortcut.enabled";
     const kWarningPref = "accessibility.warn_on_browsewithcaret";
@@ -51,44 +53,106 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     } catch (_) { /* */ }
   },
 
+  // upstream: _maybeRequestReplyFromRemoteContent@dcbc1a53a8 FIREFOX_143_0_1_RELEASE
   _maybeRequestReplyFromRemoteContent(event: KeyboardEvent): boolean {
     // If the selected browser is remote, ask it to handle the caret browsing toggle
     const browser = this.selectedBrowser as any;
-    if (!browser?.isRemoteBrowser) return false;
-    try {
-      browser.sendMessageToActor?.("ToggleCaretBrowsing", {}, "BrowserKeyHandler");
+    if (!browser.isRemoteBrowser) return false;
+    browser.sendMessageToActor("ToggleCaretBrowsing", {}, "BrowserKeyHandler");
+    event.preventDefault();
+    return true;
+  },
+
+  /**
+   * Select the visible tab at `index`; negative counts from the end, and out
+   * of range clamps (Ctrl+1..9 and friends).
+   */
+  // upstream: selectTabAtIndex@20748e0faf FIREFOX_143_0_1_RELEASE
+  selectTabAtIndex(index: number, event?: Event) {
+    const tabs = this.visibleTabs;
+
+    // count backwards for index < 0
+    if (index < 0) {
+      index += tabs.length;
+      // clamp at index 0 if still negative.
+      if (index < 0) {
+        index = 0;
+      }
+    } else if (index >= tabs.length) {
+      // clamp at right-most tab if out of range.
+      index = tabs.length - 1;
+    }
+
+    this.selectedTab = tabs[index];
+
+    if (event) {
       event.preventDefault();
-      return true;
-    } catch (_) { return false; }
+      event.stopPropagation();
+    }
   },
 
-  /**
-   * Moves the currently selected tab one position forward in the tab order.
-   */
+  /** Move the selected tab one step right, stepping over or into groups as tabbrowser.js does. */
+  // upstream: moveTabForward@d083ccd217 FIREFOX_143_0_1_RELEASE
   moveTabForward() {
-    const tab = this.selectedTab;
-    if (!tab) return;
-    const id = resolveTabId(tab);
-    if (!id) return;
-    const idx = appState.value.tabOrder.indexOf(id);
-    if (idx < appState.value.tabOrder.length - 1) {
-      appState.value = TabOps.moveTab(appState.value, id, idx + 1);
-      dispatch(tab, "TabMove");
+    const { selectedTab } = this;
+    const nextTab = this.tabContainer.findNextTab(selectedTab, {
+      direction: DIRECTION_FORWARD,
+      filter: (tab: any) => !tab.hidden && selectedTab.pinned == tab.pinned,
+    });
+    if (nextTab) {
+      this._handleTabMove(selectedTab, () => {
+        if (!selectedTab.group && nextTab.group) {
+          if (nextTab.group.collapsed) {
+            // Skip over collapsed tab group.
+            nextTab.group.after(selectedTab);
+          } else {
+            // Enter first position of tab group.
+            nextTab.group.insertBefore(selectedTab, nextTab);
+          }
+        } else if (selectedTab.group != nextTab.group) {
+          // Standalone tab after tab group.
+          selectedTab.group.after(selectedTab);
+        } else {
+          nextTab.after(selectedTab);
+        }
+      });
+    } else if (selectedTab.group) {
+      // selectedTab is the last tab and is grouped.
+      // remove it from its group.
+      selectedTab.group.after(selectedTab);
     }
   },
 
-  /**
-   * Moves the currently selected tab one position backward in the tab order.
-   */
+  // upstream: moveTabBackward@8b778cc537 FIREFOX_143_0_1_RELEASE
   moveTabBackward() {
-    const tab = this.selectedTab;
-    if (!tab) return;
-    const id = resolveTabId(tab);
-    if (!id) return;
-    const idx = appState.value.tabOrder.indexOf(id);
-    if (idx > 0) {
-      appState.value = TabOps.moveTab(appState.value, id, idx - 1);
-      dispatch(tab, "TabMove");
+    const { selectedTab } = this;
+
+    const previousTab = this.tabContainer.findNextTab(selectedTab, {
+      direction: DIRECTION_BACKWARD,
+      filter: (tab: any) => !tab.hidden && selectedTab.pinned == tab.pinned,
+    });
+
+    if (previousTab) {
+      this._handleTabMove(selectedTab, () => {
+        if (!selectedTab.group && previousTab.group) {
+          if (previousTab.group.collapsed) {
+            // Skip over collapsed tab group.
+            previousTab.group.before(selectedTab);
+          } else {
+            // Enter last position of tab group.
+            previousTab.group.append(selectedTab);
+          }
+        } else if (selectedTab.group != previousTab.group) {
+          // Standalone tab before tab group.
+          selectedTab.group.before(selectedTab);
+        } else {
+          previousTab.before(selectedTab);
+        }
+      });
+    } else if (selectedTab.group) {
+      // selectedTab is the first tab and is grouped.
+      // remove it from its group.
+      selectedTab.group.before(selectedTab);
     }
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

@@ -1,0 +1,174 @@
+# tabbrowser の引き継ぎメモ(2026-08-29)
+
+`gBrowser` を TypeScript で置き換える層(`gecko-compat/`)の、いまの形と、次に手が要る場所。
+書いた: シロ(Claude、@nyanrus と一緒に)。読むのは、次に触る人 ── たぶん ひなた か、次のシロ。
+
+## 一文で
+
+**DOM は Firefox と共有している DB。列ごとに書き手は一人。読むのは名前のついたクエリ。変化はイベントで聞く。**
+
+`<tab>` 要素が一行、属性と expando が列。tabbrowser.js・tabs.js・SessionStore・拡張が同じ要素を同期で読み書きするので、真実を別の場所(store)に置くと必ず書き戻しが漏れる。だから compat は本家 tabbrowser.js を一行ずつ写した形で DOM だけを触り、`state/store.ts` は DOM のイベントを聞いて作る**読み取り専用の鏡**。
+
+## いまどうなっているか
+
+- 本家 143.0.1 の `Tabbrowser` 263 メンバーは全部 compat にある(`#private` は `_` 名)。
+- 中身は本家どおり: `TabProgressListener`・`URILoadingWrapper`(`tabbrowser-scope.ts`、tabbrowser.js のブロック内から写した)、`_insertBrowser`、lazy browser、`updateBrowserRemoteness`、挿入/移動/pin/hide、グループ/マルチ選択/succession、閉じる経路。
+- `initCompat` は本家インスタンスから**引き取る**: `mProgressListeners` の配列を共有、初期タブの filter に自分の listener を差し替え、本家が自分を handler にして登録したリスナーを外す。
+- `ui/` の帯は鏡から Preact で描き、鏡が変わると描き直す。描いたタブを押すと本物が選ばれる(`mirror.js` の `drawnFollows`・`clickSelects`)。
+- 走らせて確かめた: `deno task check` 0、headless の六 suite 緑(下の「動かし方」)。
+- 刻印 274/348(うち六つは 155)。**runtime は Firefox 155.0.1 で一周する**(2026-09-12、Mac headless)。
+  155 に対する drift は 197 だが、大半は本家が `_x`/`mX` を `#x` の真の private に変えたぶんで、
+  外から触られないので互換には効かない。**実際に落ちていた 155 の差は下の「155 で直したこと」**。
+
+### 列の持ち主(この表に無い列を触るときは、まず持ち主を探す)
+
+| 列 | 書き手 |
+|---|---|
+| `_tPos`, `selected`, `_selected`, tab の並び | tabs.js / tabbox、`_updateTabsAfterInsert` |
+| `busy`, `progress`, `image`, `label`, `bursting`, `soundplaying`(消す側) | `TabProgressListener`(tabbrowser-scope.ts) |
+| `pending`, `image`(復元時), lazy tab の値 | SessionStore |
+| `linkedPanel`, `linkedBrowser`, `_browserParams` | `_createBrowserForTab` → `_insertBrowser` |
+| `closing`, `_endRemoveArgs` | `_beginRemoveTab` |
+| `pinned`, `hidden` | `pinTab`/`unpinTab`, `hideTab`/`showTab` |
+| `multiselected`, `_multiSelectedTabsSet` | tab-groups.ts のマルチ選択 |
+| `successor`, `predecessors`, `owner` | `setSuccessor`, `_insertTabAtIndex` |
+| `_selectedTab`, `_selectedBrowser` | `updateCurrentBrowser`(browser-swap.ts)、`_adoptExistingTabs` |
+| `docShellIsActive` | AsyncTabSwitcher(本家のまま) |
+
+## 地図
+
+```
+gecko-compat/
+  TabbrowserCompat.ts   class 本体: フィールド(本家順)、_insertBrowser、initCompat(乗っ取り)
+  tabbrowser-scope.ts   tabbrowser.js のブロック内に居るもの: TabProgressListener, URILoadingWrapper, FAVICON_DEFAULTS, updateUserContextUIIndicator
+  compat-helpers.ts     dispatch だけ
+  gecko-types.d.ts      うち側の型。skipLibCheck なので中の矛盾は報告されない
+  modules/*.ts          本家のセクションごと。各モジュールは header(declare module)+ methods で、prototype に defineProperties される
+state/store.ts          鏡。attachMirror(gBrowser)、appState/orderedTabs/selectedTab、tabById
+types/TabState.ts       鏡が言えること(全部 <tab> から読む)
+ui/                     鏡を読む Preact。操作は gBrowser を呼ぶ。XUL の箱に描く(下の石)
+upstream-diff.ts        本家との差分をメンバー単位で(`--fog` で霧の数、本家に無い ours の一覧も)。UPSTREAM = 最後に照合した tag
+tests/headless/         Marionette で叩く試験(下)
+```
+
+刻印: 各メンバーの直上の `// upstream: name@hash TAG` は「その tag の本家と照合した」印。**手で書かない**。`deno task upstream-diff --stamp` が本物のハッシュを入れる。照合し直したら `--stamp TAG --only name`。
+
+## 動かし方
+
+書くのも走らせるのも Mac でできる(runtime は dl.f3liz.casa の Firefox 155.0.1)。
+krun VM(Linux、`noraneko-runtime passed-20250917` = 143.0.1)でも動くが、143 用の
+分岐は残していないので、いまの compat が想定しているのは 155。
+
+```sh
+# Mac で一周(dev の profile をそのまま headless で使う)
+deno task feles-build dev     # 一度だけ。_dist/bin を取って omni を結ぶところまでやってくれる
+deno task feles-build stop    # 窓は閉じて、profile はそのまま使う
+cat >> _dist/profile/test/user.js <<'EOF'
+user_pref("marionette.port", 2829);
+EOF
+# 起こすのは絶対 path で(下の注意)
+MOZ_HEADLESS=1 MOZ_MARIONETTE=1 "$PWD/_dist/bin/noraneko/Noraneko.app/Contents/MacOS/noraneko" \
+  --profile "$PWD/_dist/profile/test" --remote-allow-system-access &
+cd browser-features/chrome
+MPORT=2829 python3 features/tabbrowser/tests/headless/marionette-eval.py < features/tabbrowser/tests/headless/listener.js
+```
+
+止めるときは `deno task feles-build stop`(親に TERM)。**`kill -9` で親を落とすと
+plugin-container が孤児になって profile の錠が残る**。それと、起こすときは
+**絶対 path で**(相対で起こすと `ps` の command も相対になり、path で探す停止処理に
+引っかからず、古い instance が marionette の port を握ったまま生き残る)。
+
+VM で走らせるときは以下。
+
+```sh
+# Mac(deno は mise 経由で入る)
+cd browser-features/chrome
+mise exec deno@2 -- deno task check                       # 0 であること
+mise exec deno@2 -- deno task upstream-diff --to FIREFOX_154_0_RELEASE [--diff --only addTab]
+
+# VM へ写して建てる
+rsync -a --delete -e "ssh -F /Volumes/Lima/lima-home/krun/ssh.config" \
+  browser-features/chrome/features/tabbrowser/ lima-krun:~/noraneko/browser-features/chrome/features/tabbrowser/
+limactl shell krun   # 以下 VM
+cd ~/noraneko/browser-features/chrome && deno run -A vite build --base chrome://noraneko/content
+
+# headless(profile は /tmp なので VM 再起動で消える → 作り直す)
+mkdir -p /tmp/nora-profile && cat > /tmp/nora-profile/user.js <<'EOF'
+user_pref("marionette.port", 2829);
+user_pref("devtools.console.stdout.chrome", true);
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.aboutwelcome.enabled", false);
+EOF
+cd ~/noraneko && rm -rf /tmp/nora-profile/startupCache && \
+MOZ_HEADLESS=1 MOZ_MARIONETTE=1 nohup ./_dist/bin/noraneko/noraneko --profile /tmp/nora-profile --remote-allow-system-access > /tmp/nora.log 2>&1 &
+sleep 16
+MPORT=2829 python3 tests/headless/marionette-eval.py < tests/headless/listener.js
+grep -a -i "error\|JavaScript" /tmp/nora.log | grep -v GFX1     # 空であること
+```
+
+止めるとき: `for p in $(pgrep -f "_dist/bin/noraneko/noraneko"); do [ "$p" != "$$" ] && kill -9 $p; done`(`pkill -f` は自分の shell を巻き込む)。
+
+試験(それぞれ**起動し直した**プロファイルで一つずつ。前の試験のタブが残ると数が合わない):
+
+| ファイル | 見ていること |
+|---|---|
+| `marionette-select.py` | 選択が API/tabbox/クリックの三経路で一致、TabSelect が一回、閉じると隣へ、favicon |
+| `listener.js` | XULBrowserWindow が compat 側に居る、両タブの listener が compat 製、busy、ラベル/窓タイトル、URL バー、閉じて listener 0 |
+| `lazy-remoteness.js` | lazy タブが deck 外で `pending`、選択で挿入、remoteness 切替、about:robots が web タブに描ける |
+| `insert-move-pin-hide.js` | tabIndex 挿入、move 五種、pin の clamp、hide/show + hiddenBy、キーボード移動、複製、browsers proxy |
+| `groups-multiselect.js` | 範囲選択/解除/全選択、`<tab-group>` 作成/移動/解体、collapsed、successor 経由の blur |
+| `mirror.js` | 鏡が追随する、`tabById`、鏡から描いた帯のクリックで本物が選ばれる |
+
+`SHOT=/tmp/x.png` を付けるとスクショも撮れる。chrome script では top-level await が使えないので `return (async () => …)()`。
+
+## 155 で直したこと(2026-09-12)
+
+落ちていたのは、本家が **API を組み替えた四か所**だけだった。刻印は `--stamp FIREFOX_155_0_1_RELEASE`。
+
+| 155 の変更 | 直したところ |
+|---|---|
+| `E10SUtils.predictOriginAttributes` + `getRemoteTypeForURI` → `ChromeUtils.predictRemoteTypeForURI(uri, {window, userContextId, preferredRemoteType})` | `browser-create` `browser-panel` `browser-discard` `tab-misc` `split-view-ops` の五か所 |
+| **要素の `ownerGlobal` が消えて `documentGlobal` に**(本家 tabbrowser.js は `ownerGlobal` ゼロ / `documentGlobal` 14) | `browser-swap` `tab-groups` `tabbrowser-scope`。`gecko-types.d.ts` に `Element.documentGlobal` |
+| `remote` 属性は「立っているか」で見る(`"false"` を書かずに外す) | `tab-misc.updateBrowserRemoteness`、`browser-discard` の `isRemoteBrowser` |
+| `browser.popupBlocker` → `popupAndRedirectBlocker`、`updateBlockedPopupsUI()` → `sendObserverUpdateBlockedPopupsEvent()`(redirect のぶんも) | `browser-swap.updateCurrentBrowser` |
+| 窓のタイトルは `data-title-*` 属性でなく `#mainWindowTitle` 等の要素から。`#populateTitleCache`/`#determineContentTitle`/`#determineTaskbarTabTitle` の三つに分かれた | `title-icon.getWindowTitleForBrowser` を丸ごと 155 の形に。field は `TabbrowserCompat.ts` |
+| SessionStore が窓を畳むとき `gBrowser.splitViews` を回す | `tab-collection` に `get splitViews`(= `tabContainer.allSplitViews`) |
+
+`popupBlocker` が undefined で `updateCurrentBrowser` が途中で落ちていたのが、
+**タブを戻したとき URL バーが追わなかった**正体(`?.` でなく素の参照だったので例外で止まっていた)。
+
+compat の外に残っている 155 の差がひとつ: `AboutNewTabResourceMapping` が
+`aboutRedirector.wrappedJSObject.notifyBuiltInAddonInitialized()` を呼ぶが、noraneko の
+`CustomAboutPage`(`NoranekoStartup.sys.mts`)に無くて毎回 console.error が出る。
+no-op を足せば黙るが、noraneko の newtab を 155 の built-in addon の道に乗せるかは別の判断。
+
+## 手の要るところ(お願い)
+
+1. **155 との照合の残り。** `deno task upstream-diff --to FIREFOX_155_0_1_RELEASE` で 197 メンバーが drift(大半は `_x`→`#x` の改名ぶん)。`--diff --only name` で一つずつ見て、直したら `--stamp FIREFOX_155_0_1_RELEASE --only name`。**まだ途中のもの**: `_setupInitialBrowserAndTab`(`_defaultDropLinkHandler` と `AIWindow` の節)、`updateBrowserRemoteness`(`droppedLinkHandler` の退避)、`updateCurrentBrowser`(listener の欄名)、`createTabsForSessionRestore`。以下は 154 のときの記述(まだ有効): `--diff --only name` で一つずつ見て、直したら `--stamp FIREFOX_154_0_RELEASE --only name`。runtime を 154 に上げるときにまとめてやるのが自然。`UrlbarProviderOpenTabs` の path が 143/154 で違う(両方試す getter が `TabbrowserCompat.ts` にある)、`TabNotes` は 143 に無い。
+2. **split view** は 154 の `<tab-split-view-wrapper>` を前提にしていて、143 には要素が無く、呼び元も無い。154 で初めて動かせる。
+3. **霧の残り 14 メンバー**(`deno task upstream-diff --fog` で出る。`?.` と `catch (` の数を本家と比べて多いものだけ)。残した理由: `_xulEl`・`constructor`(UrlbarProviderOpenTabs の path 探し)は ours で比べる本家が無い。`_reregisterOpenTab` 系・`_insertSplitViewFooter`・`isSplitViewWrapper`・`hideSplitViewPanels`・`createTabsForSessionRestore`(arrowscrollbox の分岐)は split view/154 と一緒に見る。`replaceTabWithWindow`/`replaceTabsWithWindow`/`replaceGroupWithWindow` は **143 とも 154 とも別の古い書き方**(observer + swapBrowsersAndCloseOther)で、本家は `openDialog`/`BrowserWindowTracker.openWindow` に tab を渡すだけ。`translateTabContextMenu` は古い `translateFragment` API で、本家は `data-lazy-l10n-id` の昇格。書き直しは霧取りでなく移植の仕事。
+4. **霧を取ったら見えた、未移植・設計違い**(直していない): `handleEvent` の `GloballyAutoplayBlocked` は本家が `SitePermissions.setForPrincipal` で永続化するのに compat は属性を立てるだけ / `updateBrowserRemotenessByURL` の式が三か所違う(`!gMultiProcessBrowser` 分岐・`predictOriginAttributes` の引数・`getRemoteTypeForURI` の引数) / `tab-dedup.ts` は本家と別アルゴリズム(コンテナ無視・`lastSeenActive` で並べない) / `_adjustFocusAfterTabSwitch` の末尾(`Services.focus.setFocus`)と `pagetitlechanged` の `pending` 判定が無い / `createTabsForSessionRestore` の後半(`tab.initialize()`・`TabHide`/`TabOpen`/`TabBrowserInserted` の発火・leftover の `removeTab`)が無い / `setIcon` に `aLoadingPrincipal` が無く `iconloadingprincipal` を管理していない / `_checkIfShouldTriggerTabSelectMessage`・`_cleanupTabSwitchTelemetry` は 143 に無く 154 とも中身が違う。
+5. `tabbrowser-scope.ts` の `TabProgressListener` は本家をそのまま写したので、`gInitialPages`・`gReduceMotion`・`BrowserUIUtils`・`gURLBar` を `this.mTabBrowser.window` 経由で読む。window global が無い場所(別 window の browser)で使うときは注意。
+
+## 転んだ石(踏まないで)
+
+- `ThisType` は object literal の method の**引数の既定値**には届かない。`this.x` を既定値に書くと `this` が any になる → 本体で `??=`。
+- グループは `#tabbrowser-tabs` 直下でなく arrowscrollbox の中(tabs.js が `insertBefore` を差し替えている)。`advanceSelectedTab` は tabbox.js の `<tabs>` が元から持っている。
+- `findNextTab` は 143 の tabs.js に文字列として無いが、本家 tabbrowser.js が呼んでいるので存在する。
+- `SessionStore.setTabState` は `_tPos` の無いタブを拒む → `_updateTabsAfterInsert()` を挿入のたびに。
+- `addTab` の `inBackground` の既定は本家では **true**(選ぶなら `inBackground: false` を渡す)。
+- limactl の `cd` 警告を `grep -v "No such file"` で消すと、本物の "No such file" も消える。
+- `/tmp/nora-profile` は VM 再起動で消える。SSD が抜けると VM ごと消える(`limactl stop -f && start` で戻る)。
+- gecko の型は `Ci.nsIX.CONST` を `number | undefined` にする → `as Required<typeof Ci.nsIX>` で一度受ける。
+- **preact が二つ束ねられる**: `libs/preact-xul/node_modules/preact` は deno が張った symlink(実体は root と同じ)だが、vite の `preserveSymlinks: true` では別モジュール。`resolve.dedupe: ["preact"]` で一本に。数えるのは `_dist/core.js.map` の `sources` に `preact` が何回出るか。
+- **preact-xul は親の namespace を継ぐ**(preact ≥10.16 は `render(vnode, parent)` を `parent.namespaceURI` から始める)。`xul:` は接頭辞を剥がすだけ。だから帯は XUL の箱に描く。HTML 要素として作ってから ref で XUL に差し替える古い形は、preact が捨てた要素を覚えたままになって二回目から描けなかった。XUL の中の `<div>` は XUL の div になる(downloadbar にそれがある、未対応)。
+- **描いた帯は custom element を借りない**: `<tab>` を document に付けると MozTab が目を覚まし、自分の中身を組み立てて `.tab-text` の `value` を `label` 属性から継承させる(手で描いたラベルが消える)。だから `ui/` は `<hbox class="tabbrowser-tab">` で描く。class は CSS のために借りるだけ。
+- **`class` で宣言された browser.js の global は window のプロパティにならない**(`TabDialogBox`)。`this.window.X` では undefined。`declare const X: any` して裸の名前で呼ぶ ── loadSubScript で同じ global に載った compat からは見える(discard で確認)。
+- **154 の名前が 143 の中に紛れる**(`popupAndRedirectBlocker` は 154、143 は `popupBlocker`)。刻印の tag と中身が合っているかは `--fog` では出ない。落ちて初めて分かる。
+- 窓のタイトルは 143 では `docElement.dataset.titleDefault` 等の data 属性から作る。`#mainWindowTitle` などの要素は 154 のもので 143 の chrome に無い(読むと空になり brand が消える)。
+- `?.` は穴を隠す: `updateCurrentBrowser` は `listener?._stateFlags`(154 の名前、143 は `mStateFlags`)で一度も `onUpdateCurrentBrowser` を呼んでいなかった。`_hasBeforeUnload` は `permitUnload()`(交渉を発火する)を呼んでいた。`_getTriggeringPrincipalFromHistory` は存在しない `legacySHistory` を読んで常に null だった。
+- `XULElement.click()` は document に付いていない要素では鳴らない。試験で押すなら先に `appendChild`。`dispatchEvent(new MouseEvent("click"))` なら detached でも届く。
+
+## 正本
+
+経緯の全部は `~/.shiro/noraneko-analysis-2026-08-28.md`(nyanrus の Mac)。ブランチは `shiro/rewire-loader`、upstream の base は `8129c5f`。

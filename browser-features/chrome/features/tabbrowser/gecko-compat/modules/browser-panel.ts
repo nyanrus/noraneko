@@ -3,45 +3,60 @@
 // Section: Panels & Containers — "how are panels and containers set up?"
 
 import type { TabbrowserCompat } from "../TabbrowserCompat.ts";
+import { TabProgressListener, URILoadingWrapper } from "../tabbrowser-scope.ts";
 
 /** @augments TabbrowserCompat */
 declare module "../TabbrowserCompat.ts" {
   interface TabbrowserCompat {
+    _generateUniquePanelID(): string;
+    getPanel(browser: XULBrowserElement): any;
     // Class fields used by this module
     _uniquePanelIDCounter: number;
     // Methods provided by this module
     getBrowserContainer(browser?: any): any;
     // Methods called by this module but defined elsewhere
+    _appendStatusPanel(): void;
     appendStatusPanel(browser?: any): any;
-    readNotificationBox(browser: XULBrowserElement): any;
-    getTabNotificationDeck(): any;
-    _updateVisibleNotificationBox(browser: XULBrowserElement): void;
     addNewBadge(tab: MozTabbrowserTab, options?: any): void;
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
+  // upstream: _generateUniquePanelID@5a58d3aab5 FIREFOX_143_0_1_RELEASE
   _generateUniquePanelID(): string {
     if (!this._uniquePanelIDCounter) {
       this._uniquePanelIDCounter = 0;
     }
-    const outerID = this.window.docShell?.outerWindowID;
-    // Use monotonic counter to avoid collisions
+    const outerID = this.window.docShell!.outerWindowID;
+    // We want panel IDs to be globally unique, that's why we include the
+    // window ID. We switched to a monotonic counter as Date.now() lead
+    // to random failures because of colliding IDs.
     return `panel-${outerID}-${++this._uniquePanelIDCounter}`;
   },
 
+  /** Park the status panel next to the selected browser. */
+  // upstream: _appendStatusPanel@2e20ecf386 FIREFOX_143_0_1_RELEASE
+  _appendStatusPanel() {
+    this.selectedBrowser!.insertAdjacentElement("afterend", (this.window as any).StatusPanel.panel);
+  },
+
+  /** Ours: same as upstream's 154 `appendStatusPanel`, which takes any browser (default selectedBrowser). */
+  // upstream: appendStatusPanel@?? FIREFOX_154_0_RELEASE
+  appendStatusPanel(browser?: any) {
+    browser ??= this.selectedBrowser;
+    browser.insertAdjacentElement("afterend", (this.window as any).StatusPanel.panel);
+  },
+
+  // upstream: _setupInitialBrowserAndTab@d31fbac6db FIREFOX_143_0_1_RELEASE
   _setupInitialBrowserAndTab() {
     // See browser.js for the meaning of window.arguments
-    let userContextId = (this.window as any).arguments?.[5];
-    
-    let openWindowInfo;
-    try {
-      openWindowInfo = this.window.docShell?.treeOwner
-        ?.QueryInterface(Ci.nsIInterfaceRequestor)
-        ?.getInterface(Ci.nsIAppWindow)?.initialOpenWindowInfo;
-    } catch (_) { /* */ }
+    let userContextId = (this.window as any).arguments && (this.window as any).arguments[5];
 
-    if (!openWindowInfo && (this.window as any).arguments?.[11]) {
+    let openWindowInfo = (this.window.docShell as any).treeOwner
+      .QueryInterface(Ci.nsIInterfaceRequestor)
+      .getInterface(Ci.nsIAppWindow).initialOpenWindowInfo;
+
+    if (!openWindowInfo && (this.window as any).arguments && (this.window as any).arguments[11]) {
       openWindowInfo = (this.window as any).arguments[11];
     }
 
@@ -51,50 +66,46 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     }
 
     let triggeringRemoteType;
-    if (extraOptions?.hasKey?.("triggeringRemoteType")) {
-      try {
-        triggeringRemoteType = extraOptions.getPropertyAsACString("triggeringRemoteType");
-      } catch (_) { /* */ }
+    if (extraOptions?.hasKey("triggeringRemoteType")) {
+      triggeringRemoteType = extraOptions.getPropertyAsACString("triggeringRemoteType");
     }
 
-    const tabArgument = gBrowserInit?.getTabToAdopt?.();
+    const tabArgument = gBrowserInit.getTabToAdopt();
 
     let remoteType;
     let initialBrowsingContextGroupId;
 
-    if (tabArgument?.hasAttribute?.("usercontextid")) {
+    if (tabArgument && tabArgument.hasAttribute("usercontextid")) {
       userContextId = parseInt(tabArgument.getAttribute("usercontextid"), 10);
     }
 
-    if (tabArgument?.linkedBrowser) {
+    if (openWindowInfo) {
+      userContextId = openWindowInfo.originAttributes.userContextId;
+    }
+
+    const remoteTypeOptions: any = { window: this.window, userContextId };
+    if (triggeringRemoteType) {
+      // 親 process は選ばせない(NOT_REMOTE を preferredRemoteType にはしない)
+      remoteTypeOptions.preferredRemoteType = triggeringRemoteType;
+    }
+
+    if (tabArgument && tabArgument.linkedBrowser) {
       remoteType = tabArgument.linkedBrowser.remoteType;
-      initialBrowsingContextGroupId = tabArgument.linkedBrowser.browsingContext?.group?.id;
+      initialBrowsingContextGroupId = tabArgument.linkedBrowser.browsingContext?.group.id;
     } else if (openWindowInfo) {
-      userContextId = openWindowInfo.originAttributes?.userContextId;
       if (openWindowInfo.isRemote) {
-        remoteType = triggeringRemoteType ?? E10SUtils.DEFAULT_REMOTE_TYPE;
+        remoteType = ChromeUtils.predictRemoteTypeForURI(null, remoteTypeOptions);
       } else {
         remoteType = E10SUtils.NOT_REMOTE;
       }
     } else {
-      let uriToLoad = gBrowserInit?.uriToLoadPromise;
+      let uriToLoad = gBrowserInit.uriToLoadPromise;
       if (uriToLoad && Array.isArray(uriToLoad)) {
         uriToLoad = uriToLoad[0];
       }
 
       if (uriToLoad && typeof uriToLoad === "string") {
-        const oa = E10SUtils.predictOriginAttributes({
-          window: this.window,
-          userContextId,
-        });
-        remoteType = E10SUtils.getRemoteTypeForURI(
-          uriToLoad,
-          gMultiProcessBrowser,
-          gFissionBrowser,
-          triggeringRemoteType ?? E10SUtils.DEFAULT_REMOTE_TYPE,
-          null,
-          oa
-        );
+        remoteType = ChromeUtils.predictRemoteTypeForURI(uriToLoad, remoteTypeOptions);
       } else {
         if (Cu.isInAutomation) {
           ChromeUtils.releaseAssert(
@@ -119,7 +130,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     if (gBrowserAllowScriptsToCloseInitialTabs) {
       browser.setAttribute("allowscriptstoclose", "true");
     }
-    browser.droppedLinkHandler = handleDroppedLink;
+    browser.droppedLinkHandler = (this.window as any).handleDroppedLink;
     browser.loadURI = URILoadingWrapper.loadURI.bind(URILoadingWrapper, browser);
     browser.fixupAndLoadURIString = URILoadingWrapper.fixupAndLoadURIString.bind(
       URILoadingWrapper,
@@ -129,45 +140,54 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     const uniqueId = this._generateUniquePanelID();
     const panel = this.getPanel(browser);
     panel.id = uniqueId;
-    try {
-      const tabpanels = this.window.document.getElementById("tabbrowser-tabpanels");
-      tabpanels?.appendChild?.(panel);
-    } catch (_) { /* */ }
+    this.tabpanels.appendChild(panel);
 
-    const tab = this.tabs[0];
-    if (tab) {
-      (tab as any).linkedPanel = uniqueId;
-      (tab as any)._tPos = 0;
-      (tab as any)._fullyOpen = true;
-      (tab as any).linkedBrowser = browser;
-      (tab as any).permanentKey = browser.permanentKey;
+    const tab = this.tabs[0] as any;
+    tab.linkedPanel = uniqueId;
+    this._selectedTab = tab;
+    this._selectedBrowser = browser;
+    tab.permanentKey = browser.permanentKey;
+    tab._tPos = 0;
+    tab._fullyOpen = true;
+    tab.linkedBrowser = browser;
 
-      if (userContextId) {
-        tab.setAttribute("usercontextid", userContextId);
-        ContextualIdentityService?.setTabStyle?.(tab);
-      }
-
-      this._tabForBrowser.set(browser, tab);
-      this.appendStatusPanel();
-
-      browser.docShellIsActive = this.shouldActivateDocShell(browser);
-
-      // Hook up progress listener
-      try { this._wireProgressListener(tab, browser); } catch (_) { /* */ }
+    if (userContextId) {
+      tab.setAttribute("usercontextid", userContextId);
+      ContextualIdentityService.setTabStyle(tab);
     }
+
+    this._tabForBrowser.set(browser, tab);
+
+    this._appendStatusPanel();
+
+    // This is the initial browser, so it's usually active; the default is false
+    // so we have to update it:
+    browser.docShellIsActive = this.shouldActivateDocShell(browser);
+
+    // Hook the browser up with a progress listener.
+    const tabListener = new TabProgressListener(this, tab, browser, true, false);
+    const filter: any = Cc["@mozilla.org/appshell/component/browser-status-filter;1"]
+      .createInstance(Ci.nsIWebProgress);
+    filter.addProgressListener(tabListener, Ci.nsIWebProgress.NOTIFY_ALL!);
+    this._tabListeners.set(tab, tabListener);
+    this._tabFilters.set(tab, filter);
+    browser.webProgress.addProgressListener(filter, Ci.nsIWebProgress.NOTIFY_ALL!);
   },
 
   /**
    * Returns the `<tabpanel>` element that contains `browser`.
    */
+  // upstream: getPanel@10d14ee553 FIREFOX_143_0_1_RELEASE
   getPanel(browser: XULBrowserElement): any {
-    return this.getBrowserContainer(browser)?.parentNode;
+    return this.getBrowserContainer(browser).parentNode;
   },
 
   /**
    * Returns the `.browserContainer` `<vbox>` that wraps `browser`'s stack.
+   * Defaults to `selectedBrowser` when not provided.
    */
-  getBrowserContainer(browser: XULBrowserElement): any {
-    return browser?.parentNode?.parentNode;
+  // upstream: getBrowserContainer@e3461fb2e1 FIREFOX_143_0_1_RELEASE
+  getBrowserContainer(browser?: XULBrowserElement): any {
+    return ((browser || this.selectedBrowser) as any).parentNode.parentNode;
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

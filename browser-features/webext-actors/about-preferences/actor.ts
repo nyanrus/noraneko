@@ -38,7 +38,7 @@ export const parent = defineParent({
 });
 
 export const content = defineContent<typeof parent>((parent) => {
-  const navRoot = document.querySelector("#categories");
+  const navRoot = document?.querySelector("#categories");
   if (!navRoot) return;
 
   const fragment = (window as any).MozXULElement.parseXULToFragment(`
@@ -57,7 +57,7 @@ export const content = defineContent<typeof parent>((parent) => {
   navRoot.appendChild(fragment);
 
   document
-    .querySelector("#category-nora-link")
+    ?.querySelector("#category-nora-link")
     ?.addEventListener("click", () => {
       // dev でも about:nora:settings(chrome://noraneko-settings/、vite build の産物)。localhost:5183 の dev server はもう無い
       parent.openSettings();

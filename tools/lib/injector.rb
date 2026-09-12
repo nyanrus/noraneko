@@ -26,10 +26,11 @@ module FelesBuild
       skin noraneko classic/1.0 skin/
       resource noraneko resource/ contentaccessible=yes
       resource noraneko-builtin resource-builtin/ contentaccessible=yes
-      resource noraneko-loader loader/ contentaccessible=yes
       content noraneko-pages-aboutdialog aboutdialog/ contentaccessible=yes
       override chrome://browser/content/aboutDialog.xhtml chrome://noraneko-pages-aboutdialog/content/aboutDialog.xhtml
       content noraneko-settings settings/ contentaccessible=yes
+      category browser-window-domcontentloaded resource://noraneko/modules/NoranekoWindow.sys.mjs NoranekoWindow.onDOMContentLoaded
+      category browser-before-ui-startup resource://noraneko/modules/NoranekoStartup.sys.mjs NoranekoStartup.init
     MANIFEST
 
     def self.uri(relative) = "file://#{File.expand_path(relative, Defines::PROJECT_ROOT)}/"
@@ -43,10 +44,11 @@ module FelesBuild
         "skin noraneko classic/1.0 #{uri('browser-features/skin')}",
         "resource noraneko #{uri('bridge/loader-modules/_dist')} contentaccessible=yes",
         "resource noraneko-builtin #{uri('browser-features/webext-actors/_dist')} contentaccessible=yes",
-        "resource noraneko-loader #{uri('bridge/loader-features/_dist')} contentaccessible=yes",
         "content noraneko-pages-aboutdialog #{uri('browser-features/pages-aboutDialog/_dist')} contentaccessible=yes",
         "override chrome://browser/content/aboutDialog.xhtml chrome://noraneko-pages-aboutdialog/content/aboutDialog.html",
         "content noraneko-settings #{uri('browser-features/settings/_dist')} contentaccessible=yes",
+        "category browser-window-domcontentloaded resource://noraneko/modules/NoranekoWindow.sys.mjs NoranekoWindow.onDOMContentLoaded",
+        "category browser-before-ui-startup resource://noraneko/modules/NoranekoStartup.sys.mjs NoranekoStartup.init",
         END_MARK,
       ]
     end

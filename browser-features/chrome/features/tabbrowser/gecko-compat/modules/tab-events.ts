@@ -3,33 +3,33 @@
 // Section: Events — "how are tab DOM events dispatched and handled?"
 
 import type { TabbrowserCompat } from "../TabbrowserCompat.ts";
-import { appState } from "../../state/store.ts";
-import * as TabOps from "../../ops/tab-ops.ts";
-import { resolveTabId, dispatch } from "../compat-helpers.ts";
+import { dispatch } from "../compat-helpers.ts";
 
 /** @augments TabbrowserCompat */
 declare module "../TabbrowserCompat.ts" {
   interface TabbrowserCompat {
-    // Class fields used by this module
-    _tabpanelsSelectHandler: any;
-    _switcher: any;
+    handleEvent(event: Event): void;
+    _setupEventListeners(): void;
     // Methods
     _reregisterOpenTab(tab: MozTabbrowserTab, groupId: string | null): void;
     _unregisterAndReregisterOpenTab(tab: MozTabbrowserTab, originalGroupId: string | null): void;
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
+  // upstream: _tabAttrModified@e23effd9c4 FIREFOX_143_0_1_RELEASE
   _tabAttrModified(tab: MozTabbrowserTab, changed: string[]) {
+    if ((tab as any).closing) return;
     dispatch(tab, "TabAttrModified", { changed });
   },
 
+  // upstream: _setupEventListeners@b5081e3dce FIREFOX_143_0_1_RELEASE
   _setupEventListeners() {
     const doc = this.window.document;
-    doc.addEventListener("keydown", this, { capture: true } as any);
-    doc.addEventListener("keypress", this, { capture: true } as any);
+    doc.addEventListener("keydown", this, { mozSystemGroup: true } as any);
+    doc.addEventListener("keypress", this, { mozSystemGroup: true } as any);
+    doc.addEventListener("visibilitychange", this);
     this.window.addEventListener("framefocusrequested", this);
-    this.window.addEventListener("visibilitychange", this);
     this.window.addEventListener("DOMAudioPlaybackStarted", this);
     this.window.addEventListener("DOMAudioPlaybackStopped", this);
     this.window.addEventListener("DOMAudioPlaybackBlockStarted", this);
@@ -53,7 +53,9 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     // Tabpanels select → updateCurrentBrowser
     const panels = doc.getElementById("tabbrowser-tabpanels");
     if (panels) {
-      this._tabpanelsSelectHandler = () => this.updateCurrentBrowser();
+      this._tabpanelsSelectHandler = (event: Event) => {
+        if (event.target === panels) this.updateCurrentBrowser();
+      };
       panels.addEventListener("select", this._tabpanelsSelectHandler);
     }
   },
@@ -65,13 +67,14 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * `activate`, `deactivate`, `sizemodechange`, `occlusionstatechange`,
    * `TabAttrModified`, `TabPinned`, `TabUnpinned`, and various media/audio events.
    */
+  // upstream: handleEvent@98f83440ef FIREFOX_143_0_1_RELEASE
   handleEvent(event: Event) {
     switch (event.type) {
       case "keydown":
-        this._handleKeyDownEvent(event);
+        this._handleKeyDownEvent(event as KeyboardEvent);
         break;
       case "keypress":
-        this._handleKeyPressEvent(event);
+        this._handleKeyPressEvent(event as KeyboardEvent);
         break;
       case "framefocusrequested": {
         const tab = this.getTabForBrowser(event.target);
@@ -85,17 +88,15 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
         const inactive = document.hidden;
         if (!this._switcher) {
           for (const browser of this.selectedBrowsers) {
-            try {
-              (browser as any).preserveLayers?.(inactive);
-              (browser as any).docShellIsActive = !inactive;
-            } catch (_) { /* */ }
+            (browser as any).preserveLayers(inactive);
+            (browser as any).docShellIsActive = !inactive;
           }
         }
         break;
       }
       case "activate":
       case "deactivate":
-        try { (this.selectedTab as any)?.updateLastSeenActive?.(); } catch (_) { /* */ }
+        (this.selectedTab as any).updateLastSeenActive();
         break;
       case "pagetitlechanged": {
         const tab = this.getTabForBrowser(event.target);
@@ -104,44 +105,38 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       }
       case "DOMAudioPlaybackStarted":
       case "DOMAudioPlaybackStopped": {
-        const t = this.getTabFromAudioEvent(event) ?? this.getTabForBrowser(event.target);
+        const t = this.getTabFromAudioEvent(event);
         if (t) {
-          const id = resolveTabId(t);
           const playing = event.type === "DOMAudioPlaybackStarted";
-          if (id) {
-            appState.value = TabOps.updateAudioState(appState.value, id, { soundPlaying: playing });
-
+          {
             if (playing) {
-              // Clear any pending removal timer
-              if ((t as any)._soundPlayingAttrRemovalTimer) {
-                clearTimeout((t as any)._soundPlayingAttrRemovalTimer);
-                (t as any)._soundPlayingAttrRemovalTimer = 0;
-              }
+              clearTimeout((t as any)._soundPlayingAttrRemovalTimer);
+              (t as any)._soundPlayingAttrRemovalTimer = 0;
+
               const modifiedAttrs: string[] = [];
-              if ((t as any).hasAttribute?.("soundplaying-scheduledremoval")) {
-                (t as any).removeAttribute?.("soundplaying-scheduledremoval");
+              if ((t as any).hasAttribute("soundplaying-scheduledremoval")) {
+                (t as any).removeAttribute("soundplaying-scheduledremoval");
                 modifiedAttrs.push("soundplaying-scheduledremoval");
               }
-              if (!(t as any).hasAttribute?.("soundplaying")) {
-                (t as any).toggleAttribute?.("soundplaying", true);
+              if (!(t as any).hasAttribute("soundplaying")) {
+                (t as any).toggleAttribute("soundplaying", true);
                 modifiedAttrs.push("soundplaying");
               }
               if (modifiedAttrs.length) {
                 // Force style flush for opacity transition
-                try { (this.window as any).getComputedStyle?.(t)?.opacity; } catch (_) { /* */ }
-                this._tabAttrModified(t, modifiedAttrs);
+                (this.window as any).getComputedStyle(t).opacity;
               }
+              this._tabAttrModified(t, modifiedAttrs);
             } else {
               // Delayed removal of soundplaying attribute
-              if ((t as any).hasAttribute?.("soundplaying")) {
-                let removalDelay = 3000;
-                try { removalDelay = Services.prefs.getIntPref("browser.tabs.delayHidingAudioPlayingIconMS"); } catch (_) { /* */ }
-                (t as any).style?.setProperty?.("--soundplaying-removal-delay", `${removalDelay - 300}ms`);
-                (t as any).toggleAttribute?.("soundplaying-scheduledremoval", true);
+              if ((t as any).hasAttribute("soundplaying")) {
+                const removalDelay = Services.prefs.getIntPref("browser.tabs.delayHidingAudioPlayingIconMS");
+                (t as any).style.setProperty("--soundplaying-removal-delay", `${removalDelay - 300}ms`);
+                (t as any).toggleAttribute("soundplaying-scheduledremoval", true);
                 this._tabAttrModified(t, ["soundplaying-scheduledremoval"]);
                 (t as any)._soundPlayingAttrRemovalTimer = setTimeout(() => {
-                  (t as any).removeAttribute?.("soundplaying-scheduledremoval");
-                  (t as any).removeAttribute?.("soundplaying");
+                  (t as any).removeAttribute("soundplaying-scheduledremoval");
+                  (t as any).removeAttribute("soundplaying");
                   this._tabAttrModified(t, ["soundplaying", "soundplaying-scheduledremoval"]);
                 }, removalDelay);
               }
@@ -152,13 +147,11 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       }
       case "DOMAudioPlaybackBlockStarted":
       case "DOMAudioPlaybackBlockStopped": {
-        const t = this.getTabFromAudioEvent(event) ?? this.getTabForBrowser(event.target);
+        const t = this.getTabFromAudioEvent(event);
         if (t) {
-          const id = resolveTabId(t);
           const blocked = event.type === "DOMAudioPlaybackBlockStarted";
-          if (id) {
-            appState.value = TabOps.updateAudioState(appState.value, id, { activeMediaBlocked: blocked });
-            (t as any).toggleAttribute?.("activemedia-blocked", blocked);
+          {
+            (t as any).toggleAttribute("activemedia-blocked", blocked);
             this._tabAttrModified(t, ["activemedia-blocked"]);
           }
         }
@@ -166,35 +159,31 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
       }
       case "GloballyAutoplayBlocked": {
         // Forward to notification UI if available
-        try {
-          const browser = (event as any).originalTarget ?? event.target;
-          const tab = this.getTabForBrowser(browser);
-          if (tab) {
-            (tab as any).toggleAttribute?.("activemedia-blocked", true);
-            this._tabAttrModified(tab, ["activemedia-blocked"]);
-          }
-        } catch (_) { /* */ }
+        const browser = (event as any).originalTarget;
+        const tab = this.getTabForBrowser(browser);
+        if (tab) {
+          (tab as any).toggleAttribute("activemedia-blocked", true);
+          this._tabAttrModified(tab, ["activemedia-blocked"]);
+        }
         break;
       }
       case "TabGroupCollapse":
-        try {
-          ((event as any).target?.tabs ?? []).forEach((tab: any) => {
-            this.removeFromMultiSelectedTabs(tab);
-          });
-        } catch (_) { /* */ }
+        (event as any).target.tabs.forEach((tab: any) => {
+          this.removeFromMultiSelectedTabs(tab);
+        });
         break;
       case "TabGroupCreateByUser":
-        try { this.tabGroupMenu?.openCreateModal?.((event as any).target); } catch (_) { /* */ }
+        this.tabGroupMenu.openCreateModal((event as any).target);
         break;
       case "TabGrouped": {
         const tab = (event as CustomEvent).detail;
-        this._reregisterOpenTab(tab, (event as any).target?.id ?? null);
+        this._reregisterOpenTab(tab, (tab as any).group?.id ?? null);
         break;
       }
       case "TabUngrouped": {
         const tab = (event as CustomEvent).detail;
         const originalGroup = (event as any).target;
-        this._unregisterAndReregisterOpenTab(tab, originalGroup?.id ?? null);
+        this._unregisterAndReregisterOpenTab(tab, originalGroup.id);
         break;
       }
       case "TabSplitViewActivate":
@@ -209,30 +198,26 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
   _reregisterOpenTab(tab: MozTabbrowserTab, groupId: string | null) {
     const uri = (tab as any).linkedBrowser?.registeredOpenURI ?? (tab as any)._originalRegisteredOpenURI;
     if (!uri) return;
-    try {
-      this.UrlbarProviderOpenTabs?.unregisterOpenTab?.(
-        uri.spec, (tab as any).userContextId, null,
-        PrivateBrowsingUtils?.isWindowPrivate?.(this.window),
-      );
-      this.UrlbarProviderOpenTabs?.registerOpenTab?.(
-        uri.spec, (tab as any).userContextId, groupId,
-        PrivateBrowsingUtils?.isWindowPrivate?.(this.window),
-      );
-    } catch (_) { /* */ }
+    this.UrlbarProviderOpenTabs.unregisterOpenTab(
+      uri.spec, (tab as any).userContextId, null,
+      PrivateBrowsingUtils.isWindowPrivate(this.window),
+    );
+    this.UrlbarProviderOpenTabs.registerOpenTab(
+      uri.spec, (tab as any).userContextId, groupId,
+      PrivateBrowsingUtils.isWindowPrivate(this.window),
+    );
   },
 
   _unregisterAndReregisterOpenTab(tab: MozTabbrowserTab, originalGroupId: string | null) {
     const uri = (tab as any).linkedBrowser?.registeredOpenURI ?? (tab as any)._originalRegisteredOpenURI;
     if (!uri) return;
-    try {
-      this.UrlbarProviderOpenTabs?.unregisterOpenTab?.(
-        uri.spec, (tab as any).userContextId, originalGroupId,
-        PrivateBrowsingUtils?.isWindowPrivate?.(this.window),
-      );
-      this.UrlbarProviderOpenTabs?.registerOpenTab?.(
-        uri.spec, (tab as any).userContextId, null,
-        PrivateBrowsingUtils?.isWindowPrivate?.(this.window),
-      );
-    } catch (_) { /* */ }
+    this.UrlbarProviderOpenTabs.unregisterOpenTab(
+      uri.spec, (tab as any).userContextId, originalGroupId,
+      PrivateBrowsingUtils.isWindowPrivate(this.window),
+    );
+    this.UrlbarProviderOpenTabs.registerOpenTab(
+      uri.spec, (tab as any).userContextId, null,
+      PrivateBrowsingUtils.isWindowPrivate(this.window),
+    );
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

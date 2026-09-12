@@ -2,14 +2,8 @@
 // Ported from tabbrowser.js L974~L2896
 // Section: Browser Properties · Navigation · Tab Accessors · Selected Tab · Split View · Browser Lookup · Tab Container
 
-import { produce } from "immer";
 import type { TabbrowserCompat } from "../TabbrowserCompat.ts";
-import { appState, selectedTab as selectedTabSignal, orderedTabs, setSelectedTab } from "../../state/store.ts";
-import * as GroupOps from "../../ops/group-ops.ts";
-import { DOMRegistry } from "../DOMRegistry.ts";
-import { pipe, A, O } from "@mobily/ts-belt";
-import type { TabData, TabId, SplitViewId } from "../../types/TabState.ts";
-import { resolveTabId, dispatch, advanceSelectedTab } from "../compat-helpers.ts";
+import { dispatch } from "../compat-helpers.ts";
 
 /** @augments TabbrowserCompat */
 declare module "../TabbrowserCompat.ts" {
@@ -29,8 +23,8 @@ declare module "../TabbrowserCompat.ts" {
     fullZoom: number;
     textZoom: number;
     userTypedValue: string;
-    loadURI(uri: string, options?: any): void;
-    fixupAndLoadURIString(uri: string, options?: any): void;
+    loadURI(uri: nsIURI, params?: any): void;
+    fixupAndLoadURIString(uriString: string, params?: any): void;
     goBack(requireUserInteraction?: boolean): boolean;
     goForward(requireUserInteraction?: boolean): boolean;
     readonly canGoBack: boolean;
@@ -40,24 +34,25 @@ declare module "../TabbrowserCompat.ts" {
     reloadWithFlags(flags: number): void;
     stop(): void;
     gotoIndex(index: number): void;
-    readonly tabs: Element[];
-    readonly visibleTabs: Element[];
-    readonly openTabs: Element[];
-    readonly nonHiddenTabs: Element[];
+    readonly tabs: MozTabbrowserTab[];
+    readonly visibleTabs: MozTabbrowserTab[];
+    readonly openTabs: MozTabbrowserTab[];
+    readonly nonHiddenTabs: MozTabbrowserTab[];
     readonly pinnedTabCount: number;
     readonly tabGroups: any[];
-    readonly tabsInCollapsedTabGroups: Element[];
+    readonly splitViews: any[];
+    readonly tabsInCollapsedTabGroups: MozTabbrowserTab[];
     selectedTab: any;
-    readonly selectedBrowser: Element | null;
-    readonly selectedBrowsers: Element[];
+    readonly selectedBrowser: XULBrowserElement;
+    readonly selectedBrowsers: XULBrowserElement[];
     readonly activeSplitView: any;
-    readonly splitViewBrowsers: Element[];
+    readonly splitViewBrowsers: XULBrowserElement[];
     addTabSplitView(tab: MozTabbrowserTab, otherTab: any): void;
-    unsplitTabs(svId?: SplitViewId): void;
+    unsplitTabs(splitView?: any): void;
     browsers: any;
-    getBrowserForTab(tab: MozTabbrowserTab): Element | undefined;
-    getTabForBrowser(browser: XULBrowserElement): any;
-    getBrowserAtIndex(index: number): Element | null;
+    getBrowserForTab(tab: MozTabbrowserTab): XULBrowserElement | undefined;
+    getTabForBrowser(browser: any): MozTabbrowserTab | undefined;
+    getBrowserAtIndex(index: number): XULBrowserElement | null;
     readonly tabContainer: any;
     addEventListener(...args: any[]): void;
     removeEventListener(...args: any[]): void;
@@ -65,54 +60,73 @@ declare module "../TabbrowserCompat.ts" {
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
+
   // ==========================================================================
   // Forwarded browser properties
   // tabbrowser.js L361~L428
   // ==========================================================================
 
   /** The `docShell` of the selected browser. */
-  get docShell() { return (this.selectedBrowser as any)?.docShell; },
+  // upstream: get docShell@9dbc5ff5bc FIREFOX_143_0_1_RELEASE
+  get docShell() { return this.selectedBrowser.docShell; },
   /** The `nsIWebNavigation` interface of the selected browser. */
-  get webNavigation() { return (this.selectedBrowser as any)?.webNavigation; },
+  // upstream: get webNavigation@14005fafac FIREFOX_143_0_1_RELEASE
+  get webNavigation() { return this.selectedBrowser.webNavigation; },
   /** The `nsIWebProgress` interface of the selected browser. */
-  get webProgress() { return (this.selectedBrowser as any)?.webProgress; },
+  // upstream: get webProgress@da1670dae8 FIREFOX_143_0_1_RELEASE
+  get webProgress() { return this.selectedBrowser.webProgress; },
   /** The page title of the document currently loaded in the selected browser. */
-  get contentTitle() { return (this.selectedBrowser as any)?.contentTitle ?? ""; },
+  // upstream: get contentTitle@3015665376 FIREFOX_143_0_1_RELEASE
+  get contentTitle() { return this.selectedBrowser.contentTitle; },
   /** The content `window` of the selected browser. */
-  get contentWindow() { return (this.selectedBrowser as any)?.contentWindow; },
+  // upstream: get contentWindow@60302c58fb FIREFOX_143_0_1_RELEASE
+  get contentWindow() { return this.selectedBrowser.contentWindow; },
   /** The content `document` of the selected browser. */
-  get contentDocument() { return (this.selectedBrowser as any)?.contentDocument; },
+  // upstream: get contentDocument@e5b39a2c93 FIREFOX_143_0_1_RELEASE
+  get contentDocument() { return this.selectedBrowser.contentDocument; },
   /** The security principal of the content loaded in the selected browser. */
-  get contentPrincipal() { return (this.selectedBrowser as any)?.contentPrincipal; },
+  // upstream: get contentPrincipal@201c5cd652 FIREFOX_143_0_1_RELEASE
+  get contentPrincipal() { return this.selectedBrowser.contentPrincipal; },
   /** The security UI object for the selected browser. */
-  get securityUI() { return (this.selectedBrowser as any)?.securityUI; },
+  // upstream: get securityUI@219f8e6726 FIREFOX_143_0_1_RELEASE
+  get securityUI() { return this.selectedBrowser.securityUI; },
   /** The session history of the selected browser. */
-  get sessionHistory() { return (this.selectedBrowser as any)?.sessionHistory; },
+  // upstream: get sessionHistory@393aa3cecb FIREFOX_143_0_1_RELEASE
+  get sessionHistory() { return this.selectedBrowser.sessionHistory; },
   /** The `Finder` instance for the selected browser. */
-  get finder() { return (this.selectedBrowser as any)?.finder; },
+  // upstream: get finder@4e290ed15a FIREFOX_143_0_1_RELEASE
+  get finder() { return this.selectedBrowser.finder; },
   /** The URI currently loaded in the selected browser. */
-  get currentURI() { return (this.selectedBrowser as any)?.currentURI; },
+  // upstream: get currentURI@43cc7a9167 FIREFOX_143_0_1_RELEASE
+  get currentURI() { return this.selectedBrowser.currentURI; },
   /** Whether the selected browser has a synthetic (non-HTML/XML) document. */
-  get isSyntheticDocument() { return (this.selectedBrowser as any)?.isSyntheticDocument ?? false; },
+  // upstream: get isSyntheticDocument@7fab09b591 FIREFOX_143_0_1_RELEASE
+  get isSyntheticDocument() { return this.selectedBrowser.isSyntheticDocument; },
 
   /** The full-page zoom factor of the selected browser. */
-  get fullZoom() { return (this.selectedBrowser as any)?.fullZoom ?? 1; },
+  // upstream: get fullZoom@11fb616f8d FIREFOX_143_0_1_RELEASE
+  get fullZoom() { return this.selectedBrowser.fullZoom; },
   /** Set the full-page zoom factor of the selected browser. */
-  set fullZoom(val: number) { const b = this.selectedBrowser as any; if (b) b.fullZoom = val; },
+  // upstream: set fullZoom@0257c531b1 FIREFOX_143_0_1_RELEASE
+  set fullZoom(val: number) { this.selectedBrowser.fullZoom = val; },
 
   /** The text-only zoom factor of the selected browser. */
-  get textZoom() { return (this.selectedBrowser as any)?.textZoom ?? 1; },
+  // upstream: get textZoom@caa300e96d FIREFOX_143_0_1_RELEASE
+  get textZoom() { return this.selectedBrowser.textZoom; },
   /** Set the text-only zoom factor of the selected browser. */
-  set textZoom(val: number) { const b = this.selectedBrowser as any; if (b) b.textZoom = val; },
+  // upstream: set textZoom@aa15967e25 FIREFOX_143_0_1_RELEASE
+  set textZoom(val: number) { this.selectedBrowser.textZoom = val; },
 
   /** The URL string the user typed into the address bar for the selected browser. */
-  get userTypedValue() { return (this.selectedBrowser as any)?.userTypedValue ?? ""; },
+  // upstream: get userTypedValue@370c799454 FIREFOX_143_0_1_RELEASE
+  get userTypedValue() { return this.selectedBrowser.userTypedValue; },
   /** Set the URL string the user typed into the address bar for the selected browser. */
-  set userTypedValue(val: string) { const b = this.selectedBrowser as any; if (b) b.userTypedValue = val; },
+  // upstream: set userTypedValue@c1cc1829bd FIREFOX_143_0_1_RELEASE
+  set userTypedValue(val: string) { this.selectedBrowser.userTypedValue = val; },
 
   // ==========================================================================
-  // Navigation (inlined — no more NavigationSystem indirection)
+  // Navigation
   // tabbrowser.js L974~L999
   // ==========================================================================
 
@@ -125,25 +139,12 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * @param uri     - The URI string to load.
    * @param options - Navigation options; must include `triggeringPrincipal`.
    */
-  loadURI(uri: string, options: any = {}) {
-    const browser = this.selectedBrowser as any;
-    if (!browser) return;
-    if (!options.triggeringPrincipal) throw new Error("Must load with a triggering Principal");
-    let uriObj;
-    if (uri && uri !== "about:blank") {
-      try { uriObj = (Services as any).uriFixup.getFixupURIInfo(uri, 0).preferredURI; }
-      catch (_) { uriObj = (Services as any).io.newURI(uri); }
-    } else {
-      uriObj = (Services as any).io.newURI("about:blank");
-    }
-    try {
-      browser.isNavigating = true;
-      browser.webNavigation?.loadURI(uriObj, options);
-    } finally { browser.isNavigating = false; }
-  },
+  // upstream: loadURI@09edb025ec FIREFOX_143_0_1_RELEASE
+  loadURI(uri: nsIURI, params?: any) { return this.selectedBrowser.loadURI(uri, params); },
 
-  /** Load a URI string into the selected browser, delegating to {@link loadURI}. */
-  fixupAndLoadURIString(uri: string, options: any = {}) { this.loadURI(uri, options); },
+  /** Load a URI string into the selected browser; throws for unknown schemes. */
+  // upstream: fixupAndLoadURIString@934392cf64 FIREFOX_143_0_1_RELEASE
+  fixupAndLoadURIString(uriString: string, params?: any) { return this.selectedBrowser.fixupAndLoadURIString(uriString, params); },
 
   /**
    * Navigate the selected browser back one step in session history.
@@ -151,9 +152,9 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * @param requireUserInteraction - When `true`, skips entries not created through user interaction.
    * @returns `false` if there is no history to go back to.
    */
+  // upstream: goBack@c1a0456985 FIREFOX_143_0_1_RELEASE
   goBack(requireUserInteraction = false): boolean {
-    const nav = this._selNav();
-    return nav ? nav.goBack(requireUserInteraction) : false;
+    return this.selectedBrowser.goBack(requireUserInteraction);
   },
 
   /**
@@ -162,130 +163,137 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * @param requireUserInteraction - When `true`, skips entries not created through user interaction.
    * @returns `false` if there is no forward history.
    */
+  // upstream: goForward@09bcaa28d5 FIREFOX_143_0_1_RELEASE
   goForward(requireUserInteraction = false): boolean {
-    const nav = this._selNav();
-    return nav ? nav.goForward(requireUserInteraction) : false;
+    return this.selectedBrowser.goForward(requireUserInteraction);
   },
 
   /** Whether the selected browser can navigate back in session history. */
-  get canGoBack(): boolean { return this._selNav()?.canGoBack ?? false; },
+  // upstream: get canGoBack@03c2482adf FIREFOX_143_0_1_RELEASE
+  get canGoBack(): boolean { return this.selectedBrowser.canGoBack; },
   /** Whether the selected browser can navigate forward in session history. */
-  get canGoForward(): boolean { return this._selNav()?.canGoForward ?? false; },
+  // upstream: get canGoForward@4f434264ca FIREFOX_143_0_1_RELEASE
+  get canGoForward(): boolean { return this.selectedBrowser.canGoForward; },
   /** Whether the selected browser can navigate back, regardless of user-interaction requirements. */
-  get canGoBackIgnoringUserInteraction(): boolean { return this.canGoBack; },
+  // upstream: get canGoBackIgnoringUserInteraction@1b0230e4b1 FIREFOX_143_0_1_RELEASE
+  get canGoBackIgnoringUserInteraction(): boolean { return this.selectedBrowser.canGoBackIgnoringUserInteraction; },
 
   /** Reload the current page in the selected browser. */
-  reload(): void { this._selNav()?.reload(); },
+  // upstream: reload@0c5f2b081d FIREFOX_143_0_1_RELEASE
+  reload(): void { this.selectedBrowser.reload(); },
   /**
    * Reload the current page in the selected browser with specific load flags.
    *
    * @param flags - A bitmask of `nsIWebNavigation.LOAD_FLAGS_*` constants.
    */
-  reloadWithFlags(flags: number): void { this._selNav()?.reloadWithFlags(flags); },
+  // upstream: reloadWithFlags@c3ceacc96e FIREFOX_143_0_1_RELEASE
+  reloadWithFlags(flags: number): void { this.selectedBrowser.reloadWithFlags(flags); },
   /** Abort the current page load in the selected browser. */
-  stop(): void { this._selNav()?.stop(); },
+  // upstream: stop@e08321bf1b FIREFOX_143_0_1_RELEASE
+  stop(): void { this.selectedBrowser.stop(); },
   /**
    * Navigate to a specific entry in the selected browser's session history.
    *
    * @param index - Zero-based index into the session history list.
    */
-  gotoIndex(index: number): void { this._selNav()?.gotoIndex(index); },
+  // upstream: gotoIndex@12dbc14070 FIREFOX_143_0_1_RELEASE
+  gotoIndex(index: number): void { this.selectedBrowser.gotoIndex(index); },
 
   // ==========================================================================
-  // Tab Collection Accessors (deduplicated via _queryTabs)
-  // tabbrowser.js L974~L1053
+  // Tab Collection Accessors — the tab strip (tabs.js) keeps these lists
+  // tabbrowser.js L381~L437
   // ==========================================================================
-
-  /** All tab elements in the current window, in tab-order. */
-  get tabs() {
-    return this._queryTabs(() => true);
-  },
 
   /**
-   * All tab elements currently visible in the tab strip.
-   *
-   * Excludes hidden tabs, tabs inside collapsed groups, and the Firefox View tab.
+   * Returns all tabs in the current window, including hidden tabs and tabs
+   * in collapsed groups, but excluding closing tabs and the Firefox View tab.
    */
-  get visibleTabs() {
-    return this._queryTabs(t => {
-      if (t.isHidden || this._isInCollapsedGroup(t.id)) return false;
-      // Exclude Firefox View tab
-      try {
-        const tabEl = DOMRegistry.getTab(t.id);
-        if (tabEl === FirefoxViewHandler?.tab) return false;
-      } catch (_) { /* */ }
-      return true;
-    });
+  // upstream: get tabs@9d22602253 FIREFOX_143_0_1_RELEASE
+  get tabs(): MozTabbrowserTab[] {
+    return this.tabContainer.allTabs;
   },
 
-  /** All tab elements that are not currently in the process of closing. */
-  get openTabs() {
-    return this._queryTabs(t => !t.isClosing);
+  // upstream: get tabGroups@d7e7f7039f FIREFOX_143_0_1_RELEASE
+  get tabGroups(): any[] {
+    return this.tabContainer.allGroups;
   },
 
-  /** All tab elements that are neither hidden nor closing. */
-  get nonHiddenTabs() {
-    return this._queryTabs(t => !t.isHidden && !t.isClosing);
+  /** SessionStore が窓を畳むときに回す(collectWindowData)。 */
+  // upstream: get splitViews@27e67688c7 FIREFOX_155_0_1_RELEASE
+  get splitViews(): any[] {
+    return this.tabContainer.allSplitViews;
   },
 
-  /** The total number of pinned tabs in the current window. */
+  // upstream: get tabsInCollapsedTabGroups@91e29f388f FIREFOX_143_0_1_RELEASE
+  get tabsInCollapsedTabGroups(): MozTabbrowserTab[] {
+    return this.tabGroups
+      .filter((tabGroup: any) => tabGroup.collapsed)
+      .flatMap((tabGroup: any) => tabGroup.tabs)
+      .filter((tab: any) => !tab.hidden && !tab.closing);
+  },
+
+  /** Tabs that are not closing (hidden ones included). */
+  // upstream: get openTabs@6c79aba265 FIREFOX_143_0_1_RELEASE
+  get openTabs(): MozTabbrowserTab[] {
+    return this.tabContainer.openTabs;
+  },
+
+  /** Tabs that are neither hidden nor closing. */
+  // upstream: get nonHiddenTabs@4d915ac9a6 FIREFOX_143_0_1_RELEASE
+  get nonHiddenTabs(): MozTabbrowserTab[] {
+    return this.tabContainer.nonHiddenTabs;
+  },
+
+  /** Tabs shown in the strip: not hidden, not closing, not in a collapsed group. */
+  // upstream: get visibleTabs@c61295a7b6 FIREFOX_143_0_1_RELEASE
+  get visibleTabs(): MozTabbrowserTab[] {
+    return this.tabContainer.visibleTabs;
+  },
+
+  /** Pinned tabs come first, so this is where the first unpinned one sits. */
+  // upstream: get pinnedTabCount@9cd8267f50 FIREFOX_143_0_1_RELEASE
   get pinnedTabCount(): number {
-    let c = 0;
-    for (const id of appState.value.tabOrder) if (appState.value.tabs[id]?.isPinned) c++;
-    return c;
-  },
-
-  /** All tab group state objects for the current window. */
-  get tabGroups() {
-    return Object.values(appState.value.groups);
-  },
-
-  /** All tab elements that belong to a currently collapsed tab group. */
-  get tabsInCollapsedTabGroups() {
-    const s = appState.value;
-    return pipe(
-      Object.values(s.groups),
-      A.filter(g => g.isCollapsed),
-      A.flatMap(g => g.tabs),
-      A.filterMap(id => O.fromNullable(DOMRegistry.getTab(id))),
-    ) as Element[];
-  },
-
-  _isInCollapsedGroup(tabId: TabId): boolean {
-    const s = appState.value;
-    const gid = s.tabs[tabId]?.groupId;
-    return gid ? s.groups[gid]?.isCollapsed ?? false : false;
+    let i;
+    for (i = 0; i < this.tabs.length; i++) {
+      if (!this.tabs[i].pinned) {
+        break;
+      }
+    }
+    return i;
   },
 
   // ==========================================================================
   // Selected Tab
-  // tabbrowser.js L552~L640
+  // tabbrowser.js L451~L457, L552~L640
   // ==========================================================================
 
-  /** The currently active tab element, or `null` when no tab is selected. */
-  get selectedTab() {
-    const sel = selectedTabSignal.value;
-    return sel ? DOMRegistry.getTab(sel.id) ?? null : null;
+  // upstream: get selectedTab@f8dbcea455 FIREFOX_143_0_1_RELEASE
+  get selectedTab(): any {
+    return this._selectedTab;
   },
 
   /**
-   * Activate a tab, making it the focused tab and firing `TabSelect`.
-   * Passing `null` clears the selection (rarely needed outside tests).
+   * Activate a tab. tabbrowser.js setSelectedTab: hand the tab to the tabbox,
+   * which marks the tab strip, switches the panel deck, and fires `select`
+   * on tabpanels. That lands in updateCurrentBrowser — the one place the
+   * store learns which tab is current and `TabSelect` goes out.
    */
+  // upstream: set selectedTab@aeac3f54b9 FIREFOX_143_0_1_RELEASE
   set selectedTab(val: any) {
-    if (!val) { setSelectedTab(null); return; }
-    const id = resolveTabId(val);
-    if (!id) return;
-    setSelectedTab(id);
-    dispatch(this.tabContainer || document, "TabSelect");
-    const el = DOMRegistry.getTab(id);
-    if (el) dispatch(el, "TabSelect");
+    if (
+      (this.window as any).gSharedTabWarning.willShowSharedTabWarning(val) ||
+      this.window.document.documentElement.hasAttribute("window-modal-open") ||
+      ((this.window as any).gNavToolbox.collapsed && !this._allowTabChange)
+    ) {
+      return;
+    }
+    // Update the tab
+    this.tabbox.selectedTab = val;
   },
 
-  /** The `<browser>` element for the selected tab, or `null`. */
-  get selectedBrowser() {
-    const sel = selectedTabSignal.value;
-    return sel ? DOMRegistry.getBrowser(sel.id) ?? null : null;
+  // upstream: get selectedBrowser@0338e1fbc8 FIREFOX_143_0_1_RELEASE
+  get selectedBrowser(): XULBrowserElement {
+    return this._selectedBrowser;
   },
 
   /**
@@ -295,101 +303,64 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    */
   get selectedBrowsers() {
     const svBrowsers = this.splitViewBrowsers;
-    return svBrowsers.length ? svBrowsers : this.selectedBrowser ? [this.selectedBrowser] : [];
+    return svBrowsers.length ? svBrowsers : [this.selectedBrowser];
   },
 
   // ==========================================================================
-  // Split View
-  // noraneko extension — no direct tabbrowser.js equivalent
+  // Split View — a <tab-split-view-wrapper> in the strip holds the tabs
+  // (Firefox 154's shape; 143 has no such element, and nothing calls this yet)
   // ==========================================================================
 
-  /** The ID of the currently active split view, or `null` when no split view is open. */
-  get activeSplitView() { return appState.value.activeSplitViewId; },
+  /** The active split view wrapper, or null. */
+  get activeSplitView() { return this._activeSplitView; },
 
-  /** The browser elements for all panes in the active split view, or an empty array. */
-  get splitViewBrowsers(): Element[] {
-    const svId = appState.value.activeSplitViewId;
-    if (!svId) return [];
-    const sv = appState.value.splitViews[svId];
-    if (!sv) return [];
-    return pipe(sv.tabs, A.filterMap(id => O.fromNullable(DOMRegistry.getBrowser(id)))) as Element[];
+  /** The browsers of every pane in the active split view, or []. */
+  get splitViewBrowsers(): XULBrowserElement[] {
+    return this._activeSplitView ? this._activeSplitView.tabs.map((t: any) => t.linkedBrowser) : [];
   },
 
   /**
-   * Create a side-by-side split view for two tabs.
-   *
-   * Fires `TabSplitViewActivate` on success. The new split view becomes
-   * the `activeSplitView`.
-   *
-   * @param tab      - First tab (displayed on the left)
-   * @param otherTab - Second tab (displayed on the right)
+   * Show `tab` and `otherTab` side by side: both move into a new wrapper
+   * where `tab` was, and the wrapper becomes the active split view.
    */
   addTabSplitView(tab: MozTabbrowserTab, otherTab: MozTabbrowserTab) {
-    const id1 = resolveTabId(tab);
-    const id2 = resolveTabId(otherTab);
-    if (!id1 || !id2) return;
-    const svId = GroupOps.generateLegacyId();
-    appState.value = GroupOps.createSplitView(appState.value, svId, [id1, id2]);
-    appState.value = produce(appState.value, d => { d.activeSplitViewId = svId; });
-    dispatch(document, "TabSplitViewActivate");
+    const wrapper = this._createTabSplitView({ id: `${Date.now()}-${Math.round(Math.random() * 100)}` });
+    this.tabContainer.insertBefore(wrapper, tab);
+    this.moveTabToSplitView(tab, wrapper);
+    this.moveTabToSplitView(otherTab, wrapper);
+    this._activeSplitView = wrapper;
+    this.showSplitViewPanels(wrapper.tabs);
+    dispatch(this.window.document, "TabSplitViewActivate");
   },
 
-  /**
-   * Tear down a split view, returning its tabs to normal display.
-   * Fires `TabSplitViewDeactivate`.
-   *
-   * @param svId - Split view to remove; defaults to the currently active one
-   */
-  unsplitTabs(svId?: SplitViewId) {
-    const id = svId ?? appState.value.activeSplitViewId;
-    if (!id) return;
-    appState.value = GroupOps.removeSplitView(appState.value, id);
-    dispatch(document, "TabSplitViewDeactivate");
+  /** Take a split view apart: its tabs go back to the strip, the wrapper goes. */
+  unsplitTabs(splitView?: any) {
+    splitView ??= this._activeSplitView;
+    if (!splitView) return;
+    const tabs = [...splitView.tabs];
+    this.hideSplitViewPanels(tabs);
+    for (const t of tabs) {
+      this._handleTabMove(t, () => splitView.before(t));
+    }
+    splitView.remove();
+    if (this._activeSplitView === splitView) this._activeSplitView = null;
+    dispatch(this.window.document, "TabSplitViewDeactivate");
   },
 
   // ==========================================================================
-  // Browsers proxy
-  // tabbrowser.js L361~L428
+  // Browser ↔ Tab Lookup   (`browsers` is a class field: its proxy closes over `this`)
+  // tabbrowser.js L912~L914, L5783~L5785, L5803~L5817
   // ==========================================================================
 
-  /**
-   * An array-like proxy of all browser elements, indexed by tab order.
-   *
-   * Supports indexed access (`browsers[0]`) and `.length`. Mutations are not supported.
-   */
-  browsers: new Proxy([] as any, {
-    has: (_t: any, name: any) => {
-      if (typeof name === "string" && Number.isInteger(parseInt(name)))
-        return parseInt(name) < appState.value.tabOrder.length;
-      return false;
-    },
-    get: (_t: any, name: any) => {
-      if (name === "length") return appState.value.tabOrder.length;
-      if (typeof name === "string" && Number.isInteger(parseInt(name))) {
-        const id = appState.value.tabOrder[parseInt(name)];
-        return id ? DOMRegistry.getBrowser(id) : undefined;
-      }
-      return ([] as any)[name];
-    },
-  }),
+  // upstream: getBrowserForTab@8429d83149 FIREFOX_143_0_1_RELEASE
+  getBrowserForTab(tab: MozTabbrowserTab): XULBrowserElement | undefined {
+    return (tab as any).linkedBrowser;
+  },
 
-  // ==========================================================================
-  // Browser ↔ Tab Lookup
-  // tabbrowser.js L6174~L6195
-  // ==========================================================================
-
-  /** Return the `<browser>` element owned by `tab`, or `undefined`. */
-  getBrowserForTab(tab: MozTabbrowserTab) { const id = resolveTabId(tab); return id ? DOMRegistry.getBrowser(id) : undefined; },
-
-  /**
-   * Return the `<tab>` element that owns `browser`, or `null`.
-   * The lookup uses `browser._tabId` — a property stamped onto each browser
-   * element during tab creation.
-   */
+  /** The tab that owns `browser`, or null. */
+  // upstream: getTabForBrowser@44d5f9f1a6 FIREFOX_143_0_1_RELEASE
   getTabForBrowser(browser: XULBrowserElement): any {
-    if (!browser) return null;
-    const id = browser._tabId;
-    return id ? DOMRegistry.getTab(id) ?? null : null;
+    return this._tabForBrowser.get(browser);
   },
 
   /**
@@ -398,40 +369,18 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * @param index - Zero-based index into the ordered tab list.
    * @returns The browser element, or `null` if the index is out of range.
    */
-  getBrowserAtIndex(index: number) {
-    const id = appState.value.tabOrder[index];
-    return id ? DOMRegistry.getBrowser(id) : null;
+  // upstream: getBrowserAtIndex@92b0290b44 FIREFOX_143_0_1_RELEASE
+  getBrowserAtIndex(index: number): XULBrowserElement | null {
+    return this.browsers[index];
   },
 
   // ==========================================================================
-  // Tab Container (advanceSelectedTab deduplicated)
-  // tabbrowser.js L6461~L7362
+  // Tab Container
   // ==========================================================================
 
-  /**
-   * The `#tabbrowser-tabs` element, augmented with `advanceSelectedTab`.
-   *
-   * Falls back to a minimal stub object when the element is not yet in the DOM.
-   */
-  get tabContainer() {
-    const el = document.getElementById("tabbrowser-tabs") as any;
-    if (el) {
-      if (typeof el.advanceSelectedTab !== "function") {
-        el.advanceSelectedTab = advanceSelectedTab;
-      }
-      return el;
-    }
-    return this._fallbackContainer();
-  },
-
-  _fallbackContainer() {
-    return {
-      addEventListener: (n: string, cb: any, o?: any) => document.addEventListener(n, cb, o),
-      removeEventListener: (n: string, cb: any, o?: any) => document.removeEventListener(n, cb, o),
-      advanceSelectedTab,
-      allTabs: this.tabs,
-      get selectedIndex() { return selectedTabSignal.value?.index ?? -1; },
-    } as any;
+  /** The `#tabbrowser-tabs` element (tabs.js); tabbox.js gives it advanceSelectedTab. */
+  get tabContainer(): any {
+    return (this.window as any).document.getElementById("tabbrowser-tabs");
   },
 
   // ==========================================================================
@@ -439,18 +388,18 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
   // tabbrowser.js L6144~L6158
   // ==========================================================================
   /** Register an event listener on the `#tabbrowser-tabpanels` element. */
+  // upstream: addEventListener@29e59c39d6 FIREFOX_143_0_1_RELEASE
   addEventListener(...args: any[]) {
-    const panels = document.getElementById("tabbrowser-tabpanels");
-    if (panels) panels.addEventListener.apply(panels, args as any);
+    this.tabpanels.addEventListener(...args);
   },
   /** Remove an event listener from the `#tabbrowser-tabpanels` element. */
+  // upstream: removeEventListener@525f50207c FIREFOX_143_0_1_RELEASE
   removeEventListener(...args: any[]) {
-    const panels = document.getElementById("tabbrowser-tabpanels");
-    if (panels) panels.removeEventListener.apply(panels, args as any);
+    this.tabpanels.removeEventListener(...args);
   },
   /** Dispatch an event on the `#tabbrowser-tabpanels` element. */
+  // upstream: dispatchEvent@0ee6345cce FIREFOX_143_0_1_RELEASE
   dispatchEvent(...args: any[]): boolean {
-    const panels = document.getElementById("tabbrowser-tabpanels");
-    return panels ? panels.dispatchEvent.apply(panels, args as any) : false;
+    return this.tabpanels.dispatchEvent(...args);
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

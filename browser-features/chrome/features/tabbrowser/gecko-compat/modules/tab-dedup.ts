@@ -15,22 +15,19 @@ declare module "../TabbrowserCompat.ts" {
   }
 }
 
-export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
+export const methods = {
   /**
    * Returns all unpinned tabs that share the same URL as `tab`, excluding
    * `tab` itself.
    */
+  // upstream: getDuplicateTabsToClose@580fcd95b0 FIREFOX_143_0_1_RELEASE
   getDuplicateTabsToClose(tab: MozTabbrowserTab): any[] {
     const uri = (tab as any).linkedBrowser?.currentURI;
     if (!uri) return [];
-    
+
     return this.tabs.filter((t: any) => {
       if (t === tab || t.pinned) return false;
-      try {
-        return t.linkedBrowser?.currentURI?.equals?.(uri);
-      } catch (_) {
-        return false;
-      }
+      return t.linkedBrowser.currentURI.equals(uri);
     });
   },
 
@@ -38,22 +35,21 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
    * Returns all unpinned duplicate tabs across the window, keeping only the
    * first-encountered tab for each URL.
    */
+  // upstream: getAllDuplicateTabsToClose@05181e3111 FIREFOX_143_0_1_RELEASE
   getAllDuplicateTabsToClose(): any[] {
     const seenURIs = new Set();
     const duplicates: any[] = [];
 
     for (const tab of this.tabs) {
       if ((tab as any).pinned) continue;
-      try {
-        const uri = (tab as any).linkedBrowser?.currentURI;
-        if (!uri) continue;
-        const uriSpec = uri.spec;
-        if (seenURIs.has(uriSpec)) {
-          duplicates.push(tab);
-        } else {
-          seenURIs.add(uriSpec);
-        }
-      } catch (_) { /* */ }
+      const uri = (tab as any).linkedBrowser?.currentURI;
+      if (!uri) continue;
+      const uriSpec = uri.spec;
+      if (seenURIs.has(uriSpec)) {
+        duplicates.push(tab);
+      } else {
+        seenURIs.add(uriSpec);
+      }
     }
 
     return duplicates;
@@ -62,6 +58,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
   /**
    * Closes all unpinned duplicate tabs that share the same URL as `tab`.
    */
+  // upstream: removeDuplicateTabs@953d005894 FIREFOX_143_0_1_RELEASE
   removeDuplicateTabs(tab: MozTabbrowserTab, options?: any) {
     const duplicates = this.getDuplicateTabsToClose(tab);
     if (duplicates.length) {
@@ -72,6 +69,7 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
   /**
    * Closes all duplicate tabs across the window, keeping one tab per URL.
    */
+  // upstream: removeAllDuplicateTabs@4f64465810 FIREFOX_143_0_1_RELEASE
   removeAllDuplicateTabs() {
     const duplicates = this.getAllDuplicateTabsToClose();
     if (duplicates.length) {
@@ -79,10 +77,11 @@ export const methods: Partial<TabbrowserCompat> & ThisType<TabbrowserCompat> = {
     }
   },
 
+  // upstream: _removeDuplicateTabs@d2721a7c80 FIREFOX_143_0_1_RELEASE
   _removeDuplicateTabs(anchorElement: any, tabs: MozTabbrowserTab[], aCloseTabs: number, options?: any) {
     if (!this.warnAboutClosingTabs(tabs.length, aCloseTabs)) {
       return;
     }
     this.removeTabs(tabs, options);
   },
-};
+} satisfies Partial<TabbrowserCompat> & ThisType<TabbrowserCompat>;

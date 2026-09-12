@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 require "fileutils"
+require_relative "builder"
 require_relative "defines"
 require_relative "update"
 require_relative "utils"
@@ -49,7 +50,7 @@ module FelesBuild
       FileUtils.mkdir_p(dist)
       FileUtils.mkdir_p(File.join(gecko, "config"))
 
-      File.write(File.join(gecko, "config", "version.txt"), "version: 1.0.0\n")
+      File.write(File.join(gecko, "config", "version.txt"), "version: #{Builder.package_version}\n")
       buildid2 = Update.read_buildid2
       raise "buildid2 file not found at #{Defines::PATHS[:buildid2]}" if buildid2.nil?
 
