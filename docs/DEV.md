@@ -25,6 +25,9 @@ mise install
 mise exec -- deno task feles-build dev
 ```
 
+If you would rather not keep commands in your head, `deno task launcher` opens a
+page that does all of this from two buttons — see [Launcher](LAUNCHER.md).
+
 `mise install` only *installs* the tools — it does not put them on your `PATH`.
 Either keep the `mise exec --` prefix, or activate mise in your shell once
 (`eval "$(mise activate bash)"`, `zsh`, …) and then just
@@ -107,5 +110,6 @@ switch.
 
 ## Next
 
+- [Launcher](LAUNCHER.md) — the same thing from a page, with no commands to remember
 - [Build System](BUILD_SYSTEM.md) — what each step above actually does
 - [Architecture](ARCHITECTURE.md) — how the pieces fit together
