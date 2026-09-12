@@ -32,6 +32,7 @@ This runs `tools/feles-build.rb`, which orchestrates the entire build process.
 | `dev` | Development workflow - downloads binary, applies patches, builds in dev mode, starts dev servers, launches browser |
 | `stage` | Production build with dev-mode browser launch - useful for testing production assets |
 | `build --phase <phase>` | Production build for CI (phases: `before-mach`, `after-mach`) |
+| `stop` | Close the dev browser started from this checkout |
 | `misc patch --action <action>` | Patch management (actions: `apply`, `create`, `init`) |
 | `misc writeVersion` | Write version files for Gecko |
 
@@ -168,7 +169,23 @@ resource noraneko resource/ contentaccessible=yes
 
 **Logs:** Written to `logs/vite-*.log`
 
-### 7. Browser Launcher (`browser_launcher.rb`)
+### 7. Browser Launcher (`browser_launcher.rb`, with `dev_browser.rb`)
+
+**Closing the dev browser (`stop`).** Firefox hands a profile to whoever already holds it,
+so a dev browser left running from an earlier session silently swallows the next `dev` run —
+the new process starts, hands off, and exits. `deno task feles-build stop` closes it.
+
+Because this kills a browser, `DevBrowser` decides what it may touch from the narrow side.
+A process is closed only if **both** locks pass:
+
+1. its executable is under this checkout's `_dist/bin/`, and
+2. its `--profile` is exactly this checkout's `_dist/profile/test`.
+
+Both paths are built from `PROJECT_ROOT`, so an installed Noraneko — living outside the
+checkout and using the user's own profile — can never match either. A second lock is not
+redundant: a Noraneko started *from this checkout* with a different profile is left alone
+too. `tools/test/dev_browser_test.rb` pins this; if you ever loosen the rule, add a case there.
+
 
 **Purpose:** Launches the Noraneko browser with debugging enabled.
 
