@@ -20,8 +20,12 @@ import { Logger, runCommand, exists, safeRemove } from "./utils.ts";
 // runtime の取り先。
 // 1. NORANEKO_RUNTIME_TAG=passed-20260902074154 のように tag を指せば GitHub release のその tag。
 // 2. 無ければ dl.f3liz.casa(noraneko-ci の産物、B2)。/latest/<target> が最新の sha へ 302 する。
-// 3. dl に無ければ GitHub release。Apple Silicon の tar.xz は platform が揃うまで prerelease にしか無いので、
-//    その資産を持つ一番新しい release を API で探し、無ければ latest。
+// 3. dl に無ければ GitHub release。**その資産を持つ一番新しい release を API で探す**
+//    ── 新しい platform は、揃うまで prerelease にしか無いことがある(`latest` は
+//    その platform を持たないまま古くなる)。見つからなければ latest に任せる。
+//
+// どこにも無い platform は、そこで止めて**何が無いのか**を言う。黙って 404 の
+// bytes を書いて、あとで tar が転ぶより、そのほうが分かる。
 const NORANEKO_RUNTIME_REPO = "f3liz-casa/noraneko-runtime";
 const NORANEKO_DL = "https://dl.f3liz.casa/noraneko-runtime";
 const NORANEKO_RUNTIME_TAG = Deno.env.get("NORANEKO_RUNTIME_TAG");
@@ -45,6 +49,9 @@ async function runtimeUrl(filename: string): Promise<string> {
       try {
         const head = await fetch(`${NORANEKO_DL}/latest/${target}`, { method: "HEAD" });
         if (head.ok) {
+          // dl が返す名前は、いつも moz-artifact とは限らない(linux は package した
+          // ほうの名前で置かれていることがある)。中の形は同じ(`<base_name>/…`)なので
+          // そのまま使うけれど、**実際に取ったものの名前は出す**
           logger.info(`Runtime from dl.f3liz.casa: ${head.url}`);
           url = head.url;
           found = true;
@@ -53,7 +60,9 @@ async function runtimeUrl(filename: string): Promise<string> {
         // dl に届かなければ GitHub へ
       }
     }
-    if (!found && PLATFORM === "darwin" && Deno.build.arch === "aarch64") {
+    if (!found) {
+      // その資産を持つ、一番新しい release。platform が揃うまで prerelease にしか
+      // 無いことがあるので、`latest` だけを見ない(darwin に限らず、どの platform も)
       try {
         const resp = await fetch(
           `https://api.github.com/repos/${NORANEKO_RUNTIME_REPO}/releases?per_page=30`,
@@ -62,14 +71,25 @@ async function runtimeUrl(filename: string): Promise<string> {
         if (resp.ok) {
           const releases = (await resp.json()) as {
             tag_name: string;
+            prerelease?: boolean;
+            published_at?: string;
             assets: { name: string }[];
           }[];
           const hit = releases.find((r) =>
             r.assets.some((a) => a.name === filename)
           );
           if (hit) {
-            logger.info(`Runtime release with ${filename}: ${hit.tag_name}`);
+            logger.info(
+              `Runtime release with ${filename}: ${hit.tag_name}` +
+                (hit.published_at ? ` (${hit.published_at.slice(0, 10)})` : ""),
+            );
             url = gh(hit.tag_name);
+            found = true;
+          } else {
+            logger.warn(
+              `No release in the last 30 has ${filename} — ` +
+                `this platform may not be built yet. See docs/DEV.md.`,
+            );
           }
         }
       } catch {
@@ -408,7 +428,15 @@ export async function downloadBin(filename: string, url?: string): Promise<void>
 
   const resp = await fetch(downloadUrl);
   if (!resp.ok) {
-    throw new Error(`HTTP error ${resp.status}`);
+    // ここで止まるのは、たいてい「この platform の runtime が、まだどこにも
+    // 置かれていない」とき。何が無いのかと、どうすれば進めるのかを言う
+    throw new Error(
+      `HTTP ${resp.status} for ${downloadUrl}\n` +
+        `  ${filename} (${PLATFORM}/${Deno.build.arch}) がどこにも見つからない。\n` +
+        `  持っている tag を指すなら: NORANEKO_RUNTIME_TAG=<tag> deno task feles-build dev\n` +
+        `  置いてあるものの一覧: https://github.com/${NORANEKO_RUNTIME_REPO}/releases\n` +
+        `  どの platform が今あるのかは docs/DEV.md`,
+    );
   }
   const data = new Uint8Array(await resp.arrayBuffer());
   await Deno.writeFile(filename, data);

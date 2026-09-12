@@ -54,6 +54,7 @@ For developers and contributors, see the following documentation:
 
 | Document | Description |
 |----------|-------------|
+| [Development](docs/DEV.md) | Getting a dev browser running (macOS arm64 / Linux) |
 | [Architecture](docs/ARCHITECTURE.md) | High-level architecture overview |
 | [Build System](docs/BUILD_SYSTEM.md) | Build system and tooling documentation |
 | [Event Dispatcher](docs/RPC_SYSTEM_README.md) | Inter-module communication system |
