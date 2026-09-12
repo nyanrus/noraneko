@@ -11,6 +11,7 @@ abort "ruby #{RUBY_VERSION} は古い(3.1 以上が要る)。`mise install` で 
 
 require_relative "lib/browser_launcher"
 require_relative "lib/builder"
+require_relative "lib/dev_browser"
 require_relative "lib/dev_env_manager"
 require_relative "lib/dev_server"
 require_relative "lib/initializer"
@@ -32,6 +33,7 @@ module FelesBuild
       dev        Run the development workflow
       stage      Build production assets and run browser in dev mode
       build      Run the production build workflow (--phase before-mach|after-mach)
+      stop       Close the dev browser started from this checkout
       misc       Misc commands (e.g. 'misc patch --action apply', 'misc writeVersion')
   TXT
 
@@ -118,6 +120,7 @@ module FelesBuild
       prepare("stage")
       serve_and_launch
     when "build" then run_build(flag(argv, "--phase"))
+    when "stop" then DevBrowser.stop
     when "misc" then run_misc(argv)
     when "--help", "-h", nil then puts USAGE
     else
