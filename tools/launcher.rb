@@ -19,6 +19,7 @@ COMMANDS = {
   "dev" => %w[dev],
   "stage" => %w[stage],
   "before-mach" => %w[build --phase before-mach],
+  "stop-browser" => %w[stop],
   "patch-apply" => %w[misc patch --action apply],
   "write-version" => %w[misc writeVersion],
 }.freeze
@@ -139,7 +140,7 @@ PAGE = <<~HTML
   </main>
   <script>
     const TOKEN = new URLSearchParams(location.search).get("t") || "";
-    const NAMES = { "dev": "dev", "stage": "stage", "before-mach": "build (before-mach)",
+    const NAMES = { "dev": "dev", "stage": "stage", "before-mach": "build (before-mach)", "stop-browser": "開発用を閉じる",
                     "patch-apply": "patch apply", "write-version": "writeVersion" };
     const buttons = document.getElementById("buttons");
     const log = document.getElementById("log");
