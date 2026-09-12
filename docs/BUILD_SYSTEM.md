@@ -11,7 +11,9 @@ Noraneko's build system is designed to:
 4. Inject the built assets into the runtime
 5. Create the final distributable package
 
-The build system is TypeScript on **Deno**, with the file-touching parts in **Ruby** (`tools/lib/`). Both come from `mise install`.
+The build system is **Ruby** (`tools/`). It never uses the JS ecosystem as a library — it only
+starts programs: `deno task build` / `vite` for the bundling, and `git` / `unzip` / `zip` / `tar` /
+`curl` / `codesign` for everything else. Ruby and Deno both come from `mise install`.
 
 ## Entry Point
 
@@ -20,7 +22,8 @@ The main build entry point is:
 deno task feles-build <command>
 ```
 
-This runs `tools/feles-build.ts`, which orchestrates the entire build process.
+This runs `tools/feles-build.rb`, which orchestrates the entire build process.
+(`deno task` is kept as the front door so the command people type does not change.)
 
 ## Commands
 
@@ -34,17 +37,32 @@ This runs `tools/feles-build.ts`, which orchestrates the entire build process.
 
 ## Build Components
 
-Build components live in two places, split by what they need:
+All build steps live in `tools/lib/`, and `tools/feles-build.rb` calls them in order.
 
-- `tools/src/` — TypeScript, run by Deno. Everything that touches the JS
-  ecosystem (vite, the omni.ja editing via JSZip, the patch application via
-  npm:diff).
-- `tools/lib/` — Ruby, run by `ruby`. The parts that only touch files and start
-  programs. One door: `ruby tools/lib/build.rb <step>` (run it with no arguments
-  to list the steps). `tools/src/utils.ts` calls it with `runRuby()` /
-  `runRubyCapture()`. (`tools/scripts/build-drop.rb` is Ruby for the same reason.)
+### omni.ja: unpacked once, sealed once
 
-### 1. Initializer (`initializer.ts`)
+A packaged runtime keeps most of the browser inside `browser/omni.ja` (a STORE zip).
+`tools/lib/omni.rb` unpacks it into `_dist/omni/` at the start of a run and seals it back
+at the end, so the steps in between (patcher, injector, xhtml) only ever see plain files.
+
+That is why there is no zip library and no diff library in this repo:
+
+| | how |
+|---|---|
+| Applying patches | `git apply --directory <root>` — the same command for the packaged and the flat layout, because the unpacked tree *is* the flat layout |
+| Editing `chrome.manifest`, `built_in_addons.json` | reading and writing the file |
+| Editing `browser.xhtml` | text, touching only the `data-geckomixin` script it wrote itself |
+| Sealing | `zip -0DXqr` — the same flags mozpack's OmniJarFormatter uses |
+
+`Omni.root` is the unpacked tree when the runtime is packaged, and the binary directory
+when it is not. Every step works against that root. The unpacked tree is kept between runs
+(so `misc patch --action create` can keep a git repo in it); the initializer discards it
+when it extracts a new runtime.
+
+Sealing is the last thing that touches the bundle, which is why the ad-hoc `codesign`
+comes right after it.
+
+### 1. Initializer (`initializer.rb`)
 
 **Purpose:** Ensures the runtime binary is present and properly configured.
 
@@ -58,7 +76,7 @@ Build components live in two places, split by what they need:
 - Windows/Linux: `_dist/bin/noraneko/`
 - macOS: `_dist/bin/noraneko/Noraneko.app/Contents/Resources/`
 
-### 2. Patcher (`patcher.ts`)
+### 2. Patcher (`patcher.rb`)
 
 **Purpose:** Applies patches to the runtime binary to enable Noraneko features.
 
@@ -73,7 +91,7 @@ Build components live in two places, split by what they need:
 1. Patches are stored in `tools/patches/` as `.patch` files
 2. Applied patches are tracked in `_dist/bin/applied_patches/`
 3. If patches change, old ones are reversed before applying new ones
-4. Patches use `git apply` with `--unsafe-paths`
+4. Patches use `git apply --directory <Omni.root>` with `--unsafe-paths`
 
 **Patched Files:**
 Check `tools/patches/` for the current list of patches. Common patches target:
@@ -83,7 +101,7 @@ Check `tools/patches/` for the current list of patches. Common patches target:
 
 > **Note:** Patches with `.temp` suffix are not applied automatically.
 
-### 3. Symlinker (`tools/lib/symlinker.rb`, step `symlink`)
+### 3. Symlinker (`symlinker.rb`)
 
 **Purpose:** Creates symbolic links for development mode.
 
@@ -94,7 +112,7 @@ Check `tools/patches/` for the current list of patches. Common patches target:
 | `bridge/loader-features/link-i18n` | `i18n` |
 | `bridge/loader-modules/link-modules` | `browser-features/modules` |
 
-### 4. Builder (`builder.ts`)
+### 4. Builder (`builder.rb`)
 
 **Purpose:** Builds the actual Noraneko features and modules.
 
@@ -113,14 +131,14 @@ Same as dev, but with production flags.
 | `bridge/loader-modules/_dist` | Module resources |
 | `browser-features/chrome/_dist` | Chrome content |
 
-### 5. Injector (`injector.ts`)
+### 5. Injector (`injector.rb`, with `xhtml.rb`)
 
 **Purpose:** Injects built assets into the runtime binary.
 
 **Key Functions:**
 - `run(mode)` - Creates manifest and symlinks built assets into binary directory
 - `createManifest()` - Generates `noraneko.manifest` for chrome registration
-- `injectXhtmlFromTs()` - Runs XHTML injection script
+- `Xhtml.inject(root, dev:)` - Adds the startup script, and loosens the CSP in dev
 
 **Manifest Structure:**
 ```
@@ -138,7 +156,7 @@ resource noraneko resource/ contentaccessible=yes
 | `skin/` | `browser-features/skin` |
 | `resource/` | `bridge/loader-modules/_dist` |
 
-### 6. Dev Server (`dev_server.ts`)
+### 6. Dev Server (`dev_server.rb`)
 
 **Purpose:** Runs Vite development servers for hot module replacement (HMR).
 
@@ -150,7 +168,7 @@ resource noraneko resource/ contentaccessible=yes
 
 **Logs:** Written to `logs/vite-*.log`
 
-### 7. Browser Launcher (`browser_launcher.ts`)
+### 7. Browser Launcher (`browser_launcher.rb`)
 
 **Purpose:** Launches the Noraneko browser with debugging enabled.
 
@@ -160,7 +178,7 @@ resource noraneko resource/ contentaccessible=yes
 - `--wait-for-browser`
 - `--jsdebugger`
 
-### 8. Dev Env Manager (`tools/lib/dev_env_manager.rb`, step `dev-env`)
+### 8. Dev Env Manager (`dev_env_manager.rb`)
 
 **Purpose:** Sets up the development environment.
 
@@ -169,17 +187,17 @@ resource noraneko resource/ contentaccessible=yes
 - `writeDevVersionInfo()` - Writes version information
 - `setup()` - Runs both above functions
 
-### 9. Update (`tools/lib/update.rb`)
+### 9. Update (`update.rb`)
 
 **Purpose:** Manages version and build information.
 
 **Key Functions:**
-- step `write-version <dir>` - Writes version to Gecko config
-- step `write-buildid2 <id>` - Writes build ID to `_dist/buildid2`
-- step `uuid` - Prints a UUID v7 (`SecureRandom.uuid_v7`) for builds
-- step `update-xml <meta.json> <out>` - Creates update manifest for MAR updates (nothing calls this)
+- `write_version(dir)` - Writes version to Gecko config
+- `write_buildid2(id)` - Writes build ID to `_dist/buildid2`
+- `build_id` - A UUID v7 (`SecureRandom.uuid_v7`) for builds
+- `generate_update_xml(meta, out)` - Creates update manifest for MAR updates (nothing calls this)
 
-### 10. Defines (`defines.ts`)
+### 10. Defines (`defines.rb`)
 
 **Purpose:** Central configuration and path definitions.
 
@@ -191,54 +209,56 @@ resource noraneko resource/ contentaccessible=yes
 - `BIN_DIR`, `BIN_PATH_EXE` - Runtime binary paths
 - `DEV_SERVER` - Dev server configuration
 
-### 11. Utils (`utils.ts`)
+### 11. Utils (`utils.rb`, with `omni.rb`)
 
 **Purpose:** Shared utility functions.
 
 **Key Functions:**
-- `runCommand()`, `runCommandChecked()` - Execute shell commands
-- `exists()` - Check file/directory existence
-- `safeRemove()` - Safe recursive deletion
-- `createSymlink()` - Create symbolic links
-- `Logger` - Colored console logging
-- `ProcessUtils` - Stream stdout/stderr with callbacks
-- `runRuby()`, `runRubyCapture()` - Run one step of `tools/lib/build.rb`
+- `Utils.run()`, `Utils.run_checked()` - Execute commands
+- `Utils.run_with_logging()` - Execute, yielding each line as it comes
+- `Omni.open` / `Omni.seal` / `Omni.root` - The unpacked omni.ja
+- `Utils.create_symlink()` - Create symbolic links
+- `Utils::Logger` - Colored console logging
 
 ## Development Workflow
 
 When you run `deno task feles-build dev`:
 
 ```
-1. Initializer.run()
-   └── Check/download runtime binary
-   └── Extract if needed
-   └── Save developer preferences
+1. Initializer.run
+   └── Check/download runtime binary, extract if needed
 
-2. Patcher.run("apply")
-   └── Apply patches to runtime
+2. Omni.open
+   └── Unpack browser/omni.ja into _dist/omni (no-op if already unpacked,
+       or if the runtime is a flat build)
 
-3. ruby tools/lib/build.rb symlink
+3. Patcher.run("apply")
+   └── git apply --directory <Omni.root>
+
+4. Symlinker.run
    └── Create development symlinks
 
-4. Builder.run("dev")
-   └── Build startup scripts
-   └── Build loader modules
-   └── Build chrome features
+5. Builder.run("dev", build_id)
+   └── deno task build in each package
 
-5. Injector.run("dev")
-   └── Create chrome.manifest
-   └── Create noraneko.manifest
-   └── Symlink built assets into runtime
+6. Injector.run("dev")
+   └── chrome.manifest + built_in_addons.json (packaged),
+       or noraneko.manifest + noraneko-devdir (flat)
 
-6. ruby tools/lib/build.rb dev-env
-   └── Save profile preferences
-   └── Write version info
+7. Xhtml.inject(Omni.root, dev: true)
+   └── The startup script in browser.xhtml, the dev CSP in preferences.xhtml
 
-7. DevServer.run()
-   └── Start Vite dev servers (HMR)
+8. Omni.seal
+   └── zip -0DXqr back into browser/omni.ja  ← the last write to the bundle
 
-8. BrowserLauncher.run()
-   └── Launch browser with debugging
+9. Initializer.resign_mac_app
+   └── Ad-hoc codesign, because 8 broke the seal
+
+10. DevEnvManager.setup
+    └── Profile preferences, version info
+
+11. DevServer.run  →  BrowserLauncher.run
+    └── Vite, then the browser; when the browser closes, Vite is stopped
 ```
 
 ## Production Build Workflow (CI)
@@ -264,27 +284,24 @@ Between phases, `mach build` runs to build the Firefox runtime with artifact bui
 
 ```
 tools/
-├── feles-build.ts         # Main entry point
-├── src/                   # TypeScript, run by Deno
-│   ├── builder.ts         # Asset building
-│   ├── browser_launcher.ts # Browser launch
-│   ├── defines.ts         # Constants/paths (the platform-dependent ones)
-│   ├── dev_server.ts      # Vite dev servers
-│   ├── initializer.ts     # Binary initialization
-│   ├── injector.ts        # Asset injection
-│   ├── patcher.ts         # Patch management
-│   └── utils.ts           # Shared utilities (incl. runRuby)
-├── lib/                   # Ruby, run by `ruby`
-│   ├── build.rb           # The one door: `build.rb <step>`
-│   ├── defines.rb         # Paths the Ruby side uses
-│   ├── dev_env_manager.rb # Dev environment setup
-│   ├── symlinker.rb       # Symlink creation
-│   ├── update.rb          # Version / build id
-│   └── utils.rb           # Logger
-├── patches/               # Runtime patches
+├── feles-build.rb          # Main entry point
+├── lib/
+│   ├── browser_launcher.rb # Browser launch
+│   ├── builder.rb          # Asset building
+│   ├── defines.rb          # Names, paths, which runtime to fetch
+│   ├── dev_env_manager.rb  # Dev environment setup
+│   ├── dev_server.rb       # Vite dev servers
+│   ├── initializer.rb      # Binary download / extraction / codesign
+│   ├── injector.rb         # chrome.manifest, built-in addons
+│   ├── omni.rb             # Unpack / seal browser/omni.ja
+│   ├── patcher.rb          # Patch management (git apply)
+│   ├── symlinker.rb        # Symlink creation
+│   ├── update.rb           # Version / build id
+│   ├── utils.rb            # Run commands, symlinks, Logger
+│   └── xhtml.rb            # XHTML injection
+├── patches/                # Runtime patches
 └── scripts/
-    ├── build-drop.rb      # webext-actor -> drop (xpi)
-    └── xhtml.ts           # XHTML injection
+    └── build-drop.rb       # webext-actor -> drop (xpi)
 ```
 
 ## Output Structure

@@ -94,7 +94,7 @@ page  ←exportFunction→  content.js  ←sendQuery→  parent.sys.mjs  →  ac
 
 ## 登録
 
-- **omni レイアウト（本番に近い dev）**：`tools/src/injector.ts` が omni.ja 内の
+- **omni レイアウト（本番に近い dev）**：`tools/lib/injector.rb` が omni.ja（ほどいた木）の
   `built_in_addons.json` に `_dist/builtins.json` の各拡張を追記（Firefox と同じ
   **build 時登録**。about:newtab の起動競合を避けられる）。
 - **flat レイアウト**：`NoranekoStartup.sys.mts` が `final-ui-startup` で

@@ -13,7 +13,18 @@ module FelesBuild
 
     # build ごとに変わる id。Mozilla は buildid で update を見るが、それは build 時に決まって
     # 動かないので、版を上げずに release を差し替えるための二本目として buildid2 がある。
-    def self.build_id = SecureRandom.uuid_v7
+    #
+    # UUIDv7(頭 48 bit が unix 時刻の ms なので、並べると時間順になる)。
+    # SecureRandom.uuid_v7 は ruby 3.3 からで、CI の ubuntu-latest はまだ 3.2 なので自分で組む。
+    def self.build_id
+      ms = (Time.now.to_f * 1000).to_i
+      bytes = [ms >> 40, ms >> 32, ms >> 24, ms >> 16, ms >> 8, ms].pack("C6") + SecureRandom.bytes(10)
+      bytes = bytes.bytes
+      bytes[6] = (bytes[6] & 0x0f) | 0x70 # version 7
+      bytes[8] = (bytes[8] & 0x3f) | 0x80 # variant 10
+      hex = bytes.pack("C16").unpack1("H*")
+      [hex[0, 8], hex[8, 4], hex[12, 4], hex[16, 4], hex[20, 12]].join("-")
+    end
 
     def self.package_version
       JSON.parse(File.read(File.join(Defines::PROJECT_ROOT, "package.json")))["version"]
